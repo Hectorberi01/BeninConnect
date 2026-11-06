@@ -1,0 +1,180 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:vm="using:BeninConnect.App.Features.Settings.ViewModels"
+             x:Class="BeninConnect.App.Features.Settings.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+  <UserControl.Styles>
+    <Style Selector="ToggleSwitch">
+      <Setter Property="OnContent" Value="" />
+      <Setter Property="OffContent" Value="" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+    </Style>
+    <Style Selector="Grid.setting">
+      <Setter Property="MinHeight" Value="48" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="Auto,*">
+    <sc:AppHeader Title="Paramètres" BackCommand="{Binding GoBackCommand}" />
+    <ScrollViewer Grid.Row="1">
+      <StackPanel Margin="{StaticResource PagePadding}" Spacing="14">
+
+        <!-- Compte -->
+        <TextBlock Classes="section" Text="Compte" />
+        <Border Classes="card" Padding="12,8">
+          <StackPanel>
+            <Button Classes="row" Command="{Binding EditProfileCommand}">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <c:AvatarView Initials="{Binding Initials}" ColorHex="{Binding AvatarColor}" Size="44" />
+                <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+                  <TextBlock Classes="caption" Text="{Binding Email}" />
+                </StackPanel>
+                <PathIcon Grid.Column="2" Classes="secondary small" Data="{StaticResource Icon.ChevronRight}" />
+              </Grid>
+            </Button>
+          </StackPanel>
+        </Border>
+
+        <!-- Confidentialité -->
+        <TextBlock Classes="section" Text="Confidentialité" />
+        <Border Classes="card" Padding="16,4">
+          <StackPanel>
+            <Grid Classes="setting" ColumnDefinitions="*,Auto">
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Profil privé" />
+                <TextBlock Classes="caption" Text="Seuls vos contacts voient vos publications." />
+              </StackPanel>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding PrivateProfile}" AutomationProperties.Name="Profil privé" />
+            </Grid>
+            <Border Classes="separator" />
+            <Grid Classes="setting" ColumnDefinitions="*,Auto">
+              <TextBlock Text="Afficher ma ville" VerticalAlignment="Center" />
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowCity}" AutomationProperties.Name="Afficher ma ville" />
+            </Grid>
+            <Border Classes="separator" />
+            <Grid Classes="setting" ColumnDefinitions="*,Auto">
+              <TextBlock Text="Autoriser les messages des membres" VerticalAlignment="Center" TextWrapping="Wrap" />
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding AllowMessages}" AutomationProperties.Name="Autoriser les messages" />
+            </Grid>
+            <Border Classes="separator" />
+            <Button Classes="row" Command="{Binding ShowPrivacyInfoCommand}">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <PathIcon Data="{StaticResource Icon.Shield}" Foreground="{DynamicResource PrimaryBrush}" />
+                <TextBlock Grid.Column="1" Margin="12,0" Text="Comment sont gérées mes données ?" VerticalAlignment="Center" />
+                <PathIcon Grid.Column="2" Classes="secondary small" Data="{StaticResource Icon.ChevronRight}" />
+              </Grid>
+            </Button>
+          </StackPanel>
+        </Border>
+
+        <!-- Notifications -->
+        <TextBlock Classes="section" Text="Notifications" />
+        <Border Classes="card" Padding="16,4">
+          <StackPanel>
+            <Grid Classes="setting" ColumnDefinitions="*,Auto">
+              <TextBlock Text="Réactions et commentaires" VerticalAlignment="Center" />
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding NotifySocial}" AutomationProperties.Name="Notifications sociales" />
+            </Grid>
+            <Border Classes="separator" />
+            <Grid Classes="setting" ColumnDefinitions="*,Auto">
+              <TextBlock Text="Activité des communautés" VerticalAlignment="Center" />
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding NotifyCommunities}" AutomationProperties.Name="Notifications des communautés" />
+            </Grid>
+            <Border Classes="separator" />
+            <Grid Classes="setting" ColumnDefinitions="*,Auto">
+              <TextBlock Text="Nouveaux messages" VerticalAlignment="Center" />
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding NotifyMessages}" AutomationProperties.Name="Notifications de messages" />
+            </Grid>
+            <Border Classes="separator" />
+            <Grid Classes="setting" ColumnDefinitions="*,Auto">
+              <TextBlock Text="Rappels d'événements" VerticalAlignment="Center" />
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding NotifyEvents}" AutomationProperties.Name="Rappels d'événements" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Apparence -->
+        <TextBlock Classes="section" Text="Apparence" />
+        <Border Classes="card" Padding="16,8">
+          <StackPanel Spacing="4">
+            <RadioButton GroupName="theme" Content="Clair" IsChecked="{Binding IsLightTheme}" />
+            <RadioButton GroupName="theme" Content="Sombre" IsChecked="{Binding IsDarkTheme}" />
+            <RadioButton GroupName="theme" Content="Selon le système" IsChecked="{Binding IsSystemTheme}" />
+          </StackPanel>
+        </Border>
+
+        <!-- Langue -->
+        <TextBlock Classes="section" Text="Langue" />
+        <Border Classes="card" Padding="12,8">
+          <StackPanel>
+            <Button Classes="row" Command="{Binding SelectFrenchCommand}">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <PathIcon Data="{StaticResource Icon.Globe}" Foreground="{DynamicResource PrimaryBrush}" />
+                <TextBlock Grid.Column="1" Margin="12,0" Text="Français" VerticalAlignment="Center" />
+                <PathIcon Grid.Column="2" Data="{StaticResource Icon.Check}" Foreground="{DynamicResource PrimaryBrush}" />
+              </Grid>
+            </Button>
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="4,12" Opacity="0.5">
+              <PathIcon Data="{StaticResource Icon.Globe}" />
+              <TextBlock Grid.Column="1" Margin="12,0" Text="English" VerticalAlignment="Center" />
+              <TextBlock Grid.Column="2" Classes="caption" Text="Bientôt" VerticalAlignment="Center" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Développeur -->
+        <TextBlock Classes="section" Text="Mode développeur" IsVisible="{Binding IsDeveloperAvailable}" />
+        <Border Classes="card" Padding="16,4" IsVisible="{Binding IsDeveloperAvailable}">
+          <Grid Classes="setting" ColumnDefinitions="*,Auto">
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Simuler des erreurs réseau" />
+              <TextBlock Classes="caption" TextWrapping="Wrap" Text="Pour tester les états d'erreur et le bouton Réessayer." />
+            </StackPanel>
+            <ToggleSwitch Grid.Column="1" IsChecked="{Binding SimulateErrors}" AutomationProperties.Name="Simuler des erreurs" />
+          </Grid>
+        </Border>
+
+        <!-- Source de données -->
+        <TextBlock Classes="section" Text="Source de données" IsVisible="{Binding IsDeveloperAvailable}" />
+        <Border Classes="card" IsVisible="{Binding IsDeveloperAvailable}">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="caption" Text="{Binding ActiveSourceText}" TextWrapping="Wrap" />
+            <RadioButton GroupName="source" Content="Données de démonstration (hors ligne)" IsChecked="{Binding UseDemoData}" />
+            <RadioButton GroupName="source" Content="API BéninConnect (serveur)" IsChecked="{Binding UseApi}" />
+            <TextBox Text="{Binding ApiUrl}" Watermark="http://192.168.1.20:5080" IsVisible="{Binding UseApi}"
+                     TextInputOptions.ContentType="Url" AutomationProperties.Name="Adresse de l'API" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" IsVisible="{Binding UseApi}"
+                       Text="Sur iPhone, utilisez l'adresse IP du Mac sur le Wi-Fi. Émulateur Android : http://10.0.2.2:5080." />
+            <Button Classes="secondary" HorizontalAlignment="Stretch" Content="Enregistrer (appliqué au redémarrage)" Command="{Binding ApplyDataSourceCommand}" />
+          </StackPanel>
+        </Border>
+
+        <!-- À propos -->
+        <TextBlock Classes="section" Text="À propos" />
+        <Border Classes="card" Padding="12,8">
+          <Button Classes="row" Command="{Binding ShowAboutCommand}">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <PathIcon Data="{StaticResource Icon.Info}" Foreground="{DynamicResource PrimaryBrush}" />
+              <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                <TextBlock Text="BéninConnect Community" />
+                <TextBlock Classes="caption" Text="{Binding Version}" />
+              </StackPanel>
+              <PathIcon Grid.Column="2" Classes="secondary small" Data="{StaticResource Icon.ChevronRight}" />
+            </Grid>
+          </Button>
+        </Border>
+
+        <!-- Déconnexion -->
+        <Button Classes="danger" HorizontalAlignment="Stretch" Margin="0,8,0,0" Command="{Binding LogoutCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <PathIcon Data="{StaticResource Icon.Logout}" Width="18" Height="18" />
+            <TextBlock Text="Se déconnecter" />
+          </StackPanel>
+        </Button>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

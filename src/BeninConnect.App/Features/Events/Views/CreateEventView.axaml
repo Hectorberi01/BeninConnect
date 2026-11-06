@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:conv="using:BeninConnect.App.Core.Converters"
+             xmlns:vm="using:BeninConnect.App.Features.Events.ViewModels"
+             xmlns:fvm="using:BeninConnect.App.Features.Feed.ViewModels"
+             x:Class="BeninConnect.App.Features.Events.Views.CreateEventView"
+             x:DataType="vm:CreateEventViewModel">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <sc:AppHeader Title="Créer un événement" BackCommand="{Binding GoBackCommand}" />
+    <ScrollViewer Grid.Row="1">
+      <StackPanel Margin="{StaticResource PagePadding}" Spacing="16">
+        <c:AppTextBox Label="Titre" Text="{Binding Title}" MaxLength="80" Watermark="Ex. : Soirée culturelle béninoise" ErrorText="{Binding TitleError}" />
+        <c:AppTextBox Label="Description" Text="{Binding Description}" IsMultiline="True" MaxLength="1000"
+                      Watermark="Programme, public visé, ce qu'il faut apporter…" ErrorText="{Binding DescriptionError}" />
+        <StackPanel Spacing="6">
+          <TextBlock Classes="label" Text="Catégorie" />
+          <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding Category}" PlaceholderText="Choisir une catégorie" />
+          <TextBlock Classes="error" Text="{Binding CategoryError}" IsVisible="{Binding CategoryError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+          <TextBlock Classes="label" Text="Date" />
+          <DatePicker SelectedDate="{Binding Date}" DayFormat="dd" MonthFormat="MMMM" YearFormat="yyyy" />
+          <TextBlock Classes="label" Text="Heure de début" Margin="0,6,0,0" />
+          <TimePicker SelectedTime="{Binding StartTime}" ClockIdentifier="24HourClock" MinuteIncrement="15" />
+          <TextBlock Classes="error" Text="{Binding DateError}" IsVisible="{Binding DateError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+
+        <Grid ColumnDefinitions="*,12,*">
+          <c:AppTextBox Label="Durée (heures)" Text="{Binding DurationHours}" ContentType="Digits" MaxLength="2" ErrorText="{Binding DurationError}" />
+          <c:AppTextBox Grid.Column="2" Label="Capacité (facultatif)" Text="{Binding Capacity}" ContentType="Digits" MaxLength="5"
+                        Watermark="Illimitée" ErrorText="{Binding CapacityError}" />
+        </Grid>
+
+        <Grid ColumnDefinitions="*,12,*">
+          <c:AppTextBox Label="Ville" Text="{Binding City}" ErrorText="{Binding CityError}" />
+          <c:AppTextBox Grid.Column="2" Label="Pays" Text="{Binding Country}" />
+        </Grid>
+        <c:AppTextBox Label="Adresse" Text="{Binding Address}" Watermark="Lieu, ou « En ligne »" ErrorText="{Binding AddressError}" />
+
+        <StackPanel Spacing="6">
+          <TextBlock Classes="label" Text="Communauté organisatrice (facultatif)" />
+          <ComboBox ItemsSource="{Binding CommunityOptions}" SelectedItem="{Binding SelectedCommunity}" />
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="label" Text="Image" />
+          <ItemsControl ItemsSource="{Binding Images}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="fvm:ImageOption">
+                <Button Classes="bare" Margin="0,0,8,8" Command="{Binding SelectCommand}" AutomationProperties.Name="Choisir cette image">
+                  <Border Width="96" Height="60" CornerRadius="10" ClipToBounds="True" BorderThickness="3"
+                          BorderBrush="{DynamicResource PrimaryBrush}" Classes.unselected="{Binding !IsSelected}">
+                    <Image Source="{Binding Path, Converter={x:Static conv:AppConverters.AssetBitmap}}" Stretch="UniformToFill" />
+                  </Border>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+        <Border Classes="soft" Background="{DynamicResource ErrorLightBrush}"
+                IsVisible="{Binding FormError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <TextBlock Text="{Binding FormError}" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" />
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+    <Border Grid.Row="2" Padding="16,8,16,12">
+      <c:PrimaryButton HorizontalAlignment="Stretch" Content="Publier l'événement" Command="{Binding PublishCommand}" />
+    </Border>
+  </Grid>
+</UserControl>

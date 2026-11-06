@@ -1,0 +1,154 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:conv="using:BeninConnect.App.Core.Converters"
+             xmlns:vm="using:BeninConnect.App.Features.Profile.ViewModels"
+             xmlns:fvm="using:BeninConnect.App.Features.Feed.ViewModels"
+             xmlns:cvm="using:BeninConnect.App.Features.Communities.ViewModels"
+             xmlns:fc="using:BeninConnect.App.Features.Feed.Components"
+             xmlns:cc="using:BeninConnect.App.Features.Communities.Components"
+             x:Class="BeninConnect.App.Features.Profile.Views.ProfileView"
+             x:DataType="vm:ProfileViewModel">
+  <Panel>
+    <sc:LoadingState IsVisible="{Binding IsLoading}" VerticalAlignment="Center" />
+    <sc:ErrorState IsVisible="{Binding IsError}" Message="{Binding ErrorMessage}" RetryCommand="{Binding RetryCommand}" VerticalAlignment="Center" />
+
+    <ScrollViewer IsVisible="{Binding IsContent}">
+      <StackPanel Spacing="16" Margin="0,0,0,24">
+        <!-- Couverture + avatar -->
+        <Panel Height="230">
+          <Image Source="{Binding CoverImage, Converter={x:Static conv:AppConverters.AssetBitmap}}" Height="170" Stretch="UniformToFill" VerticalAlignment="Top" />
+          <Button Classes="icon filled" Margin="12" HorizontalAlignment="Left" VerticalAlignment="Top"
+                  Command="{Binding GoBackCommand}" IsVisible="{Binding IsOtherUser}" AutomationProperties.Name="Retour">
+            <PathIcon Data="{StaticResource Icon.ArrowLeft}" />
+          </Button>
+          <Button Classes="icon filled" Margin="12" HorizontalAlignment="Right" VerticalAlignment="Top"
+                  Command="{Binding OpenSettingsCommand}" IsVisible="{Binding IsCurrentUser}" AutomationProperties.Name="Paramètres">
+            <PathIcon Data="{StaticResource Icon.Settings}" />
+          </Button>
+          <c:AvatarView Initials="{Binding Initials}" ColorHex="{Binding AvatarColor}" Size="104" ShowRing="True"
+                        HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="16,0,0,0" />
+        </Panel>
+
+        <StackPanel Margin="16,0" Spacing="6">
+          <TextBlock Classes="h2" Text="{Binding DisplayName}" />
+          <TextBlock Classes="secondary" Text="{Binding Profession}" />
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Classes="secondary small" Data="{StaticResource Icon.MapMarker}" />
+            <TextBlock Classes="caption" Text="{Binding Location}" />
+          </StackPanel>
+          <TextBlock Classes="caption" Text="{Binding Origin}" IsVisible="{Binding Origin, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <TextBlock Classes="caption" Text="{Binding MemberSince}" />
+        </StackPanel>
+
+        <!-- Actions -->
+        <Grid Margin="16,0" ColumnDefinitions="*,10,*" IsVisible="{Binding IsCurrentUser}">
+          <c:PrimaryButton HorizontalAlignment="Stretch" Command="{Binding EditProfileCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <PathIcon Data="{StaticResource Icon.Pencil}" Width="16" Height="16" />
+              <TextBlock Text="Modifier le profil" />
+            </StackPanel>
+          </c:PrimaryButton>
+          <Button Grid.Column="2" Classes="outline" HorizontalAlignment="Stretch" Command="{Binding LogoutCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <PathIcon Data="{StaticResource Icon.Logout}" Width="16" Height="16" />
+              <TextBlock Text="Se déconnecter" />
+            </StackPanel>
+          </Button>
+        </Grid>
+        <c:PrimaryButton Margin="16,0" HorizontalAlignment="Stretch" Command="{Binding SendMessageCommand}" IsVisible="{Binding IsOtherUser}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Data="{StaticResource Icon.Chat}" Width="16" Height="16" />
+            <TextBlock Text="Envoyer un message" />
+          </StackPanel>
+        </c:PrimaryButton>
+
+        <!-- Statistiques -->
+        <Grid Margin="16,0" ColumnDefinitions="*,10,*,10,*">
+          <Border Classes="card" Padding="12">
+            <StackPanel HorizontalAlignment="Center">
+              <TextBlock Text="{Binding PostCount}" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" />
+              <TextBlock Classes="caption" Text="Publications" HorizontalAlignment="Center" />
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="2" Classes="card" Padding="12">
+            <StackPanel HorizontalAlignment="Center">
+              <TextBlock Text="{Binding CommunityCount}" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" />
+              <TextBlock Classes="caption" Text="Communautés" HorizontalAlignment="Center" />
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="4" Classes="card" Padding="12">
+            <StackPanel HorizontalAlignment="Center">
+              <TextBlock Text="{Binding LikesReceived}" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" />
+              <TextBlock Classes="caption" Text="J'aime reçus" HorizontalAlignment="Center" />
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <!-- Biographie -->
+        <StackPanel Margin="16,0" Spacing="8" IsVisible="{Binding HasBio}">
+          <TextBlock Classes="section" Margin="0" Text="Biographie" />
+          <TextBlock Classes="body" Text="{Binding Bio}" />
+        </StackPanel>
+
+        <!-- Centres d'intérêt -->
+        <StackPanel Margin="16,0" Spacing="8">
+          <TextBlock Classes="section" Margin="0" Text="Centres d'intérêt" />
+          <ItemsControl ItemsSource="{Binding Interests}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <Border Classes="pill" Margin="0,0,6,6">
+                  <TextBlock Text="{Binding}" />
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+        <!-- Communautés -->
+        <StackPanel Spacing="10" IsVisible="{Binding HasCommunities}">
+          <TextBlock Classes="section" Margin="16,0" Text="Communautés" />
+          <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Communities}" Margin="16,0">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal" Spacing="10" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="cvm:CommunityItemViewModel">
+                  <cc:CommunityTile />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </StackPanel>
+
+        <!-- Publications récentes -->
+        <StackPanel Margin="16,0" Spacing="12">
+          <TextBlock Classes="section" Margin="0" Text="Publications récentes" />
+          <sc:EmptyState IsVisible="{Binding !HasPosts}" Icon="{StaticResource Icon.Pencil}"
+                         Title="Aucune publication" Message="Les publications apparaîtront ici." />
+          <ItemsControl ItemsSource="{Binding RecentPosts}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="14" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="fvm:PostItemViewModel">
+                <fc:PostCard />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </Panel>
+</UserControl>

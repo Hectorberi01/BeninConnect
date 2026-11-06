@@ -1,0 +1,67 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:mvvm="using:BeninConnect.App.Core.Mvvm"
+             xmlns:vm="using:BeninConnect.App.Features.Events.ViewModels"
+             xmlns:ec="using:BeninConnect.App.Features.Events.Components"
+             x:Class="BeninConnect.App.Features.Events.Views.EventsView"
+             x:DataType="vm:EventsViewModel">
+  <Grid RowDefinitions="Auto,Auto,*">
+    <sc:AppHeader Title="Événements" Subtitle="{Binding ResultText}" BackCommand="{Binding GoBackCommand}">
+      <sc:AppHeader.Actions>
+        <c:PrimaryButton MinHeight="38" Padding="14,6" Command="{Binding CreateEventCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Data="{StaticResource Icon.Plus}" Width="16" Height="16" />
+            <TextBlock Text="Créer" />
+          </StackPanel>
+        </c:PrimaryButton>
+      </sc:AppHeader.Actions>
+    </sc:AppHeader>
+
+    <!-- Filtres -->
+    <StackPanel Grid.Row="1" Margin="16,12,16,4" Spacing="10">
+      <c:SearchBar Text="{Binding SearchText}" Watermark="Rechercher un événement" />
+      <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+        <ItemsControl ItemsSource="{Binding Categories}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="mvvm:Chip">
+              <Button Classes="chip" Classes.selected="{Binding IsSelected}" Content="{Binding Label}" Command="{Binding SelectCommand}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+      <Grid ColumnDefinitions="*,10,*">
+        <ComboBox ItemsSource="{Binding Cities}" SelectedItem="{Binding SelectedCity}" AutomationProperties.Name="Ville" />
+        <ComboBox Grid.Column="2" ItemsSource="{Binding Periods}" SelectedItem="{Binding SelectedPeriod}" AutomationProperties.Name="Date" />
+      </Grid>
+    </StackPanel>
+
+    <Panel Grid.Row="2">
+      <sc:LoadingState IsVisible="{Binding IsLoading}" />
+      <sc:ErrorState IsVisible="{Binding IsError}" Message="{Binding ErrorMessage}" RetryCommand="{Binding RetryCommand}" />
+      <sc:EmptyState IsVisible="{Binding IsEmpty}" Icon="{StaticResource Icon.Calendar}"
+                     Title="Aucun événement" Message="Aucun événement ne correspond à ces filtres."
+                     ActionText="Effacer les filtres" ActionCommand="{Binding ClearFiltersCommand}" />
+      <ScrollViewer IsVisible="{Binding IsContent}">
+        <ItemsControl ItemsSource="{Binding Events}" Margin="{StaticResource PagePadding}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="14" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:EventItemViewModel">
+              <ec:EventCard />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Panel>
+  </Grid>
+</UserControl>

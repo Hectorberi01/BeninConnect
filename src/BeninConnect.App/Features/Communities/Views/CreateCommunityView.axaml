@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:conv="using:BeninConnect.App.Core.Converters"
+             xmlns:vm="using:BeninConnect.App.Features.Communities.ViewModels"
+             xmlns:fvm="using:BeninConnect.App.Features.Feed.ViewModels"
+             x:Class="BeninConnect.App.Features.Communities.Views.CreateCommunityView"
+             x:DataType="vm:CreateCommunityViewModel">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <sc:AppHeader Title="Créer une communauté" BackCommand="{Binding GoBackCommand}" />
+    <ScrollViewer Grid.Row="1">
+      <StackPanel Margin="{StaticResource PagePadding}" Spacing="16">
+        <c:AppTextBox Label="Nom" Text="{Binding Name}" Watermark="Ex. : Béninois de Nantes" MaxLength="60" ErrorText="{Binding NameError}" />
+        <c:AppTextBox Label="Description" Text="{Binding Description}" IsMultiline="True" MaxLength="500"
+                      Watermark="À qui s'adresse la communauté ? Que va-t-on y partager ?" ErrorText="{Binding DescriptionError}" />
+        <StackPanel Spacing="6">
+          <TextBlock Classes="label" Text="Catégorie" />
+          <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding Category}" PlaceholderText="Choisir une catégorie" />
+          <TextBlock Classes="error" Text="{Binding CategoryError}" IsVisible="{Binding CategoryError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+        <Grid ColumnDefinitions="*,12,*">
+          <c:AppTextBox Label="Pays" Text="{Binding Country}" ErrorText="{Binding CountryError}" />
+          <c:AppTextBox Grid.Column="2" Label="Ville" Text="{Binding City}" ErrorText="{Binding CityError}" />
+        </Grid>
+        <StackPanel Spacing="8">
+          <TextBlock Classes="label" Text="Visibilité" />
+          <RadioButton GroupName="visibility" IsChecked="{Binding IsPublic}">
+            <StackPanel>
+              <TextBlock Text="Publique" FontWeight="SemiBold" />
+              <TextBlock Classes="caption" Text="Tout le monde peut voir et rejoindre." />
+            </StackPanel>
+          </RadioButton>
+          <RadioButton GroupName="visibility" IsChecked="{Binding IsPrivate}">
+            <StackPanel>
+              <TextBlock Text="Privée" FontWeight="SemiBold" />
+              <TextBlock Classes="caption" Text="Contenu réservé aux membres, adhésion sur demande." />
+            </StackPanel>
+          </RadioButton>
+        </StackPanel>
+        <StackPanel Spacing="8">
+          <TextBlock Classes="label" Text="Image de couverture (facultatif)" />
+          <ItemsControl ItemsSource="{Binding Covers}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="fvm:ImageOption">
+                <Button Classes="bare" Margin="0,0,8,8" Command="{Binding SelectCommand}" AutomationProperties.Name="Choisir cette couverture">
+                  <Border Width="96" Height="60" CornerRadius="10" ClipToBounds="True" BorderThickness="3"
+                          BorderBrush="{DynamicResource PrimaryBrush}" Classes.unselected="{Binding !IsSelected}">
+                    <Image Source="{Binding Path, Converter={x:Static conv:AppConverters.AssetBitmap}}" Stretch="UniformToFill" />
+                  </Border>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+        <Border Classes="soft" Background="{DynamicResource ErrorLightBrush}"
+                IsVisible="{Binding FormError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <TextBlock Text="{Binding FormError}" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" />
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+    <Border Grid.Row="2" Padding="16,8,16,12">
+      <c:PrimaryButton HorizontalAlignment="Stretch" Content="Créer la communauté" Command="{Binding CreateCommand}" />
+    </Border>
+  </Grid>
+</UserControl>

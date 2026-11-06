@@ -1,0 +1,47 @@
+# Démarrage : docker compose -f server/docker-compose.yml up -d
+name: beninconnect
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: server/src/BeninConnect.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Database: "Host=host.docker.internal;Port=5432;Database=beninconnect;Username=admin;Password=AdminTest123"
+      Jwt__SigningKey: "dev-only-signing-key-beninconnect-please-change-0123456789"
+      # Photos dans MinIO (bucket créé au premier envoi)
+      Media__Provider: s3
+      Media__S3__ServiceUrl: http://minio:9000
+      Media__S3__Region: us-east-1
+      Media__S3__Bucket: beninconnect-media
+      Media__S3__AccessKey: beninconnect
+      Media__S3__SecretKey: beninconnect-dev-secret
+      Media__S3__CreateBucket: "true"
+    depends_on:
+      - minio
+    # host.docker.internal = le Mac (PostgreSQL local sur 5432).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "5080:8080"
+    profiles: ["full"]
+
+  # Stockage des photos compatible S3. Console : http://localhost:9001 (beninconnect / beninconnect-dev-secret)
+  minio:
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2025-04-22T22-12-26Z}
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: beninconnect
+      MINIO_ROOT_PASSWORD: beninconnect-dev-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio:/data
+
+#volumes:
+#  pgdata:
+
+volumes:
+  minio:

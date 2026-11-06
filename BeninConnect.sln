@@ -1,0 +1,64 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{659735AF-348B-5CE1-9DAF-DD85687389CC}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{A7F76805-4F7B-5D04-A1F6-CAAAF982C179}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BeninConnect.App", "src\BeninConnect.App\BeninConnect.App.csproj", "{A8991F11-8B46-5B4E-8F74-83A297031228}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BeninConnect.Android", "src\BeninConnect.Android\BeninConnect.Android.csproj", "{485848F2-31AA-5929-9E70-79A216E03DB8}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BeninConnect.iOS", "src\BeninConnect.iOS\BeninConnect.iOS.csproj", "{51A29758-1833-5DB8-88A6-377D5E6D37EC}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BeninConnect.Desktop", "src\BeninConnect.Desktop\BeninConnect.Desktop.csproj", "{A8C775A2-36C8-5037-A134-1F24C3D78CB0}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BeninConnect.Tests", "tests\BeninConnect.Tests\BeninConnect.Tests.csproj", "{5FDE12B9-63FC-5F10-A516-5112701AAB5A}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BeninConnect.UiTests", "tests\BeninConnect.UiTests\BeninConnect.UiTests.csproj", "{D32CA113-DC69-5140-9084-E18150C06EEC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A8991F11-8B46-5B4E-8F74-83A297031228}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A8991F11-8B46-5B4E-8F74-83A297031228}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A8991F11-8B46-5B4E-8F74-83A297031228}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A8991F11-8B46-5B4E-8F74-83A297031228}.Release|Any CPU.Build.0 = Release|Any CPU
+		{485848F2-31AA-5929-9E70-79A216E03DB8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{485848F2-31AA-5929-9E70-79A216E03DB8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{485848F2-31AA-5929-9E70-79A216E03DB8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{485848F2-31AA-5929-9E70-79A216E03DB8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{51A29758-1833-5DB8-88A6-377D5E6D37EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{51A29758-1833-5DB8-88A6-377D5E6D37EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{51A29758-1833-5DB8-88A6-377D5E6D37EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{51A29758-1833-5DB8-88A6-377D5E6D37EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A8C775A2-36C8-5037-A134-1F24C3D78CB0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A8C775A2-36C8-5037-A134-1F24C3D78CB0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A8C775A2-36C8-5037-A134-1F24C3D78CB0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A8C775A2-36C8-5037-A134-1F24C3D78CB0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5FDE12B9-63FC-5F10-A516-5112701AAB5A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5FDE12B9-63FC-5F10-A516-5112701AAB5A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5FDE12B9-63FC-5F10-A516-5112701AAB5A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5FDE12B9-63FC-5F10-A516-5112701AAB5A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D32CA113-DC69-5140-9084-E18150C06EEC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D32CA113-DC69-5140-9084-E18150C06EEC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D32CA113-DC69-5140-9084-E18150C06EEC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D32CA113-DC69-5140-9084-E18150C06EEC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A8991F11-8B46-5B4E-8F74-83A297031228} = {659735AF-348B-5CE1-9DAF-DD85687389CC}
+		{485848F2-31AA-5929-9E70-79A216E03DB8} = {659735AF-348B-5CE1-9DAF-DD85687389CC}
+		{51A29758-1833-5DB8-88A6-377D5E6D37EC} = {659735AF-348B-5CE1-9DAF-DD85687389CC}
+		{A8C775A2-36C8-5037-A134-1F24C3D78CB0} = {659735AF-348B-5CE1-9DAF-DD85687389CC}
+		{5FDE12B9-63FC-5F10-A516-5112701AAB5A} = {A7F76805-4F7B-5D04-A1F6-CAAAF982C179}
+		{D32CA113-DC69-5140-9084-E18150C06EEC} = {A7F76805-4F7B-5D04-A1F6-CAAAF982C179}
+	EndGlobalSection
+EndGlobal

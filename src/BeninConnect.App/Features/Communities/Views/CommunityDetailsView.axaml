@@ -1,0 +1,149 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:conv="using:BeninConnect.App.Core.Converters"
+             xmlns:vm="using:BeninConnect.App.Features.Communities.ViewModels"
+             xmlns:fvm="using:BeninConnect.App.Features.Feed.ViewModels"
+             xmlns:evm="using:BeninConnect.App.Features.Events.ViewModels"
+             xmlns:pvm="using:BeninConnect.App.Features.Profile.ViewModels"
+             xmlns:fc="using:BeninConnect.App.Features.Feed.Components"
+             xmlns:ec="using:BeninConnect.App.Features.Events.Components"
+             x:Class="BeninConnect.App.Features.Communities.Views.CommunityDetailsView"
+             x:DataType="vm:CommunityDetailsViewModel">
+  <Grid RowDefinitions="Auto,*">
+    <sc:AppHeader Title="{Binding Community.Name}" BackCommand="{Binding GoBackCommand}" />
+
+    <Panel Grid.Row="1">
+      <sc:LoadingState IsVisible="{Binding IsLoading}" />
+      <sc:ErrorState IsVisible="{Binding IsError}" Message="{Binding ErrorMessage}" RetryCommand="{Binding RetryCommand}" />
+
+      <ScrollViewer IsVisible="{Binding IsContent}">
+        <StackPanel Spacing="16" Margin="0,0,0,24">
+          <!-- Couverture -->
+          <Image Source="{Binding Community.CoverImage, Converter={x:Static conv:AppConverters.AssetBitmap}}" Height="170" Stretch="UniformToFill" />
+
+          <StackPanel Margin="16,0" Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Border Classes="pill"><TextBlock Text="{Binding Community.Category}" /></Border>
+              <Border Classes="pill" Background="{DynamicResource SurfaceVariantBrush}" IsVisible="{Binding Community.IsPrivate}">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <PathIcon Width="12" Height="12" Data="{StaticResource Icon.Lock}" Foreground="{DynamicResource TextSecondaryBrush}" />
+                  <TextBlock Text="Privée" Foreground="{DynamicResource TextSecondaryBrush}" />
+                </StackPanel>
+              </Border>
+            </StackPanel>
+            <TextBlock Classes="h2" Text="{Binding Community.Name}" />
+            <TextBlock Classes="body secondary" Text="{Binding Community.Description}" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <PathIcon Classes="secondary small" Data="{StaticResource Icon.MapMarker}" />
+              <TextBlock Classes="caption" Text="{Binding Community.Location}" />
+              <TextBlock Classes="caption" Text="·" />
+              <PathIcon Classes="secondary small" Data="{StaticResource Icon.Group}" />
+              <TextBlock Classes="caption" Text="{Binding Community.MemberCountText}" />
+            </StackPanel>
+
+            <!-- Adhésion -->
+            <Panel>
+              <c:PrimaryButton HorizontalAlignment="Stretch" Command="{Binding Community.JoinCommand}" IsVisible="{Binding Community.CanJoin}">
+                <Panel>
+                  <TextBlock Text="Rejoindre la communauté" IsVisible="{Binding !Community.IsPrivate}" />
+                  <TextBlock Text="Demander à rejoindre" IsVisible="{Binding Community.IsPrivate}" />
+                </Panel>
+              </c:PrimaryButton>
+              <Button Classes="outline" HorizontalAlignment="Stretch" Content="Demande envoyée · Annuler"
+                      Command="{Binding Community.CancelRequestCommand}" IsVisible="{Binding Community.IsPending}" />
+              <Grid ColumnDefinitions="*,10,*" IsVisible="{Binding Community.IsMember}">
+                <c:PrimaryButton HorizontalAlignment="Stretch" Command="{Binding CreatePostCommand}">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <PathIcon Data="{StaticResource Icon.Pencil}" Width="16" Height="16" />
+                    <TextBlock Text="Publier ici" />
+                  </StackPanel>
+                </c:PrimaryButton>
+                <Panel Grid.Column="2">
+                  <Button Classes="outline" HorizontalAlignment="Stretch" Content="Quitter"
+                          Command="{Binding Community.LeaveCommand}" IsVisible="{Binding !Community.IsOwner}" />
+                  <Button Classes="secondary" HorizontalAlignment="Stretch" Content="Créer un événement"
+                          Command="{Binding CreateEventCommand}" IsVisible="{Binding Community.IsOwner}" />
+                </Panel>
+              </Grid>
+            </Panel>
+          </StackPanel>
+
+          <!-- Accès restreint -->
+          <Border Classes="card" Margin="16,0" IsVisible="{Binding IsRestricted}">
+            <StackPanel Spacing="10" HorizontalAlignment="Center">
+              <Border Width="64" Height="64" CornerRadius="32" Background="{DynamicResource SurfaceVariantBrush}" HorizontalAlignment="Center">
+                <PathIcon Data="{StaticResource Icon.Lock}" Width="28" Height="28" Foreground="{DynamicResource TextSecondaryBrush}" />
+              </Border>
+              <TextBlock Classes="h3" Text="Communauté privée" HorizontalAlignment="Center" />
+              <TextBlock Classes="secondary" TextAlignment="Center" TextWrapping="Wrap"
+                         Text="Les publications, les membres et les événements sont réservés aux membres. Envoyez une demande pour rejoindre ce groupe." />
+            </StackPanel>
+          </Border>
+
+          <!-- Sections -->
+          <StackPanel Spacing="14" IsVisible="{Binding CanSeeContent}">
+            <Grid ColumnDefinitions="*,*,*" Margin="16,0">
+              <Button Classes="chip" Classes.selected="{Binding IsPostsSection}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="Publications" Command="{Binding ShowPostsCommand}" Margin="0,0,4,0" />
+              <Button Grid.Column="1" Classes="chip" Classes.selected="{Binding IsMembersSection}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="Membres" Command="{Binding ShowMembersCommand}" Margin="4,0" />
+              <Button Grid.Column="2" Classes="chip" Classes.selected="{Binding IsEventsSection}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="Événements" Command="{Binding ShowEventsCommand}" Margin="4,0,0,0" />
+            </Grid>
+
+            <!-- Publications -->
+            <StackPanel Margin="16,0" Spacing="14" IsVisible="{Binding IsPostsSection}">
+              <sc:EmptyState IsVisible="{Binding !HasPosts}" Icon="{StaticResource Icon.Inbox}"
+                             Title="Pas encore de publication" Message="Lancez la conversation avec les membres." />
+              <ItemsControl ItemsSource="{Binding Posts}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="14" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="fvm:PostItemViewModel">
+                    <fc:PostCard />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+
+            <!-- Membres -->
+            <StackPanel Margin="16,0" Spacing="6" IsVisible="{Binding IsMembersSection}">
+              <Border Classes="card" Padding="8">
+                <ItemsControl ItemsSource="{Binding Members}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="pvm:UserItemViewModel">
+                      <sc:UserCard />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Border>
+              <c:SecondaryButton HorizontalAlignment="Stretch" Command="{Binding OpenAllMembersCommand}">
+                <TextBlock Text="{Binding TotalMembers, StringFormat='Voir les {0} membres'}" />
+              </c:SecondaryButton>
+            </StackPanel>
+
+            <!-- Événements -->
+            <StackPanel Margin="16,0" Spacing="14" IsVisible="{Binding IsEventsSection}">
+              <sc:EmptyState IsVisible="{Binding !HasEvents}" Icon="{StaticResource Icon.Calendar}"
+                             Title="Aucun événement prévu" Message="Les prochains événements de la communauté apparaîtront ici." />
+              <ItemsControl ItemsSource="{Binding Events}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="14" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="evm:EventItemViewModel">
+                    <ec:EventCard />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+    </Panel>
+  </Grid>
+</UserControl>

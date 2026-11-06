@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:BeninConnect.App.Features.Notifications.ViewModels"
+             x:Class="BeninConnect.App.Features.Notifications.Components.NotificationItem"
+             x:DataType="vm:NotificationItemViewModel">
+  <Border Classes="card" Padding="0" Classes.unread="{Binding IsUnread}">
+    <Grid ColumnDefinitions="*,Auto">
+      <Button Classes="bare" Command="{Binding OpenCommand}" AutomationProperties.Name="{Binding Title}">
+        <Grid ColumnDefinitions="Auto,*" Margin="14,12,4,12">
+          <Border Width="42" Height="42" CornerRadius="21" Background="{DynamicResource PrimaryLightBrush}" VerticalAlignment="Top">
+            <Panel>
+              <PathIcon Width="20" Height="20" Foreground="{DynamicResource PrimaryBrush}" Data="{StaticResource Icon.Heart}" IsVisible="{Binding IsSocial}" />
+              <PathIcon Width="20" Height="20" Foreground="{DynamicResource PrimaryBrush}" Data="{StaticResource Icon.Group}" IsVisible="{Binding IsCommunity}" />
+              <PathIcon Width="20" Height="20" Foreground="{DynamicResource PrimaryBrush}" Data="{StaticResource Icon.Chat}" IsVisible="{Binding IsMessage}" />
+              <PathIcon Width="20" Height="20" Foreground="{DynamicResource PrimaryBrush}" Data="{StaticResource Icon.Calendar}" IsVisible="{Binding IsEvent}" />
+              <PathIcon Width="20" Height="20" Foreground="{DynamicResource PrimaryBrush}" Data="{StaticResource Icon.Info}" IsVisible="{Binding IsSystem}" />
+            </Panel>
+          </Border>
+          <StackPanel Grid.Column="1" Margin="12,0,0,0" Spacing="3">
+            <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold" />
+            <TextBlock Classes="caption" Text="{Binding Body}" TextWrapping="Wrap" MaxLines="2" TextTrimming="WordEllipsis" />
+            <TextBlock Classes="caption" FontSize="12">
+              <Run Text="{Binding CategoryLabel}" />
+              <Run Text=" · " />
+              <Run Text="{Binding TimeText}" />
+            </TextBlock>
+          </StackPanel>
+        </Grid>
+      </Button>
+      <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,6,0">
+        <Button Classes="icon" Width="40" Height="40" Command="{Binding MarkReadCommand}" IsVisible="{Binding IsUnread}"
+                ToolTip.Tip="Marquer comme lu" AutomationProperties.Name="Marquer comme lu">
+          <Ellipse Width="10" Height="10" Fill="{DynamicResource PrimaryBrush}" />
+        </Button>
+      </StackPanel>
+    </Grid>
+  </Border>
+</UserControl>

@@ -1,0 +1,77 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:vm="using:BeninConnect.App.Features.Feed.ViewModels"
+             xmlns:fc="using:BeninConnect.App.Features.Feed.Components"
+             x:Class="BeninConnect.App.Features.Feed.Views.PostDetailsView"
+             x:DataType="vm:PostDetailsViewModel">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <sc:AppHeader Title="Publication" BackCommand="{Binding GoBackCommand}" />
+
+    <Panel Grid.Row="1">
+      <sc:LoadingState IsVisible="{Binding IsLoading}" />
+      <sc:ErrorState IsVisible="{Binding IsError}" Message="{Binding ErrorMessage}" RetryCommand="{Binding RetryCommand}" />
+
+      <ScrollViewer IsVisible="{Binding IsContent}">
+        <StackPanel Margin="{StaticResource PagePadding}" Spacing="16">
+          <fc:PostCard DataContext="{Binding Post}" />
+
+          <TextBlock Classes="section" Text="Commentaires" />
+          <sc:EmptyState IsVisible="{Binding HasNoComments}"
+                         Icon="{StaticResource Icon.Comment}"
+                         Title="Aucun commentaire"
+                         Message="Soyez la première personne à réagir." />
+
+          <ItemsControl ItemsSource="{Binding Comments}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="12" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:CommentItemViewModel">
+                <Grid ColumnDefinitions="Auto,*">
+                  <Button Classes="bare" VerticalAlignment="Top" Command="{Binding OpenAuthorCommand}" AutomationProperties.Name="{Binding AuthorName}">
+                    <c:AvatarView Initials="{Binding AuthorInitials}" ColorHex="{Binding AuthorColor}" Size="34" />
+                  </Button>
+                  <StackPanel Grid.Column="1" Margin="10,0,0,0" Spacing="4">
+                    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4,16,16,16" Padding="12,8">
+                      <StackPanel Spacing="2">
+                        <TextBlock Text="{Binding AuthorName}" FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock Classes="body" Text="{Binding Content}" FontSize="14" />
+                      </StackPanel>
+                    </Border>
+                    <TextBlock Classes="caption" FontSize="12" Margin="8,0,0,0" Text="{Binding TimeText}" />
+                  </StackPanel>
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </ScrollViewer>
+    </Panel>
+
+    <!-- Saisie -->
+    <Border Grid.Row="2" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="12,8"
+            IsVisible="{Binding IsContent}">
+      <StackPanel Spacing="4">
+        <TextBlock Classes="error" Text="{Binding CommentError}" IsVisible="{Binding CommentError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <c:AvatarView Initials="{Binding MyInitials}" ColorHex="{Binding MyColor}" Size="34" VerticalAlignment="Center" />
+          <TextBox x:Name="CommentBox" Grid.Column="1" Margin="10,0"
+                   Text="{Binding NewComment}"
+                   Watermark="Écrire un commentaire…"
+                   MaxLength="1000"
+                   TextWrapping="Wrap"
+                   MaxHeight="120"
+                   CornerRadius="22"
+                   AutomationProperties.Name="Votre commentaire" />
+          <Button Grid.Column="2" Classes="icon filled" Command="{Binding SendCommentCommand}" AutomationProperties.Name="Envoyer le commentaire">
+            <PathIcon Data="{StaticResource Icon.Send}" Width="18" Height="18" />
+          </Button>
+        </Grid>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

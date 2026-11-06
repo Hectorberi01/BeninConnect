@@ -1,0 +1,85 @@
+using BeninConnect.Modules.Communities.Domain;
+
+namespace BeninConnect.Host.DemoData;
+
+internal static class SeedCommunities
+{
+    public sealed record CommunitySeed(
+        string Key,
+        string Name,
+        string Description,
+        string Category,
+        string City,
+        string Country,
+        CommunityVisibility Visibility,
+        int OwnerIndex,
+        int[] Members,
+        bool DemoIsMember);
+
+    public static readonly string[] Categories =
+        ["Villes & régions", "Études", "Entrepreneuriat", "Culture", "Emploi", "Entraide", "Tech", "Gastronomie", "Famille"];
+
+    public static readonly CommunitySeed[] All =
+    [
+        new("paris", "Béninois de Paris",
+            "Le point de rencontre des Béninoises et Béninois d'Île-de-France : sorties, bons plans, entraide et événements.",
+            "Villes & régions", "Paris", "France", CommunityVisibility.Public, 13,
+            [4, 13, 17, 20, 24, 28, 32, 36, 39, 3, 8, 2], true),
+        new("canada", "Diaspora béninoise au Canada",
+            "Installation, démarches, emploi et vie quotidienne au Canada, d'un océan à l'autre.",
+            "Villes & régions", "", "Canada", CommunityVisibility.Public, 1,
+            [1, 6, 11, 14, 21, 29, 34], false),
+        new("etudiants-fr", "Étudiants béninois en France",
+            "Campus France, logement, jobs étudiants, stages : on s'entraide pour réussir ses études.",
+            "Études", "", "France", CommunityVisibility.Public, 18,
+            [5, 10, 12, 18, 26, 34, 21, 35], true),
+        new("entrepreneurs", "Entrepreneurs béninois d'Europe",
+            "Cercle privé de fondatrices et fondateurs : retours d'expérience, financement, partenariats.",
+            "Entrepreneuriat", "", "Europe", CommunityVisibility.Private, 4,
+            [4, 7, 8, 13, 23, 25, 27, 32, 38], true),
+        new("montreal", "Béninois de Montréal",
+            "Communauté locale de Montréal : accueil des nouveaux arrivants, sorties et soirées culturelles.",
+            "Villes & régions", "Montréal", "Canada", CommunityVisibility.Public, 29,
+            [1, 14, 21, 29], false),
+        new("culture", "Culture et traditions du Bénin",
+            "Histoire, langues, musiques, fêtes et savoir-faire : transmettre et célébrer notre patrimoine.",
+            "Culture", "", "International", CommunityVisibility.Public, 24,
+            [3, 12, 24, 30, 35, 37, 39, 17], true),
+        new("emploi", "Opportunités professionnelles",
+            "Offres d'emploi, stages, alternances et conseils carrière partagés par les membres.",
+            "Emploi", "", "International", CommunityVisibility.Public, 36,
+            [36, 9, 15, 19, 27, 31, 5, 34], false),
+        new("entraide", "Solidarité et entraide",
+            "Un coup de main pour un déménagement, une démarche, un envoi au pays ? Demandez, proposez.",
+            "Entraide", "", "International", CommunityVisibility.Public, 2,
+            [2, 6, 16, 20, 22, 28, 15], false),
+        new("lyon", "Béninois de Lyon",
+            "La communauté lyonnaise : rencontres, sport, cuisine et entraide entre Rhône et Saône.",
+            "Villes & régions", "Lyon", "France", CommunityVisibility.Public, 15,
+            [2, 15, 23, 30], false),
+        new("retour", "Retour et installation au Bénin",
+            "Préparer son retour : emploi, logement, création d'entreprise, scolarité des enfants.",
+            "Entrepreneuriat", "Cotonou", "Bénin", CommunityVisibility.Public, 7,
+            [7, 25, 32, 37, 19, 8], false),
+        new("bruxelles", "Béninois de Bruxelles",
+            "Belgique et Benelux : événements, démarches administratives et rencontres conviviales.",
+            "Villes & régions", "Bruxelles", "Belgique", CommunityVisibility.Public, 22,
+            [3, 22, 35], false),
+        new("tech", "Tech & Digital Bénin",
+            "Développeurs, designers, data et produit : projets, meetups et opportunités dans la tech.",
+            "Tech", "", "International", CommunityVisibility.Public, 9,
+            [1, 9, 14, 23, 27, 31, 34], true),
+        new("cuisine", "Cuisine béninoise",
+            "Recettes, adresses et astuces pour trouver les ingrédients du pays où que vous soyez.",
+            "Gastronomie", "", "International", CommunityVisibility.Public, 13,
+            [11, 13, 20, 28, 6, 36], false),
+        new("parents", "Parents de la diaspora",
+            "Groupe privé pour échanger sur l'éducation, la transmission des langues et la double culture.",
+            "Famille", "", "International", CommunityVisibility.Private, 6,
+            [6, 20, 39, 2], false),
+        new("allemagne", "Béninois d'Allemagne",
+            "Vivre, étudier et travailler en Allemagne : langue, visas, logement et rencontres.",
+            "Villes & régions", "Berlin", "Allemagne", CommunityVisibility.Public, 9,
+            [9, 31], false),
+    ];
+}

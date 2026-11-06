@@ -1,0 +1,104 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:conv="using:BeninConnect.App.Core.Converters"
+             xmlns:vm="using:BeninConnect.App.Features.Feed.ViewModels"
+             x:Class="BeninConnect.App.Features.Feed.Views.CreatePostView"
+             x:DataType="vm:CreatePostViewModel">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <sc:AppHeader Title="Nouvelle publication" BackCommand="{Binding CancelCommand}">
+      <sc:AppHeader.Actions>
+        <c:PrimaryButton MinHeight="38" Padding="16,6" Content="Publier" Command="{Binding PublishCommand}" />
+      </sc:AppHeader.Actions>
+    </sc:AppHeader>
+
+    <ScrollViewer Grid.Row="1">
+      <StackPanel Margin="{StaticResource PagePadding}" Spacing="16">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <c:AvatarView Initials="{Binding AuthorInitials}" ColorHex="{Binding AuthorColor}" Size="44" />
+          <TextBlock Text="{Binding AuthorName}" FontWeight="SemiBold" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+          <TextBox Classes="multiline"
+                   MinHeight="160"
+                   Text="{Binding Content}"
+                   MaxLength="2000"
+                   Watermark="Partagez une expérience, un conseil, une bonne nouvelle…"
+                   Classes.error="{Binding ContentError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                   AutomationProperties.Name="Contenu de la publication" />
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Classes="error" Text="{Binding ContentError}" IsVisible="{Binding ContentError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <TextBlock Grid.Column="1" Classes="caption" Text="{Binding RemainingText}" />
+          </Grid>
+        </StackPanel>
+
+        <!-- Image facultative -->
+        <Border Classes="card" Padding="0" ClipToBounds="True" IsVisible="{Binding HasImage}">
+          <Panel>
+            <Image Source="{Binding SelectedImage, Converter={x:Static conv:AppConverters.AssetBitmap}}" Height="200" Stretch="UniformToFill" />
+            <Button Classes="icon filled" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8"
+                    Command="{Binding RemoveImageCommand}" AutomationProperties.Name="Retirer l'image">
+              <PathIcon Data="{StaticResource Icon.Close}" Width="18" Height="18" />
+            </Button>
+          </Panel>
+        </Border>
+
+        <Button Classes="outline" HorizontalAlignment="Left" Command="{Binding ToggleImagePickerCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <PathIcon Data="{StaticResource Icon.Image}" Width="18" Height="18" Foreground="{DynamicResource PrimaryBrush}" />
+            <TextBlock Text="Ajouter une image (galerie de démonstration)" />
+          </StackPanel>
+        </Button>
+
+        <StackPanel Spacing="8" IsVisible="{Binding IsImagePickerOpen}">
+          <TextBlock Classes="caption" Text="Images libres de droits incluses dans l'application (hors ligne)." TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding Images}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ImageOption">
+                <Button Classes="bare" Margin="0,0,8,8" Command="{Binding SelectCommand}" AutomationProperties.Name="Choisir cette image">
+                  <Border Width="96" Height="72" CornerRadius="10" ClipToBounds="True"
+                          BorderThickness="3"
+                          BorderBrush="{DynamicResource PrimaryBrush}"
+                          Classes.unselected="{Binding !IsSelected}">
+                    <Image Source="{Binding Path, Converter={x:Static conv:AppConverters.AssetBitmap}}" Stretch="UniformToFill" />
+                  </Border>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+          <TextBlock Classes="label" Text="Communauté de destination (facultatif)" />
+          <ComboBox ItemsSource="{Binding CommunityOptions}" SelectedItem="{Binding SelectedCommunity}" />
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+          <TextBlock Classes="label" Text="Visibilité" />
+          <ComboBox ItemsSource="{Binding VisibilityOptions}" SelectedItem="{Binding SelectedVisibility}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:VisibilityOption">
+                <StackPanel Spacing="2" Margin="0,2">
+                  <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                  <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
+                </StackPanel>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+
+    <Grid Grid.Row="2" ColumnDefinitions="*,12,*" Margin="16,8,16,12">
+      <Button Classes="outline" HorizontalAlignment="Stretch" Content="Annuler" Command="{Binding CancelCommand}" />
+      <c:PrimaryButton Grid.Column="2" HorizontalAlignment="Stretch" Content="Publier" Command="{Binding PublishCommand}" />
+    </Grid>
+  </Grid>
+</UserControl>

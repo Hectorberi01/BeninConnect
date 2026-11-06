@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:BeninConnect.App.Core.Converters"
+             xmlns:vm="using:BeninConnect.App.Features.Communities.ViewModels"
+             x:Class="BeninConnect.App.Features.Communities.Components.CommunityCard"
+             x:DataType="vm:CommunityItemViewModel">
+  <Border Classes="card" Padding="0" ClipToBounds="True">
+    <Grid RowDefinitions="Auto,Auto">
+      <Button Classes="bare" Command="{Binding OpenCommand}" AutomationProperties.Name="{Binding Name}">
+        <Grid ColumnDefinitions="96,*">
+          <Image Source="{Binding CoverImage, Converter={x:Static conv:AppConverters.AssetBitmap}}"
+                 Stretch="UniformToFill" Width="96" MinHeight="112" />
+          <StackPanel Grid.Column="1" Margin="14,12,14,8" Spacing="4">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <PathIcon Classes="secondary" Width="13" Height="13" Data="{StaticResource Icon.Lock}" IsVisible="{Binding IsPrivate}" />
+              <TextBlock Classes="caption" Text="{Binding Category}" />
+            </StackPanel>
+            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="16" TextWrapping="Wrap" />
+            <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" MaxLines="2" TextTrimming="WordEllipsis" />
+            <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,2,0,0">
+              <PathIcon Classes="secondary" Width="13" Height="13" Data="{StaticResource Icon.MapMarker}" />
+              <TextBlock Classes="caption" Text="{Binding Location}" />
+              <TextBlock Classes="caption" Text="·" />
+              <TextBlock Classes="caption" Text="{Binding MemberCountText}" />
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </Button>
+      <Border Grid.Row="1" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="12,8">
+        <Grid ColumnDefinitions="*,Auto">
+          <Border Classes="pill" HorizontalAlignment="Left" VerticalAlignment="Center">
+            <TextBlock Text="{Binding StatusText}" />
+          </Border>
+          <Panel Grid.Column="1">
+            <Button Classes="primary" MinHeight="36" Padding="16,6" Content="Rejoindre"
+                    Command="{Binding JoinCommand}" IsVisible="{Binding CanJoin}" IsEnabled="{Binding !IsBusy}" />
+            <Button Classes="outline" MinHeight="36" Padding="16,6" Content="Annuler la demande"
+                    Command="{Binding CancelRequestCommand}" IsVisible="{Binding IsPending}" IsEnabled="{Binding !IsBusy}" />
+            <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsMember}">
+              <Button Classes="outline" MinHeight="36" Padding="14,6" Content="Quitter"
+                      Command="{Binding LeaveCommand}" IsVisible="{Binding !IsOwner}" IsEnabled="{Binding !IsBusy}" />
+              <Button Classes="secondary" MinHeight="36" Padding="14,6" Content="Ouvrir" Command="{Binding OpenCommand}" />
+            </StackPanel>
+          </Panel>
+        </Grid>
+      </Border>
+    </Grid>
+  </Border>
+</UserControl>

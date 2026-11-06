@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:mvvm="using:BeninConnect.App.Core.Mvvm"
+             xmlns:vm="using:BeninConnect.App.Features.Profile.ViewModels"
+             x:Class="BeninConnect.App.Features.Profile.Views.EditProfileView"
+             x:DataType="vm:EditProfileViewModel">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <sc:AppHeader Title="Modifier le profil" BackCommand="{Binding GoBackCommand}" />
+    <ScrollViewer Grid.Row="1">
+      <StackPanel Margin="{StaticResource PagePadding}" Spacing="16">
+        <StackPanel HorizontalAlignment="Center" Spacing="6">
+          <c:AvatarView Initials="{Binding Initials}" ColorHex="{Binding AvatarColor}" Size="88" HorizontalAlignment="Center" />
+          <TextBlock Classes="caption" Text="Avatar généré à partir de vos initiales" HorizontalAlignment="Center" />
+        </StackPanel>
+        <Grid ColumnDefinitions="*,12,*">
+          <c:AppTextBox Label="Prénom" Text="{Binding FirstName}" ContentType="Name" ErrorText="{Binding FirstNameError}" />
+          <c:AppTextBox Grid.Column="2" Label="Nom" Text="{Binding LastName}" ContentType="Name" ErrorText="{Binding LastNameError}" />
+        </Grid>
+        <c:AppTextBox Label="Profession" Text="{Binding Profession}" MaxLength="60" />
+        <Grid ColumnDefinitions="*,12,*">
+          <c:AppTextBox Label="Pays" Text="{Binding Country}" ErrorText="{Binding CountryError}" />
+          <c:AppTextBox Grid.Column="2" Label="Ville" Text="{Binding City}" ErrorText="{Binding CityError}" />
+        </Grid>
+        <StackPanel Spacing="4">
+          <c:AppTextBox Label="Biographie" Text="{Binding Bio}" IsMultiline="True" MaxLength="300" ErrorText="{Binding BioError}" />
+          <TextBlock Classes="caption" Text="{Binding BioCounter}" HorizontalAlignment="Right" />
+        </StackPanel>
+        <StackPanel Spacing="8">
+          <TextBlock Classes="label" Text="Centres d'intérêt (6 maximum)" />
+          <ItemsControl ItemsSource="{Binding Interests}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="mvvm:Chip">
+                <Button Classes="chip" Margin="0,0,8,8" Classes.selected="{Binding IsSelected}" Content="{Binding Label}" Command="{Binding SelectCommand}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Classes="error" Text="{Binding InterestsError}" IsVisible="{Binding InterestsError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+        <Border Classes="soft" Background="{DynamicResource ErrorLightBrush}"
+                IsVisible="{Binding FormError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <TextBlock Text="{Binding FormError}" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" />
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+    <Border Grid.Row="2" Padding="16,8,16,12">
+      <c:PrimaryButton HorizontalAlignment="Stretch" Content="Enregistrer" Command="{Binding SaveCommand}" />
+    </Border>
+  </Grid>
+</UserControl>

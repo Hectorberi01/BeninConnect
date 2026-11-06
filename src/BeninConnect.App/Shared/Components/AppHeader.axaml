@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="BeninConnect.App.Shared.Components.AppHeader"
+             x:Name="Root">
+  <Border Background="{DynamicResource SurfaceBrush}"
+          BorderBrush="{DynamicResource BorderBrush}"
+          BorderThickness="0,0,0,1"
+          Padding="4,6,8,6"
+          MinHeight="56">
+    <Grid ColumnDefinitions="Auto,*,Auto">
+      <Button Classes="icon"
+              Command="{Binding #Root.BackCommand}"
+              IsVisible="{Binding #Root.BackCommand, Converter={x:Static ObjectConverters.IsNotNull}}"
+              AutomationProperties.Name="Retour">
+        <PathIcon Data="{StaticResource Icon.ArrowLeft}" />
+      </Button>
+      <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0">
+        <TextBlock Text="{Binding #Root.Title}"
+                   FontSize="18"
+                   FontWeight="SemiBold"
+                   TextTrimming="CharacterEllipsis" />
+        <TextBlock Classes="caption"
+                   Text="{Binding #Root.Subtitle}"
+                   TextTrimming="CharacterEllipsis"
+                   IsVisible="{Binding #Root.Subtitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </StackPanel>
+      <ContentControl Grid.Column="2"
+                      VerticalAlignment="Center"
+                      Content="{Binding #Root.Actions}" />
+    </Grid>
+  </Border>
+</UserControl>

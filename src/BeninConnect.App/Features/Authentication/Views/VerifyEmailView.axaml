@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:vm="using:BeninConnect.App.Features.Authentication.ViewModels"
+             x:Class="BeninConnect.App.Features.Authentication.Views.VerifyEmailView"
+             x:DataType="vm:VerifyEmailViewModel"
+             Background="{DynamicResource SurfaceBrush}">
+  <Grid RowDefinitions="Auto,*">
+    <sc:AppHeader Title="Vérification de l'email" BackCommand="{Binding GoBackCommand}" />
+    <ScrollViewer Grid.Row="1">
+      <StackPanel Margin="24,24,24,32" Spacing="18" MaxWidth="460">
+        <Border Width="72" Height="72" CornerRadius="36" Background="{DynamicResource PrimaryLightBrush}" HorizontalAlignment="Left">
+          <PathIcon Data="{StaticResource Icon.CheckCircle}" Width="34" Height="34" Foreground="{DynamicResource PrimaryBrush}" />
+        </Border>
+        <TextBlock Classes="h2" Text="Vérifiez votre adresse email" />
+        <TextBlock Classes="body secondary">
+          <Run Text="Nous avons simulé l'envoi d'un code à 6 chiffres à " />
+          <Run Text="{Binding Email}" FontWeight="SemiBold" />
+          <Run Text="." />
+        </TextBlock>
+        <Border Classes="warning">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock TextWrapping="Wrap" VerticalAlignment="Center">
+              <Run Text="Démonstration : aucun email n'est envoyé. Code : " />
+              <Run Text="{Binding DemoCode}" FontWeight="Bold" />
+            </TextBlock>
+            <Button Grid.Column="1" Classes="link" Content="Remplir" Margin="8,0,0,0" Command="{Binding FillDemoCodeCommand}" />
+          </Grid>
+        </Border>
+        <c:AppTextBox Label="Code de vérification" Text="{Binding Code}" Watermark="123456" MaxLength="6" ContentType="Digits" ErrorText="{Binding CodeError}" />
+        <c:PrimaryButton HorizontalAlignment="Stretch" Content="Vérifier et continuer" Command="{Binding VerifyCommand}" />
+        <Button Classes="link" HorizontalAlignment="Center" Content="Renvoyer le code" Command="{Binding ResendCommand}" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

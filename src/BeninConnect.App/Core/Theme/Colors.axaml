@@ -1,0 +1,65 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <ResourceDictionary.ThemeDictionaries>
+
+    <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="PrimaryBrush" Color="#087F5B" />
+      <SolidColorBrush x:Key="PrimaryDarkBrush" Color="#065F46" />
+      <SolidColorBrush x:Key="PrimaryLightBrush" Color="#D1FAE5" />
+      <SolidColorBrush x:Key="OnPrimaryBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="BackgroundBrush" Color="#F8FAFC" />
+      <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="SurfaceVariantBrush" Color="#F1F5F9" />
+      <SolidColorBrush x:Key="TextPrimaryBrush" Color="#111827" />
+      <SolidColorBrush x:Key="TextSecondaryBrush" Color="#6B7280" />
+      <SolidColorBrush x:Key="BorderBrush" Color="#E5E7EB" />
+      <SolidColorBrush x:Key="SuccessBrush" Color="#16A34A" />
+      <SolidColorBrush x:Key="WarningBrush" Color="#F59E0B" />
+      <SolidColorBrush x:Key="ErrorBrush" Color="#DC2626" />
+      <SolidColorBrush x:Key="WarningLightBrush" Color="#FEF3C7" />
+      <SolidColorBrush x:Key="ErrorLightBrush" Color="#FEE2E2" />
+      <SolidColorBrush x:Key="OverlayBrush" Color="#99111827" />
+      <SolidColorBrush x:Key="ToastBrush" Color="#111827" />
+      <SolidColorBrush x:Key="OnToastBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="BubbleMineBrush" Color="#087F5B" />
+      <SolidColorBrush x:Key="OnBubbleMineBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="BubbleOtherBrush" Color="#FFFFFF" />
+    </ResourceDictionary>
+
+    <ResourceDictionary x:Key="Dark">
+      <SolidColorBrush x:Key="PrimaryBrush" Color="#10B981" />
+      <SolidColorBrush x:Key="PrimaryDarkBrush" Color="#059669" />
+      <SolidColorBrush x:Key="PrimaryLightBrush" Color="#064E3B" />
+      <SolidColorBrush x:Key="OnPrimaryBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="BackgroundBrush" Color="#0B1220" />
+      <SolidColorBrush x:Key="SurfaceBrush" Color="#111827" />
+      <SolidColorBrush x:Key="SurfaceVariantBrush" Color="#1F2937" />
+      <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F9FAFB" />
+      <SolidColorBrush x:Key="TextSecondaryBrush" Color="#9CA3AF" />
+      <SolidColorBrush x:Key="BorderBrush" Color="#1F2937" />
+      <SolidColorBrush x:Key="SuccessBrush" Color="#22C55E" />
+      <SolidColorBrush x:Key="WarningBrush" Color="#FBBF24" />
+      <SolidColorBrush x:Key="ErrorBrush" Color="#F87171" />
+      <SolidColorBrush x:Key="WarningLightBrush" Color="#422006" />
+      <SolidColorBrush x:Key="ErrorLightBrush" Color="#450A0A" />
+      <SolidColorBrush x:Key="OverlayBrush" Color="#B3000000" />
+      <SolidColorBrush x:Key="ToastBrush" Color="#F9FAFB" />
+      <SolidColorBrush x:Key="OnToastBrush" Color="#111827" />
+      <SolidColorBrush x:Key="BubbleMineBrush" Color="#059669" />
+      <SolidColorBrush x:Key="OnBubbleMineBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="BubbleOtherBrush" Color="#1F2937" />
+    </ResourceDictionary>
+
+  </ResourceDictionary.ThemeDictionaries>
+
+  <!-- Couleurs du Bénin, utilisées par petites touches (logo, accents). -->
+  <SolidColorBrush x:Key="BeninGreenBrush" Color="#008751" />
+  <SolidColorBrush x:Key="BeninYellowBrush" Color="#FCD116" />
+  <SolidColorBrush x:Key="BeninRedBrush" Color="#E8112D" />
+
+  <CornerRadius x:Key="CardCornerRadius">16</CornerRadius>
+  <CornerRadius x:Key="ControlCornerRadius">12</CornerRadius>
+  <Thickness x:Key="PagePadding">16,12,16,24</Thickness>
+
+</ResourceDictionary>

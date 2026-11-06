@@ -1,0 +1,147 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:vm="using:BeninConnect.App.Features.Home.ViewModels"
+             xmlns:fvm="using:BeninConnect.App.Features.Feed.ViewModels"
+             xmlns:cvm="using:BeninConnect.App.Features.Communities.ViewModels"
+             xmlns:evm="using:BeninConnect.App.Features.Events.ViewModels"
+             xmlns:fc="using:BeninConnect.App.Features.Feed.Components"
+             xmlns:cc="using:BeninConnect.App.Features.Communities.Components"
+             xmlns:ec="using:BeninConnect.App.Features.Events.Components"
+             x:Class="BeninConnect.App.Features.Home.Views.HomeView"
+             x:DataType="vm:HomeViewModel">
+  <Grid RowDefinitions="Auto,*">
+    <!-- En-tête -->
+    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="16,10,8,10">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+        <c:LogoMark Width="36" Height="36" />
+        <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center">
+          <TextBlock Text="BéninConnect" FontSize="18" FontWeight="Bold" />
+          <TextBlock Classes="caption" Text="{Binding Greeting}" />
+        </StackPanel>
+        <Button Grid.Column="2" Classes="icon" Command="{Binding OpenNotificationsCommand}" AutomationProperties.Name="Notifications">
+          <Panel>
+            <PathIcon Data="{StaticResource Icon.Bell}" />
+            <c:BadgeView Count="{Binding UnreadNotifications}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-8,-10,0" />
+          </Panel>
+        </Button>
+        <Button Grid.Column="3" Classes="icon" Command="{Binding OpenProfileCommand}" AutomationProperties.Name="Mon profil">
+          <c:AvatarView Initials="{Binding UserInitials}" ColorHex="{Binding UserColor}" Size="34" />
+        </Button>
+      </Grid>
+    </Border>
+
+    <ScrollViewer Grid.Row="1">
+      <StackPanel Margin="{StaticResource PagePadding}" Spacing="16">
+        <!-- Barre de recherche (ouvre l'écran Recherche) -->
+        <Button Classes="bare" Command="{Binding OpenSearchCommand}" AutomationProperties.Name="Rechercher">
+          <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="24" Padding="16,12">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <PathIcon Classes="secondary small" Data="{StaticResource Icon.Search}" />
+              <TextBlock Classes="secondary" Text="Rechercher des membres, communautés, événements…" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </Border>
+        </Button>
+
+        <!-- Création rapide -->
+        <Border Classes="card" Padding="12">
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <c:AvatarView Initials="{Binding UserInitials}" ColorHex="{Binding UserColor}" Size="40" />
+            <Button Grid.Column="1" Classes="bare" Margin="10,0" Command="{Binding CreatePostCommand}" AutomationProperties.Name="Créer une publication">
+              <Border Background="{DynamicResource SurfaceVariantBrush}" CornerRadius="20" Padding="14,10">
+                <TextBlock Classes="secondary" Text="{Binding ComposerPrompt}" />
+              </Border>
+            </Button>
+            <Button Grid.Column="2" Classes="icon" Command="{Binding CreatePostWithImageCommand}" AutomationProperties.Name="Publier une photo">
+              <PathIcon Data="{StaticResource Icon.Image}" Foreground="{DynamicResource PrimaryBrush}" />
+            </Button>
+          </Grid>
+        </Border>
+
+        <!-- Suggestions de communautés -->
+        <StackPanel Spacing="10" IsVisible="{Binding HasSuggestions}">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Classes="section" Margin="0" Text="Communautés à découvrir" />
+            <Button Grid.Column="1" Classes="link" Content="Tout voir" Command="{Binding OpenCommunitiesCommand}" />
+          </Grid>
+          <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Suggestions}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal" Spacing="10" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="cvm:CommunityItemViewModel">
+                  <cc:CommunityTile />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </StackPanel>
+
+        <!-- Événements recommandés -->
+        <StackPanel Spacing="10" IsVisible="{Binding HasEvents}">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Classes="section" Margin="0" Text="Événements recommandés" />
+            <Button Grid.Column="1" Classes="link" Content="Tous les événements" Command="{Binding OpenEventsCommand}" />
+          </Grid>
+          <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Events}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal" Spacing="10" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="evm:EventItemViewModel">
+                  <ec:EventTile />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </StackPanel>
+
+        <!-- Fil -->
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="section" Margin="0" Text="Fil d'actualité" />
+          <Button Grid.Column="1" Classes="link" Content="Actualiser" Command="{Binding RefreshCommand}" />
+        </Grid>
+
+        <sc:LoadingState IsVisible="{Binding IsLoading}" Text="Chargement du fil…" />
+        <sc:ErrorState IsVisible="{Binding IsError}" Message="{Binding ErrorMessage}" RetryCommand="{Binding RetryCommand}" />
+        <sc:EmptyState IsVisible="{Binding IsEmpty}"
+                       Icon="{StaticResource Icon.Inbox}"
+                       Title="Aucune publication pour le moment"
+                       Message="Rejoignez des communautés ou publiez le premier message."
+                       ActionText="Publier"
+                       ActionCommand="{Binding CreatePostCommand}" />
+
+        <ItemsControl ItemsSource="{Binding Posts}" IsVisible="{Binding IsContent}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="14" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="fvm:PostItemViewModel">
+              <fc:PostCard />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Pagination simulée -->
+        <Button Classes="outline" HorizontalAlignment="Stretch" Command="{Binding LoadMoreCommand}"
+                IsVisible="{Binding HasMore}" IsEnabled="{Binding CanLoadMore}">
+          <Panel>
+            <TextBlock Text="Voir plus de publications" IsVisible="{Binding !IsLoadingMore}" />
+            <TextBlock Text="Chargement…" IsVisible="{Binding IsLoadingMore}" />
+          </Panel>
+        </Button>
+        <TextBlock Classes="caption" HorizontalAlignment="Center" Text="Vous êtes à jour."
+                   IsVisible="{Binding ShowEndOfFeed}" Margin="0,4,0,8" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

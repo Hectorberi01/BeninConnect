@@ -1,0 +1,14 @@
+# Fichiers envoyés à Cloud Build : seulement ce que les Dockerfile utilisent.
+.git
+.agent
+**/bin
+**/obj
+**/node_modules
+**/dist
+mobile-expo
+src
+tests
+server/tests
+server/backups
+server/.env
+deploy/cloudrun/config.env

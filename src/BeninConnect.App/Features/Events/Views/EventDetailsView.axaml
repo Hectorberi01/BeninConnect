@@ -1,0 +1,87 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:conv="using:BeninConnect.App.Core.Converters"
+             xmlns:vm="using:BeninConnect.App.Features.Events.ViewModels"
+             x:Class="BeninConnect.App.Features.Events.Views.EventDetailsView"
+             x:DataType="vm:EventDetailsViewModel">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <sc:AppHeader Title="Événement" BackCommand="{Binding GoBackCommand}" />
+
+    <Panel Grid.Row="1">
+      <sc:LoadingState IsVisible="{Binding IsLoading}" />
+      <sc:ErrorState IsVisible="{Binding IsError}" Message="{Binding ErrorMessage}" RetryCommand="{Binding RetryCommand}" />
+      <ScrollViewer IsVisible="{Binding IsContent}">
+        <StackPanel Spacing="16" Margin="0,0,0,24">
+          <Image Source="{Binding Event.ImagePath, Converter={x:Static conv:AppConverters.AssetBitmap}}" Height="200" Stretch="UniformToFill" />
+          <StackPanel Margin="16,0" Spacing="14">
+            <Border Classes="pill" HorizontalAlignment="Left"><TextBlock Text="{Binding Event.Category}" /></Border>
+            <TextBlock Classes="h2" Text="{Binding Event.Title}" />
+
+            <Border Classes="card">
+              <StackPanel Spacing="14">
+                <Grid ColumnDefinitions="Auto,*">
+                  <PathIcon Data="{StaticResource Icon.Calendar}" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Top" />
+                  <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                    <TextBlock Text="Date et heure" FontWeight="SemiBold" />
+                    <TextBlock Classes="secondary" Text="{Binding ScheduleText}" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Grid>
+                <Grid ColumnDefinitions="Auto,*">
+                  <PathIcon Data="{StaticResource Icon.MapMarker}" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Top" />
+                  <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                    <TextBlock Text="{Binding Location}" FontWeight="SemiBold" />
+                    <TextBlock Classes="secondary" Text="{Binding Address}" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Grid>
+                <Grid ColumnDefinitions="Auto,*">
+                  <PathIcon Data="{StaticResource Icon.Group}" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Top" />
+                  <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                    <TextBlock Text="{Binding Event.ParticipantsText}" FontWeight="SemiBold" />
+                    <TextBlock Classes="secondary" Text="{Binding CapacityText}" />
+                  </StackPanel>
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <TextBlock Classes="section" Text="À propos" />
+            <TextBlock Classes="body" Text="{Binding Description}" />
+
+            <TextBlock Classes="section" Text="Organisateur" />
+            <Button Classes="row" Command="{Binding OpenOrganizerCommand}">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <c:AvatarView Initials="{Binding OrganizerInitials}" ColorHex="{Binding OrganizerColor}" Size="44" />
+                <TextBlock Grid.Column="1" Margin="12,0" Text="{Binding OrganizerName}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <PathIcon Grid.Column="2" Classes="secondary small" Data="{StaticResource Icon.ChevronRight}" />
+              </Grid>
+            </Button>
+
+            <Button Classes="row" Command="{Binding OpenCommunityCommand}" IsVisible="{Binding HasCommunity}">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <Border Width="44" Height="44" CornerRadius="12" Background="{DynamicResource PrimaryLightBrush}">
+                  <PathIcon Data="{StaticResource Icon.Group}" Foreground="{DynamicResource PrimaryBrush}" />
+                </Border>
+                <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                  <TextBlock Classes="caption" Text="Organisé dans la communauté" />
+                  <TextBlock Text="{Binding CommunityName}" FontWeight="SemiBold" />
+                </StackPanel>
+                <PathIcon Grid.Column="2" Classes="secondary small" Data="{StaticResource Icon.ChevronRight}" />
+              </Grid>
+            </Button>
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+    </Panel>
+
+    <Border Grid.Row="2" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
+            Padding="16,10,16,12" IsVisible="{Binding IsContent}">
+      <Button HorizontalAlignment="Stretch"
+              Classes="primary"
+              Classes.secondary="{Binding Event.IsParticipating}"
+              Command="{Binding Event.ToggleParticipationCommand}"
+              IsEnabled="{Binding Event.CanParticipate}"
+              Content="{Binding Event.ParticipationActionText}" />
+    </Border>
+  </Grid>
+</UserControl>

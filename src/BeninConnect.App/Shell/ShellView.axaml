@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:shell="using:BeninConnect.App.Shell"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:home="using:BeninConnect.App.Features.Home.Views"
+             xmlns:comm="using:BeninConnect.App.Features.Communities.Views"
+             xmlns:msg="using:BeninConnect.App.Features.Messaging.Views"
+             xmlns:prof="using:BeninConnect.App.Features.Profile.Views"
+             x:Class="BeninConnect.App.Shell.ShellView"
+             x:DataType="shell:ShellViewModel">
+  <Grid RowDefinitions="*,Auto">
+    <!-- Les 4 onglets restent instanciés : leur état et leur défilement sont conservés. -->
+    <Panel>
+      <Panel IsVisible="{Binding IsHomeSelected}">
+        <home:HomeView DataContext="{Binding Home}" />
+      </Panel>
+      <Panel IsVisible="{Binding IsCommunitiesSelected}">
+        <comm:CommunitiesView DataContext="{Binding Communities}" />
+      </Panel>
+      <Panel IsVisible="{Binding IsMessagesSelected}">
+        <msg:ConversationsView DataContext="{Binding Messages}" />
+      </Panel>
+      <Panel IsVisible="{Binding IsProfileSelected}">
+        <prof:ProfileView DataContext="{Binding Profile}" />
+      </Panel>
+    </Panel>
+    <sc:BottomNavigationBar Grid.Row="1" />
+  </Grid>
+</UserControl>

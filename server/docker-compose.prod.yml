@@ -1,0 +1,142 @@
+# Production : Traefik (HTTPS Let's Encrypt) + API + console admin + MinIO (photos) + sauvegarde.
+# La base PostgreSQL est hébergée ailleurs (service managé) : voir DB_* dans .env.
+#   cp .env.example .env   # puis remplir les secrets
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+name: beninconnect-prod
+
+services:
+  traefik:
+    image: traefik:v3.3
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      - --accesslog=true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+
+  api:
+    build:
+      context: ..
+      dockerfile: server/src/BeninConnect.Api/Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Database: "Host=${DB_HOST};Port=${DB_PORT:-5432};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};SSL Mode=${DB_SSLMODE:-Require};Maximum Pool Size=${DB_POOL_SIZE:-20};Timeout=15;Keepalive=30"
+      Jwt__SigningKey: ${JWT_SIGNING_KEY}
+      Email__Provider: smtp
+      Email__Host: ${SMTP_HOST}
+      Email__Port: ${SMTP_PORT:-587}
+      Email__Username: ${SMTP_USERNAME}
+      Email__Password: ${SMTP_PASSWORD}
+      Email__From: ${SMTP_FROM}
+      Admin__BootstrapEmail: ${ADMIN_BOOTSTRAP_EMAIL}
+      Admin__BootstrapPassword: ${ADMIN_BOOTSTRAP_PASSWORD}
+      Cors__AllowedOrigins__0: https://${ADMIN_DOMAIN}
+      # Photos : MinIO du compose par défaut ; autre fournisseur S3 (R2, Hetzner...) en changeant S3_* dans .env
+      Media__Provider: ${MEDIA_PROVIDER:-s3}
+      Media__S3__ServiceUrl: ${S3_SERVICE_URL:-http://minio:9000}
+      Media__S3__Region: ${S3_REGION:-us-east-1}
+      Media__S3__Bucket: ${S3_BUCKET:-beninconnect-media}
+      Media__S3__AccessKey: ${S3_ACCESS_KEY:-${MINIO_ROOT_USER}}
+      Media__S3__SecretKey: ${S3_SECRET_KEY:-${MINIO_ROOT_PASSWORD}}
+      Media__S3__PublicBaseUrl: ${S3_PUBLIC_BASE_URL:-}
+      Media__S3__CreateBucket: ${S3_CREATE_BUCKET:-true}
+    volumes:
+      - media:/app/media # utilisé seulement si MEDIA_PROVIDER=local
+    depends_on:
+      minio:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.api.loadbalancer.server.port=8080
+      - traefik.http.services.api.loadbalancer.healthcheck.path=/health
+      - traefik.http.routers.api.rule=Host(`${API_DOMAIN}`)
+      - traefik.http.routers.api.entrypoints=websecure
+      - traefik.http.routers.api.tls.certresolver=le
+      - traefik.http.routers.api.middlewares=secure-headers
+      # La console admin appelle l'API sur son propre domaine (/api, /uploads) : pas de CORS côté navigateur.
+      - traefik.http.routers.admin-api.rule=Host(`${ADMIN_DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/uploads`))
+      - traefik.http.routers.admin-api.entrypoints=websecure
+      - traefik.http.routers.admin-api.tls.certresolver=le
+      - traefik.http.routers.admin-api.service=api
+      - traefik.http.routers.admin-api.middlewares=secure-headers,admin-allowlist
+      - traefik.http.middlewares.secure-headers.headers.stsSeconds=31536000
+      - traefik.http.middlewares.secure-headers.headers.stsIncludeSubdomains=true
+      - traefik.http.middlewares.admin-allowlist.ipallowlist.sourcerange=${ADMIN_ALLOWED_IPS:-0.0.0.0/0}
+
+  # Photos (compatible S3). Aucun port publié : seule l'API y accède (console : voir docs/MISE_EN_PROD.md).
+  minio:
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2025-04-22T22-12-26Z}
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  admin:
+    build:
+      context: ../admin-console
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.admin.loadbalancer.server.port=8080
+      - traefik.http.routers.admin.rule=Host(`${ADMIN_DOMAIN}`)
+      - traefik.http.routers.admin.entrypoints=websecure
+      - traefik.http.routers.admin.tls.certresolver=le
+      - traefik.http.routers.admin.middlewares=secure-headers,admin-allowlist
+
+  # Copie quotidienne indépendante de celle du fournisseur (7 jours, 4 semaines, 6 mois).
+  # Désactivable : docker compose ... up -d --scale backup=0
+  backup:
+    image: prodrigestivill/postgres-backup-local:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: ${DB_HOST}
+      POSTGRES_PORT: ${DB_PORT:-5432}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGSSLMODE: require
+      POSTGRES_EXTRA_OPTS: "-Z6 --no-owner --no-privileges"
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 6
+    volumes:
+      - ./backups:/backups
+
+  # Copie quotidienne des photos (volume MinIO) dans ./backups/media, 7 jours conservés.
+  media-backup:
+    image: offen/docker-volume-backup:v2
+    restart: unless-stopped
+    environment:
+      BACKUP_CRON_EXPRESSION: "0 3 * * *"
+      BACKUP_FILENAME: photos-%Y-%m-%d.tar.gz
+      BACKUP_RETENTION_DAYS: "7"
+    volumes:
+      - minio:/backup/minio:ro
+      - ./backups/media:/archive
+
+volumes:
+  media:
+  minio:
+  letsencrypt:

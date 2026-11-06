@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:vm="using:BeninConnect.App.Features.Onboarding.ViewModels"
+             x:Class="BeninConnect.App.Features.Onboarding.Views.SplashView"
+             x:DataType="vm:SplashViewModel"
+             Background="{DynamicResource SurfaceBrush}">
+  <Grid RowDefinitions="*,Auto">
+    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
+      <c:LogoMark Width="96" Height="96" HorizontalAlignment="Center" />
+      <TextBlock Classes="h1" Text="BéninConnect" HorizontalAlignment="Center" />
+      <TextBlock Classes="secondary" Text="La communauté de la diaspora béninoise" HorizontalAlignment="Center" />
+      <ProgressBar IsIndeterminate="True" Width="80" Height="3" Margin="0,16,0,0" HorizontalAlignment="Center" />
+    </StackPanel>
+    <TextBlock Grid.Row="1" Classes="caption" Text="{Binding Version}" HorizontalAlignment="Center" Margin="0,0,0,24" />
+  </Grid>
+</UserControl>

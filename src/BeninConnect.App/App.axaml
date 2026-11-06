@@ -1,0 +1,32 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:nav="using:BeninConnect.App.Core.Navigation"
+             x:Class="BeninConnect.App.App"
+             Name="BéninConnect"
+             RequestedThemeVariant="Light">
+
+  <Application.DataTemplates>
+    <nav:ViewLocator />
+  </Application.DataTemplates>
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://BeninConnect.App/Core/Theme/Colors.axaml" />
+        <ResourceInclude Source="avares://BeninConnect.App/Core/Theme/Icons.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+      <!-- Police Inter pour tous les contrôles Fluent, police système en secours. -->
+      <FontFamily x:Key="ContentControlThemeFontFamily">fonts:Inter#Inter, $Default</FontFamily>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Light" Accent="#087F5B" RegionColor="#FFFFFF" ErrorText="#DC2626" />
+        <ColorPaletteResources x:Key="Dark" Accent="#34D399" RegionColor="#111827" ErrorText="#F87171" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <StyleInclude Source="avares://BeninConnect.App/Core/Theme/Styles.axaml" />
+  </Application.Styles>
+</Application>

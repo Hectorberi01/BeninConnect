@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0-ios</TargetFramework>
+    <SupportedOSPlatformVersion>13.0</SupportedOSPlatformVersion>
+    <ApplicationId>com.hbatech.beninconnect</ApplicationId>
+    <ApplicationTitle>BéninConnect</ApplicationTitle>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ProvisioningType>manual</ProvisioningType>
+    <!-- Xcode installé (26.6) plus récent que celui attendu par le pack .NET iOS 26.5 : on désactive la vérification stricte. -->
+    <ValidateXcodeVersion>false</ValidateXcodeVersion>
+  </PropertyGroup>
+
+  <!-- Debug : code interprété (pas de modules AOT à charger au démarrage), déploiement plus rapide et plus tolérant. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <MtouchInterpreter>all</MtouchInterpreter>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.iOS" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BeninConnect.App\BeninConnect.App.csproj" />
+  </ItemGroup>
+
+</Project>

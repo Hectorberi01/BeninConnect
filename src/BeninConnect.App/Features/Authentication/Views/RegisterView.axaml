@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:vm="using:BeninConnect.App.Features.Authentication.ViewModels"
+             x:Class="BeninConnect.App.Features.Authentication.Views.RegisterView"
+             x:DataType="vm:RegisterViewModel"
+             Background="{DynamicResource SurfaceBrush}">
+  <Grid RowDefinitions="Auto,*">
+    <sc:AppHeader Title="Créer un compte" BackCommand="{Binding GoBackCommand}" />
+    <ScrollViewer Grid.Row="1">
+      <StackPanel Margin="24,16,24,32" Spacing="16" MaxWidth="460">
+        <TextBlock Classes="secondary" TextWrapping="Wrap"
+                   Text="Version de démonstration : le compte est créé uniquement sur cet appareil, pour la durée de la session." />
+        <Grid ColumnDefinitions="*,12,*">
+          <c:AppTextBox Label="Prénom" Text="{Binding FirstName}" ContentType="Name" ErrorText="{Binding FirstNameError}" />
+          <c:AppTextBox Grid.Column="2" Label="Nom" Text="{Binding LastName}" ContentType="Name" ErrorText="{Binding LastNameError}" />
+        </Grid>
+        <c:AppTextBox Label="Adresse email" Text="{Binding Email}" Watermark="vous@exemple.com" ContentType="Email" ErrorText="{Binding EmailError}" />
+        <Grid ColumnDefinitions="*,12,*">
+          <c:AppTextBox Label="Pays de résidence" Text="{Binding Country}" Watermark="France" ErrorText="{Binding CountryError}" />
+          <c:AppTextBox Grid.Column="2" Label="Ville" Text="{Binding City}" Watermark="Paris" ErrorText="{Binding CityError}" />
+        </Grid>
+        <c:PasswordField Label="Mot de passe" Text="{Binding Password}" Watermark="8 caractères minimum, dont un chiffre" ErrorText="{Binding PasswordError}" />
+        <c:PasswordField Label="Confirmer le mot de passe" Text="{Binding ConfirmPassword}" ErrorText="{Binding ConfirmPasswordError}" />
+        <StackPanel Spacing="4">
+          <CheckBox IsChecked="{Binding AcceptTerms}">
+            <TextBlock TextWrapping="Wrap" Text="J'ai compris que cette application est une démonstration avec des données fictives." />
+          </CheckBox>
+          <TextBlock Classes="error" Text="{Binding TermsError}" IsVisible="{Binding TermsError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+        <Border Classes="soft" Background="{DynamicResource ErrorLightBrush}"
+                IsVisible="{Binding FormError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <TextBlock Text="{Binding FormError}" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" />
+        </Border>
+        <c:PrimaryButton HorizontalAlignment="Stretch" Content="Créer mon compte" Command="{Binding RegisterCommand}" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

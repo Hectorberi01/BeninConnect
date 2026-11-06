@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:shell="using:BeninConnect.App.Shell"
+             xmlns:dlg="using:BeninConnect.App.Shared.Dialogs"
+             x:Class="BeninConnect.App.Shell.MainView"
+             x:DataType="shell:MainViewModel"
+             Background="{DynamicResource BackgroundBrush}"
+             Foreground="{DynamicResource TextPrimaryBrush}"
+             FontFamily="{DynamicResource ContentControlThemeFontFamily}">
+  <Grid>
+    <!-- Écran courant (ViewLocator) -->
+    <ContentControl Content="{Binding CurrentPage}" />
+
+    <!-- Toast -->
+    <Border Classes="toast"
+            Classes.error="{Binding Toasts.IsError}"
+            IsVisible="{Binding Toasts.IsVisible}"
+            VerticalAlignment="Top"
+            HorizontalAlignment="Center"
+            MaxWidth="420"
+            Margin="16,12">
+      <TextBlock Text="{Binding Toasts.Message}" />
+    </Border>
+
+    <!-- Dialogue de confirmation -->
+    <Panel IsVisible="{Binding Dialogs.IsOpen}" Background="{DynamicResource OverlayBrush}">
+      <dlg:ConfirmationDialog DataContext="{Binding Dialogs.Current}"
+                              VerticalAlignment="Center"
+                              HorizontalAlignment="Center" />
+    </Panel>
+  </Grid>
+</UserControl>

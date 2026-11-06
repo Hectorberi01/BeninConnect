@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:vm="using:BeninConnect.App.Features.Messaging.ViewModels"
+             x:Class="BeninConnect.App.Features.Messaging.Views.ConversationsView"
+             x:DataType="vm:ConversationsViewModel">
+  <Grid RowDefinitions="Auto,*">
+    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="16,12">
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="h2" Text="Messages" VerticalAlignment="Center" />
+          <Button Grid.Column="1" Classes="icon filled" Command="{Binding NewConversationCommand}" AutomationProperties.Name="Nouvelle conversation">
+            <PathIcon Data="{StaticResource Icon.Pencil}" Width="18" Height="18" />
+          </Button>
+        </Grid>
+        <c:SearchBar Text="{Binding SearchText}" Watermark="Rechercher une conversation" />
+      </StackPanel>
+    </Border>
+
+    <Panel Grid.Row="1">
+      <sc:LoadingState IsVisible="{Binding IsLoading}" />
+      <sc:ErrorState IsVisible="{Binding IsError}" Message="{Binding ErrorMessage}" RetryCommand="{Binding RetryCommand}" />
+      <sc:EmptyState IsVisible="{Binding IsEmpty}" Icon="{StaticResource Icon.Chat}"
+                     Title="Aucune conversation" Message="Écrivez à un membre pour démarrer un échange."
+                     ActionText="Nouveau message" ActionCommand="{Binding NewConversationCommand}" />
+
+      <ListBox ItemsSource="{Binding Conversations}" IsVisible="{Binding IsContent}" Background="Transparent" Margin="8,6">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:ConversationItemViewModel">
+            <Button Classes="row" Command="{Binding OpenCommand}" AutomationProperties.Name="{Binding Name}">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <c:AvatarView Initials="{Binding Initials}" ColorHex="{Binding AvatarColor}" Size="50" />
+                <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center" Spacing="3">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Classes="caption" Text="{Binding LastMessage}" TextTrimming="CharacterEllipsis"
+                             Classes.unread="{Binding HasUnread}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
+                  <TextBlock Classes="caption" FontSize="12" Text="{Binding TimeText}" HorizontalAlignment="Right" />
+                  <Border Background="{DynamicResource PrimaryBrush}" CornerRadius="10" MinWidth="20" Height="20" Padding="6,0"
+                          HorizontalAlignment="Right" IsVisible="{Binding HasUnread}">
+                    <TextBlock Text="{Binding UnreadCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource OnPrimaryBrush}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                </StackPanel>
+              </Grid>
+            </Button>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Panel>
+  </Grid>
+</UserControl>

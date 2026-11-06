@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="BeninConnect.App.Shared.Controls.LogoMark"
+             AutomationProperties.Name="Logo BéninConnect">
+  <!-- Logo vectoriel : trois membres reliés, touches de jaune et de rouge. -->
+  <Viewbox>
+    <Canvas Width="64" Height="64">
+      <Rectangle Width="64" Height="64" RadiusX="18" RadiusY="18" Fill="{DynamicResource PrimaryBrush}" />
+      <Line StartPoint="20,40" EndPoint="32,20" Stroke="#FFFFFF" StrokeThickness="3" Opacity="0.85" />
+      <Line StartPoint="32,20" EndPoint="44,40" Stroke="#FFFFFF" StrokeThickness="3" Opacity="0.85" />
+      <Line StartPoint="20,40" EndPoint="44,40" Stroke="#FFFFFF" StrokeThickness="3" Opacity="0.85" />
+      <Ellipse Canvas.Left="25" Canvas.Top="13" Width="14" Height="14" Fill="#FFFFFF" />
+      <Ellipse Canvas.Left="13" Canvas.Top="33" Width="14" Height="14" Fill="{StaticResource BeninYellowBrush}" />
+      <Ellipse Canvas.Left="37" Canvas.Top="33" Width="14" Height="14" Fill="{StaticResource BeninRedBrush}" />
+    </Canvas>
+  </Viewbox>
+</UserControl>

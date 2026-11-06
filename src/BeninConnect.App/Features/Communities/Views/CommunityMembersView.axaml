@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:vm="using:BeninConnect.App.Features.Communities.ViewModels"
+             xmlns:pvm="using:BeninConnect.App.Features.Profile.ViewModels"
+             x:Class="BeninConnect.App.Features.Communities.Views.CommunityMembersView"
+             x:DataType="vm:CommunityMembersViewModel">
+  <Grid RowDefinitions="Auto,Auto,*">
+    <sc:AppHeader Title="{Binding Title}" Subtitle="{Binding CountText}" BackCommand="{Binding GoBackCommand}" />
+    <c:SearchBar Grid.Row="1" Margin="16,12,16,4" Text="{Binding SearchText}" Watermark="Rechercher un membre" />
+    <Panel Grid.Row="2">
+      <sc:LoadingState IsVisible="{Binding IsLoading}" />
+      <sc:ErrorState IsVisible="{Binding IsError}" Message="{Binding ErrorMessage}" RetryCommand="{Binding RetryCommand}" />
+      <sc:EmptyState IsVisible="{Binding IsEmpty}" Icon="{StaticResource Icon.Search}" Title="Aucun membre trouvé" Message="Vérifiez l'orthographe du nom recherché." />
+      <!-- ListBox : liste virtualisée -->
+      <ListBox ItemsSource="{Binding Members}" IsVisible="{Binding IsContent}" Background="Transparent" Margin="8,4" SelectionMode="Single">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="pvm:UserItemViewModel">
+            <sc:UserCard />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Panel>
+  </Grid>
+</UserControl>

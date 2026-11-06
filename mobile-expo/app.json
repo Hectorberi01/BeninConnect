@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "BéninConnect",
+    "slug": "beninconnect",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hbatech.beninconnect.rn",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        },
+        "NSLocalNetworkUsageDescription": "BéninConnect se connecte à l'API de développement sur votre réseau local."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#087F5B",
+        "foregroundImage": "./assets/icon.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.hbatech.beninconnect.rn"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-image",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BéninConnect accède à vos photos pour votre photo de profil, votre couverture et vos publications.",
+          "cameraPermission": "BéninConnect utilise l'appareil photo pour prendre une photo de profil ou illustrer une publication.",
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "scheme": "beninconnect",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#087F5B"
+    }
+  }
+}

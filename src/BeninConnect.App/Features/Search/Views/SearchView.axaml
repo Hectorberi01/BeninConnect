@@ -1,0 +1,133 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:mvvm="using:BeninConnect.App.Core.Mvvm"
+             xmlns:vm="using:BeninConnect.App.Features.Search.ViewModels"
+             xmlns:fvm="using:BeninConnect.App.Features.Feed.ViewModels"
+             xmlns:cvm="using:BeninConnect.App.Features.Communities.ViewModels"
+             xmlns:evm="using:BeninConnect.App.Features.Events.ViewModels"
+             xmlns:pvm="using:BeninConnect.App.Features.Profile.ViewModels"
+             xmlns:fc="using:BeninConnect.App.Features.Feed.Components"
+             xmlns:cc="using:BeninConnect.App.Features.Communities.Components"
+             xmlns:ec="using:BeninConnect.App.Features.Events.Components"
+             x:Class="BeninConnect.App.Features.Search.Views.SearchView"
+             x:DataType="vm:SearchViewModel">
+  <Grid RowDefinitions="Auto,Auto,*">
+    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="4,8,12,8">
+      <Grid ColumnDefinitions="Auto,*">
+        <Button Classes="icon" Command="{Binding GoBackCommand}" AutomationProperties.Name="Retour">
+          <PathIcon Data="{StaticResource Icon.ArrowLeft}" />
+        </Button>
+        <c:SearchBar x:Name="Bar" Grid.Column="1" Margin="4,0,0,0" Text="{Binding Query}" Watermark="Membres, publications, communautés…" />
+      </Grid>
+    </Border>
+
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Margin="16,10,16,0">
+      <ItemsControl ItemsSource="{Binding Scopes}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="8" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="mvvm:Chip">
+            <Button Classes="chip" Classes.selected="{Binding IsSelected}" Content="{Binding Label}" Command="{Binding SelectCommand}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <Panel Grid.Row="2">
+      <!-- Invite -->
+      <StackPanel Margin="16,24" Spacing="12" IsVisible="{Binding IsPrompt}">
+        <TextBlock Classes="h3" Text="Suggestions" />
+        <ItemsControl ItemsSource="{Binding SuggestionChips}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="mvvm:Chip">
+              <Button Classes="chip" Margin="0,0,8,8" Content="{Binding Label}" Command="{Binding SelectCommand}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Classes="caption" TextWrapping="Wrap" Text="Saisissez au moins 2 caractères. La recherche ignore les accents." />
+      </StackPanel>
+
+      <sc:LoadingState IsVisible="{Binding IsLoading}" Text="Recherche…" />
+      <sc:ErrorState IsVisible="{Binding IsError}" Message="{Binding ErrorMessage}" RetryCommand="{Binding RetryCommand}" />
+      <sc:EmptyState IsVisible="{Binding IsEmpty}" Icon="{StaticResource Icon.Search}"
+                     Title="Aucun résultat" Message="Essayez un autre mot-clé, une ville ou un nom." />
+
+      <ScrollViewer IsVisible="{Binding IsContent}">
+        <StackPanel Margin="{StaticResource PagePadding}" Spacing="14">
+          <TextBlock Classes="caption" Text="{Binding Summary}" />
+
+          <StackPanel Spacing="8" IsVisible="{Binding HasPeople}">
+            <TextBlock Classes="section" Margin="0" Text="Membres" />
+            <Border Classes="card" Padding="8">
+              <ItemsControl ItemsSource="{Binding People}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="pvm:UserItemViewModel">
+                    <sc:UserCard />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Border>
+          </StackPanel>
+
+          <StackPanel Spacing="10" IsVisible="{Binding HasCommunities}">
+            <TextBlock Classes="section" Margin="0" Text="Communautés" />
+            <ItemsControl ItemsSource="{Binding Communities}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="12" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="cvm:CommunityItemViewModel">
+                  <cc:CommunityCard />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+
+          <StackPanel Spacing="10" IsVisible="{Binding HasEvents}">
+            <TextBlock Classes="section" Margin="0" Text="Événements" />
+            <ItemsControl ItemsSource="{Binding Events}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="12" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="evm:EventItemViewModel">
+                  <ec:EventCard />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+
+          <StackPanel Spacing="10" IsVisible="{Binding HasPosts}">
+            <TextBlock Classes="section" Margin="0" Text="Publications" />
+            <ItemsControl ItemsSource="{Binding Posts}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="12" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="fvm:PostItemViewModel">
+                  <fc:PostCard />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+    </Panel>
+  </Grid>
+</UserControl>

@@ -1,0 +1,10 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+*.DotSettings.user
+.DS_Store
+TestResults/
+.agent/
+server/src/BeninConnect.Api/media/

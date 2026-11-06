@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:vm="using:BeninConnect.App.Features.Profile.ViewModels"
+             x:Class="BeninConnect.App.Shared.Components.UserCard"
+             x:DataType="vm:UserItemViewModel">
+  <Button Classes="row" Command="{Binding OpenCommand}" AutomationProperties.Name="{Binding Name}">
+    <Grid ColumnDefinitions="Auto,*,Auto">
+      <c:AvatarView Initials="{Binding Initials}" ColorHex="{Binding AvatarColor}" Size="44" />
+      <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center" Spacing="2">
+        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+        <TextBlock Classes="caption" Text="{Binding Subtitle}" TextTrimming="CharacterEllipsis" />
+      </StackPanel>
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <Border Classes="pill" IsVisible="{Binding HasBadge}">
+          <TextBlock Text="{Binding Badge}" />
+        </Border>
+        <PathIcon Classes="secondary small" Data="{StaticResource Icon.ChevronRight}" />
+      </StackPanel>
+    </Grid>
+  </Button>
+</UserControl>

@@ -1,0 +1,62 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:vm="using:BeninConnect.App.Features.Authentication.ViewModels"
+             x:Class="BeninConnect.App.Features.Authentication.Views.LoginView"
+             x:DataType="vm:LoginViewModel"
+             Background="{DynamicResource SurfaceBrush}">
+  <ScrollViewer>
+    <StackPanel Margin="24,40,24,24" Spacing="18" MaxWidth="460">
+      <c:LogoMark Width="64" Height="64" HorizontalAlignment="Left" />
+      <StackPanel Spacing="6">
+        <TextBlock Classes="h1" Text="Bon retour parmi nous" />
+        <TextBlock Classes="secondary" Text="Connectez-vous pour retrouver votre communauté." TextWrapping="Wrap" />
+      </StackPanel>
+
+      <!-- Compte de démonstration -->
+      <Border Classes="soft" Background="{DynamicResource PrimaryLightBrush}">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="2">
+            <TextBlock Text="Compte de démonstration" FontWeight="SemiBold" />
+            <TextBlock Classes="caption" Text="{Binding DemoEmail}" />
+            <TextBlock Classes="caption" Text="{Binding DemoPassword, StringFormat='Mot de passe : {0}'}" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="primary" MinHeight="38" Padding="14,6" VerticalAlignment="Center"
+                  Content="Utiliser" Command="{Binding UseDemoAccountCommand}" />
+        </Grid>
+      </Border>
+
+      <c:AppTextBox Label="Adresse email"
+                    Text="{Binding Email}"
+                    Watermark="vous@exemple.com"
+                    ContentType="Email"
+                    ErrorText="{Binding EmailError}" />
+      <c:PasswordField Label="Mot de passe"
+                       Text="{Binding Password}"
+                       Watermark="Votre mot de passe"
+                       ErrorText="{Binding PasswordError}" />
+
+      <Grid ColumnDefinitions="*,Auto">
+        <CheckBox Content="Rester connecté" IsChecked="{Binding RememberMe}" />
+        <Button Grid.Column="1" Classes="link" Content="Mot de passe oublié ?" Command="{Binding GoToForgotPasswordCommand}" />
+      </Grid>
+
+      <Border Classes="soft" Background="{DynamicResource ErrorLightBrush}"
+              IsVisible="{Binding FormError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock Text="{Binding FormError}" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" />
+      </Border>
+
+      <c:PrimaryButton HorizontalAlignment="Stretch" Command="{Binding LoginCommand}">
+        <Panel>
+          <TextBlock Text="Se connecter" IsVisible="{Binding !IsSubmitting}" />
+          <TextBlock Text="Connexion…" IsVisible="{Binding IsSubmitting}" />
+        </Panel>
+      </c:PrimaryButton>
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
+        <TextBlock Classes="secondary" Text="Pas encore de compte ?" VerticalAlignment="Center" />
+        <Button Classes="link" Content="Créer un compte" Command="{Binding GoToRegisterCommand}" />
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

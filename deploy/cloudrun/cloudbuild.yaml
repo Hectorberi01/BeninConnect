@@ -1,0 +1,22 @@
+# Construit les images API et console admin dans Artifact Registry.
+# Lancé par deploy.sh (gcloud builds submit), contexte = racine du dépôt.
+substitutions:
+  _REGION: europe-west1
+  _REPO: beninconnect
+  _TAG: latest
+  _API_URL: ""
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/api:${_TAG}",
+           "-f", "server/src/BeninConnect.Api/Dockerfile", "."]
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/admin:${_TAG}",
+           "--build-arg", "VITE_API_URL=${_API_URL}", "admin-console"]
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/api:${_TAG}
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/admin:${_TAG}
+
+options:
+  logging: CLOUD_LOGGING_ONLY

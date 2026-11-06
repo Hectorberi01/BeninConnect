@@ -1,0 +1,15 @@
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.expo
+**/media
+.agent
+.git
+.idea
+mobile-expo
+src
+tests
+docs
+server/backups
+server/.env

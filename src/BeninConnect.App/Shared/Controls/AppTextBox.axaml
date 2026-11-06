@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="BeninConnect.App.Shared.Controls.AppTextBox"
+             x:Name="Root">
+  <StackPanel Spacing="6">
+    <TextBlock Classes="label"
+               Text="{Binding #Root.Label}"
+               IsVisible="{Binding #Root.Label, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <TextBox x:Name="Input"
+             Text="{Binding #Root.Text, Mode=TwoWay}"
+             Watermark="{Binding #Root.Watermark}"
+             MaxLength="{Binding #Root.MaxLength}"
+             AcceptsReturn="{Binding #Root.IsMultiline}"
+             Classes.multiline="{Binding #Root.IsMultiline}"
+             Classes.error="{Binding #Root.ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+             TextInputOptions.ContentType="{Binding #Root.ContentType}"
+             AutomationProperties.Name="{Binding #Root.Label}" />
+    <TextBlock Classes="error"
+               Text="{Binding #Root.ErrorText}"
+               IsVisible="{Binding #Root.ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
+</UserControl>

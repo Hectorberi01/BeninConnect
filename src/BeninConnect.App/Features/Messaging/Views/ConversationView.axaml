@@ -1,0 +1,65 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:vm="using:BeninConnect.App.Features.Messaging.ViewModels"
+             xmlns:mc="using:BeninConnect.App.Features.Messaging.Components"
+             x:Class="BeninConnect.App.Features.Messaging.Views.ConversationView"
+             x:DataType="vm:ConversationViewModel">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <!-- En-tête -->
+    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="4,6,8,6">
+      <Grid ColumnDefinitions="Auto,*">
+        <Button Classes="icon" Command="{Binding GoBackCommand}" AutomationProperties.Name="Retour">
+          <PathIcon Data="{StaticResource Icon.ArrowLeft}" />
+        </Button>
+        <Button Grid.Column="1" Classes="bare" Margin="4,0" Command="{Binding OpenProfileCommand}" AutomationProperties.Name="Voir le profil">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <c:AvatarView Initials="{Binding Initials}" ColorHex="{Binding AvatarColor}" Size="38" />
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+              <TextBlock Classes="caption" FontSize="12" Text="{Binding Subtitle}" />
+            </StackPanel>
+          </StackPanel>
+        </Button>
+      </Grid>
+    </Border>
+
+    <!-- Historique -->
+    <Panel Grid.Row="1">
+      <sc:LoadingState IsVisible="{Binding IsLoading}" />
+      <sc:ErrorState IsVisible="{Binding IsError}" Message="{Binding ErrorMessage}" RetryCommand="{Binding RetryCommand}" />
+      <sc:EmptyState IsVisible="{Binding IsEmpty}" Icon="{StaticResource Icon.Chat}"
+                     Title="Nouvelle conversation" Message="Envoyez le premier message." />
+      <ScrollViewer x:Name="MessagesScroll" IsVisible="{Binding IsContent}">
+        <ItemsControl ItemsSource="{Binding Messages}" Margin="12,8,12,12">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:MessageItemViewModel">
+              <mc:MessageBubble />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Panel>
+
+    <!-- Saisie -->
+    <Border Grid.Row="2" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="12,8">
+      <StackPanel Spacing="6">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBox Text="{Binding Draft}" Watermark="Votre message…" MaxLength="2000" TextWrapping="Wrap" MaxHeight="120"
+                   CornerRadius="22" AutomationProperties.Name="Votre message" />
+          <Button Grid.Column="1" Classes="icon filled" Margin="8,0,0,0" Command="{Binding SendCommand}" AutomationProperties.Name="Envoyer">
+            <PathIcon Data="{StaticResource Icon.Send}" Width="18" Height="18" />
+          </Button>
+        </Grid>
+        <Button Classes="link" FontSize="12" HorizontalAlignment="Left" Command="{Binding SimulateReplyCommand}"
+                ToolTip.Tip="Ajoute une réponse fictive, clairement marquée comme simulée">
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <PathIcon Width="14" Height="14" Data="{StaticResource Icon.Bug}" />
+            <TextBlock Text="Démo : simuler une réponse" FontSize="12" />
+          </StackPanel>
+        </Button>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

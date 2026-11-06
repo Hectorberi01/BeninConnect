@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:BeninConnect.App.Shared.Dialogs"
+             x:Class="BeninConnect.App.Shared.Dialogs.ConfirmationDialog"
+             x:DataType="vm:ConfirmationDialogViewModel">
+  <Border Classes="card" Padding="20" MaxWidth="360" Margin="24" BoxShadow="0 12 40 0 #40000000">
+    <StackPanel Spacing="14">
+      <TextBlock Classes="h3" Text="{Binding Title}" TextWrapping="Wrap" />
+      <TextBlock Classes="body secondary" Text="{Binding Message}" />
+      <Grid ColumnDefinitions="*,12,*" Margin="0,6,0,0" IsVisible="{Binding HasCancel}">
+        <Button Classes="outline"
+                HorizontalAlignment="Stretch"
+                Content="{Binding CancelText}"
+                Command="{Binding CancelCommand}" />
+        <Button Grid.Column="2"
+                HorizontalAlignment="Stretch"
+                Classes="primary"
+                Classes.danger="{Binding IsDestructive}"
+                Content="{Binding ConfirmText}"
+                Command="{Binding ConfirmCommand}" />
+      </Grid>
+      <Button Classes="primary"
+              Margin="0,6,0,0"
+              HorizontalAlignment="Stretch"
+              IsVisible="{Binding !HasCancel}"
+              Content="{Binding ConfirmText}"
+              Command="{Binding ConfirmCommand}" />
+    </StackPanel>
+  </Border>
+</UserControl>

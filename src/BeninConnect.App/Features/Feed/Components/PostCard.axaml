@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:conv="using:BeninConnect.App.Core.Converters"
+             xmlns:vm="using:BeninConnect.App.Features.Feed.ViewModels"
+             x:Class="BeninConnect.App.Features.Feed.Components.PostCard"
+             x:DataType="vm:PostItemViewModel">
+  <Border Classes="card" Padding="0" ClipToBounds="True">
+    <StackPanel>
+      <!-- Auteur -->
+      <Grid ColumnDefinitions="Auto,*" Margin="16,14,16,10">
+        <Button Classes="bare" Command="{Binding OpenAuthorCommand}" AutomationProperties.Name="{Binding AuthorName}">
+          <c:AvatarView Initials="{Binding AuthorInitials}" ColorHex="{Binding AuthorColor}" Size="42" />
+        </Button>
+        <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center" Spacing="2">
+          <Button Classes="link" Command="{Binding OpenAuthorCommand}" HorizontalAlignment="Left">
+            <TextBlock Text="{Binding AuthorName}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+          </Button>
+          <WrapPanel>
+            <TextBlock Classes="caption" Text="{Binding TimeText}" />
+            <TextBlock Classes="caption" Text=" · " IsVisible="{Binding HasCommunity}" />
+            <Button Classes="link" FontSize="13" Command="{Binding OpenCommunityCommand}" IsVisible="{Binding HasCommunity}">
+              <TextBlock Text="{Binding CommunityName}" FontSize="13" FontWeight="SemiBold" />
+            </Button>
+            <PathIcon Classes="secondary" Width="12" Height="12" Margin="6,0,0,0" Data="{StaticResource Icon.Lock}" IsVisible="{Binding IsCommunityOnly}" ToolTip.Tip="Réservé aux membres" />
+          </WrapPanel>
+        </StackPanel>
+      </Grid>
+
+      <!-- Contenu -->
+      <Button Classes="bare" Command="{Binding OpenDetailsCommand}" AutomationProperties.Name="Ouvrir la publication">
+        <StackPanel Spacing="12">
+          <TextBlock Classes="body" Text="{Binding Content}" Margin="16,0" MaxLines="8" TextTrimming="WordEllipsis" />
+          <Image Source="{Binding ImagePath, Converter={x:Static conv:AppConverters.AssetBitmap}}"
+                 IsVisible="{Binding HasImage}"
+                 Stretch="UniformToFill"
+                 Height="210" />
+        </StackPanel>
+      </Button>
+
+      <!-- Actions -->
+      <Border Classes="separator" Margin="16,12,16,0" />
+      <Grid ColumnDefinitions="*,*,*" Margin="8,4,8,6">
+        <Button Classes="action" Classes.active="{Binding IsLiked}" Command="{Binding ToggleLikeCommand}" AutomationProperties.Name="J'aime">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Panel>
+              <PathIcon Width="20" Height="20" Data="{StaticResource Icon.HeartOutline}" IsVisible="{Binding !IsLiked}" />
+              <PathIcon Width="20" Height="20" Data="{StaticResource Icon.Heart}" IsVisible="{Binding IsLiked}" />
+            </Panel>
+            <TextBlock Text="{Binding LikeLabel}" VerticalAlignment="Center" FontSize="14" />
+          </StackPanel>
+        </Button>
+        <Button Grid.Column="1" Classes="action" Command="{Binding CommentCommand}" AutomationProperties.Name="Commenter">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Width="20" Height="20" Data="{StaticResource Icon.Comment}" />
+            <TextBlock Text="{Binding CommentLabel}" VerticalAlignment="Center" FontSize="14" />
+          </StackPanel>
+        </Button>
+        <Button Grid.Column="2" Classes="action" Command="{Binding ShareCommand}" AutomationProperties.Name="Partager">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Width="20" Height="20" Data="{StaticResource Icon.Share}" />
+            <TextBlock Text="Partager" VerticalAlignment="Center" FontSize="14" />
+          </StackPanel>
+        </Button>
+      </Grid>
+    </StackPanel>
+  </Border>
+</UserControl>

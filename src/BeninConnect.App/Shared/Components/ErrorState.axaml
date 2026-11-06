@@ -1,0 +1,13 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="BeninConnect.App.Shared.Components.ErrorState"
+             x:Name="Root">
+  <StackPanel Spacing="10" HorizontalAlignment="Center" Margin="24,40" MaxWidth="320">
+    <Border Width="72" Height="72" CornerRadius="36" Background="{DynamicResource ErrorLightBrush}" HorizontalAlignment="Center">
+      <PathIcon Data="{StaticResource Icon.Alert}" Width="32" Height="32" Foreground="{DynamicResource ErrorBrush}" />
+    </Border>
+    <TextBlock Classes="h3" Text="Oups, un problème est survenu" TextAlignment="Center" TextWrapping="Wrap" HorizontalAlignment="Center" />
+    <TextBlock Classes="secondary" Text="{Binding #Root.Message}" TextAlignment="Center" TextWrapping="Wrap" HorizontalAlignment="Center" />
+    <Button Classes="primary" Margin="0,6,0,0" HorizontalAlignment="Center" Content="Réessayer" Command="{Binding #Root.RetryCommand}" />
+  </StackPanel>
+</UserControl>

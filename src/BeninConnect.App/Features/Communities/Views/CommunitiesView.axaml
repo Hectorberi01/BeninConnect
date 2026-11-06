@@ -1,0 +1,90 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:BeninConnect.App.Shared.Controls"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:mvvm="using:BeninConnect.App.Core.Mvvm"
+             xmlns:vm="using:BeninConnect.App.Features.Communities.ViewModels"
+             xmlns:cc="using:BeninConnect.App.Features.Communities.Components"
+             x:Class="BeninConnect.App.Features.Communities.Views.CommunitiesView"
+             x:DataType="vm:CommunitiesViewModel">
+  <Grid RowDefinitions="Auto,*">
+    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="16,12">
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="h2" Text="Communautés" VerticalAlignment="Center" />
+          <c:PrimaryButton Grid.Column="1" MinHeight="38" Padding="14,6" Command="{Binding CreateCommunityCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <PathIcon Data="{StaticResource Icon.Plus}" Width="16" Height="16" />
+              <TextBlock Text="Créer" />
+            </StackPanel>
+          </c:PrimaryButton>
+        </Grid>
+        <c:SearchBar Text="{Binding SearchText}" Watermark="Rechercher une communauté, une ville…" />
+        <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+          <ItemsControl ItemsSource="{Binding Categories}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="mvvm:Chip">
+                <Button Classes="chip" Classes.selected="{Binding IsSelected}" Content="{Binding Label}" Command="{Binding SelectCommand}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </StackPanel>
+    </Border>
+
+    <Panel Grid.Row="1">
+      <sc:LoadingState IsVisible="{Binding IsLoading}" />
+      <sc:ErrorState IsVisible="{Binding IsError}" Message="{Binding ErrorMessage}" RetryCommand="{Binding RetryCommand}" />
+      <sc:EmptyState IsVisible="{Binding IsEmpty}"
+                     Icon="{StaticResource Icon.Group}"
+                     Title="Aucune communauté trouvée"
+                     Message="Essayez un autre mot-clé ou créez la communauté qui vous manque."
+                     ActionText="Effacer les filtres"
+                     ActionCommand="{Binding ClearFiltersCommand}" />
+
+      <ScrollViewer IsVisible="{Binding IsContent}">
+        <StackPanel Margin="{StaticResource PagePadding}" Spacing="14">
+          <StackPanel Spacing="10" IsVisible="{Binding HasMyCommunities}">
+            <TextBlock Classes="section" Margin="0" Text="Mes communautés" />
+            <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+              <ItemsControl ItemsSource="{Binding MyCommunities}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="10" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:CommunityItemViewModel">
+                    <cc:CommunityTile />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </StackPanel>
+
+          <TextBlock Classes="section" Text="{Binding RecommendedTitle}" IsVisible="{Binding HasRecommended}" />
+          <ItemsControl ItemsSource="{Binding Recommended}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="12" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:CommunityItemViewModel">
+                <cc:CommunityCard />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Classes="caption" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
+                     IsVisible="{Binding !HasRecommended}"
+                     Text="Vous êtes membre de toutes les communautés correspondant à ces filtres." />
+        </StackPanel>
+      </ScrollViewer>
+    </Panel>
+  </Grid>
+</UserControl>

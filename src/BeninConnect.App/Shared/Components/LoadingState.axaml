@@ -1,0 +1,9 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="BeninConnect.App.Shared.Components.LoadingState"
+             x:Name="Root">
+  <StackPanel Spacing="12" HorizontalAlignment="Center" Margin="24,48">
+    <ProgressBar IsIndeterminate="True" Width="140" Height="4" CornerRadius="2" />
+    <TextBlock Classes="caption" Text="{Binding #Root.Text}" HorizontalAlignment="Center" />
+  </StackPanel>
+</UserControl>

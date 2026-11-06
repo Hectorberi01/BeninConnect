@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sc="using:BeninConnect.App.Shared.Components"
+             xmlns:mvvm="using:BeninConnect.App.Core.Mvvm"
+             xmlns:vm="using:BeninConnect.App.Features.Notifications.ViewModels"
+             xmlns:nc="using:BeninConnect.App.Features.Notifications.Components"
+             x:Class="BeninConnect.App.Features.Notifications.Views.NotificationsView"
+             x:DataType="vm:NotificationsViewModel">
+  <Grid RowDefinitions="Auto,Auto,*">
+    <sc:AppHeader Title="Notifications" BackCommand="{Binding GoBackCommand}">
+      <sc:AppHeader.Actions>
+        <Button Classes="link" Margin="0,0,8,0" Command="{Binding MarkAllAsReadCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <PathIcon Width="16" Height="16" Data="{StaticResource Icon.CheckAll}" />
+            <TextBlock Text="Tout marquer comme lu" FontSize="13" />
+          </StackPanel>
+        </Button>
+      </sc:AppHeader.Actions>
+    </sc:AppHeader>
+
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Margin="16,10,16,4">
+      <ItemsControl ItemsSource="{Binding Categories}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="8" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="mvvm:Chip">
+            <Button Classes="chip" Classes.selected="{Binding IsSelected}" Content="{Binding Label}" Command="{Binding SelectCommand}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <Panel Grid.Row="2">
+      <sc:LoadingState IsVisible="{Binding IsLoading}" />
+      <sc:ErrorState IsVisible="{Binding IsError}" Message="{Binding ErrorMessage}" RetryCommand="{Binding RetryCommand}" />
+      <sc:EmptyState IsVisible="{Binding IsEmpty}" Icon="{StaticResource Icon.Bell}"
+                     Title="Aucune notification" Message="Vous êtes à jour dans cette catégorie." />
+      <ListBox ItemsSource="{Binding Items}" IsVisible="{Binding IsContent}" Background="Transparent" Margin="8,4">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:NotificationItemViewModel">
+            <nc:NotificationItem Margin="0,0,0,2" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Panel>
+  </Grid>
+</UserControl>
