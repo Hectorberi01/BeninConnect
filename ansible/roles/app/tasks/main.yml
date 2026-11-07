@@ -48,19 +48,8 @@
       - "--exclude=media/"
       - "--exclude=backups/"
       - "--exclude=.env"
+      - "--exclude=.env.deploy"
       - "--exclude=Directory.Build.targets"
-  notify: Reconstruire
-
-- name: Code de la console admin
-  when: not app_from_registry
-  ansible.posix.synchronize:
-    src: "{{ repo_root }}/admin-console/"
-    dest: "{{ app_dir }}/admin-console/"
-    delete: true
-    rsync_opts:
-      - "--exclude=node_modules/"
-      - "--exclude=dist/"
-      - "--exclude=.env*"
   notify: Reconstruire
 
 - name: Propriétaire des fichiers copiés
@@ -70,14 +59,39 @@
     group: "{{ deploy_user }}"
     recurse: true
 
-- name: Secrets et réglages (.env)
-  ansible.builtin.template:
-    src: env.j2
-    dest: "{{ app_dir }}/server/.env"
+# Le .env (secrets) est déposé à la main sur le serveur avant le premier déploiement : Ansible ne le crée jamais.
+- name: Vérifier la présence du .env
+  ansible.builtin.stat:
+    path: "{{ app_dir }}/server/.env"
+  register: env_file
+
+- name: Arrêter si le .env manque
+  ansible.builtin.assert:
+    that: env_file.stat.exists
+    fail_msg: >-
+      {{ app_dir }}/server/.env introuvable sur le serveur. Le créer à partir de server/.env.example
+      (scp server/.env.example puis édition), droits 600, avant de relancer le déploiement.
+    quiet: true
+
+- name: Droits du .env (lecture par le seul utilisateur de déploiement)
+  ansible.builtin.file:
+    path: "{{ app_dir }}/server/.env"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
     mode: "0600"
-  notify: Reconstruire
+
+# Image à déployer (non secret), séparée du .env pour ne jamais le modifier.
+- name: Image de l'API (.env.deploy)
+  ansible.builtin.copy:
+    dest: "{{ app_dir }}/server/.env.deploy"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0644"
+    content: |
+      # Généré par Ansible : image de l'API à déployer (vide = construite sur le serveur)
+      {% if app_from_registry %}
+      API_IMAGE={{ app_image_registry | lower }}/beninconnect-api:{{ app_image_tag }}
+      {% endif %}
 
 - name: Appliquer les reconstructions en attente
   ansible.builtin.meta: flush_handlers
@@ -94,6 +108,7 @@
   community.docker.docker_compose_v2:
     project_src: "{{ app_dir }}/server"
     files: [docker-compose.prod.yml]
+    env_files: [.env, .env.deploy]
     state: present
     remove_orphans: true
     pull: "{{ 'always' if app_from_registry else 'missing' }}"
@@ -106,13 +121,10 @@
     registry_url: "{{ app_image_registry.split('/')[0] }}"
     state: absent
 
-# Traefik route par nom de domaine : on l'appelle en local avec le bon en-tête Host.
+# Directement sur le port local (Caddy n'intervient pas) : vérifie l'API et sa base.
 - name: Attendre que l'API réponde
   ansible.builtin.uri:
-    url: https://127.0.0.1/health
-    headers:
-      Host: "{{ api_domain }}"
-    validate_certs: false
+    url: "http://127.0.0.1:{{ api_port }}/health"
     status_code: 200
   register: health
   until: health.status == 200

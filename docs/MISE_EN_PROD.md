@@ -1,7 +1,19 @@
 # Mise en production de l'API BéninConnect
 
-Cible : un serveur Linux (VPS) avec Docker pour l'API et la console (`server/docker-compose.prod.yml` :
-Traefik, API, console admin, sauvegarde) et une base PostgreSQL hébergée chez un fournisseur.
+Cible : un VPS avec Docker pour l'API et les sauvegardes (`server/docker-compose.prod.yml`), Caddy installé
+directement sur le VPS pour HTTPS (`server/Caddyfile`), et une base PostgreSQL hébergée chez un fournisseur.
+La console admin n'est pas déployée pour l'instant.
+
+## Caddy (HTTPS)
+
+```bash
+sudo apt install -y caddy
+sudo cp /opt/beninconnect/server/Caddyfile /etc/caddy/Caddyfile   # ou copier le fichier du dépôt
+sudo systemctl reload caddy
+```
+
+Caddy obtient le certificat Let's Encrypt de `api.monbenin.com` dès que le DNS pointe vers le VPS
+et relaie vers l'API, qui n'écoute que sur `127.0.0.1:8080`.
 
 ## 0. Base de données hébergée
 
@@ -23,18 +35,13 @@ Choisir une région proche du VPS (Europe de l'Ouest) : chaque requête fait l'a
 L'API refuse de démarrer si la connexion n'est pas chiffrée ou pointe vers `localhost`.
 Elle réessaie automatiquement les coupures réseau passagères (5 fois).
 
-## 0 bis. Photos : stockage objet S3
+## 0 bis. Photos
 
-Par défaut, `docker-compose.prod.yml` embarque **MinIO** (compatible S3) : rien à créer chez un fournisseur.
-Renseigner `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` dans `.env` ; le bucket `beninconnect-media` est créé au premier envoi.
-MinIO n'a aucun port public (l'API relaie les photos). Console : publier temporairement `127.0.0.1:9001:9001`
-sur le service `minio`, puis `ssh -L 9001:localhost:9001 serveur` et ouvrir http://localhost:9001.
+Aujourd'hui : **disque du serveur** (`MEDIA_PROVIDER=local`, volume Docker `media`), servies par l'API sous `/uploads`.
 Sauvegarde : le service `media-backup` archive le volume chaque nuit dans `server/backups/media` (7 jours).
 
-MinIO Community est archivé et `minio/minio` a été retiré de Docker Hub (septembre 2026) ; `quay.io/minio` refuse aussi.
-Image utilisée : `cgr.dev/chainguard/minio:latest` (Chainguard, maintenue, seul le tag `latest` est gratuit),
-modifiable avec `MINIO_IMAGE` (ex. le fork communautaire `pgsty/silo`). Pour la durée, prévoir un fournisseur ci-dessous
-ou un équivalent auto-hébergé compatible S3 (Garage, SeaweedFS) : seules les variables `S3_*` changent.
+Plus tard, stockage objet compatible S3 : la configuration est prête, il suffit de passer `MEDIA_PROVIDER=s3`
+et de remplir `S3_*` dans `.env` (ou `media_provider` / `s3_*` dans Ansible). Aucun changement de code.
 
 Fournisseurs externes (renseigner `S3_*` dans `.env`, `S3_CREATE_BUCKET=false`) :
 
@@ -52,7 +59,7 @@ l'API redirige vers `S3_PUBLIC_BASE_URL` si elle est renseignée, sinon relaie l
 
 1. Créer le bucket `beninconnect-media` (privé).
 2. Créer une clé d'accès limitée à ce bucket (lecture + écriture) : `S3_ACCESS_KEY`, `S3_SECRET_KEY`.
-3. Recommandé : brancher un domaine public en lecture seule (R2 : Settings > Custom Domains, ex. `media.beninconnect.app`)
+3. Recommandé : brancher un domaine public en lecture seule (R2 : Settings > Custom Domains, ex. `media.monbenin.com`)
    et le mettre dans `S3_PUBLIC_BASE_URL`. Les photos ne passent alors plus par le VPS et sont mises en cache par le CDN.
 4. Renseigner `S3_SERVICE_URL`, `S3_REGION`, `S3_BUCKET` dans `.env`.
 
@@ -64,6 +71,20 @@ rclone copy /var/lib/docker/volumes/beninconnect-prod_media/_data/uploads r2:ben
 
 Les photos ne sont jamais modifiées (nom unique) : le versionnage du bucket ou une réplication vers un 2e bucket
 suffit comme sauvegarde.
+
+## 0 ter. Emails avec Resend
+
+1. Créer un compte sur resend.com, puis Domains > Add domain : `monbenin.com`.
+2. Ajouter chez le registrar les enregistrements DNS affichés (DKIM, SPF via sous-domaine `send`, MX de retour),
+   attendre le statut *Verified*. Recommandé en plus : un enregistrement DMARC `_dmarc.monbenin.com`
+   (`v=DMARC1; p=none; rua=mailto:...`).
+3. API Keys > Create : droit *Sending access*, limité au domaine `monbenin.com` → `RESEND_API_KEY`
+   (dans le `.env` du serveur).
+4. `EMAIL_FROM=no-reply@monbenin.com`. Les refus de Resend apparaissent dans les journaux de l'API
+   (`docker compose logs api | grep Resend`) et dans Resend > Emails / Logs.
+
+Test en local sans domaine : `Email__Provider=resend`, `Email__ResendApiKey=re_...`,
+`Email__From=onboarding@resend.dev` (envoi possible uniquement vers l'adresse du compte Resend).
 
 ## 1. Migrations
 
@@ -87,7 +108,7 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 docker compose -f docker-compose.prod.yml logs -f api
 ```
 
-DNS : deux enregistrements A (`API_DOMAIN`, `ADMIN_DOMAIN`) vers l'IP du serveur, ports 80 et 443 ouverts.
+DNS : un enregistrement A `api.monbenin.com` vers l'IP du serveur, ports 80 et 443 ouverts (Caddy).
 
 ## 3. Ce que la configuration de production apporte
 
@@ -96,17 +117,16 @@ DNS : deux enregistrements A (`API_DOMAIN`, `ADMIN_DOMAIN`) vers l'IP du serveur
 | Démarrage refusé si dangereux | clé JWT de dev, code de vérification fixe, emails non configurés, données de démo activées |
 | Secrets | uniquement en variables d'environnement (`.env`, jamais commité) |
 | Schéma | migrations EF de chaque module appliquées au démarrage (schémas `identity`, `feed`, `communities`…) |
-| Emails | SMTP : code de vérification, nouveau code, mot de passe oublié (+ `POST /api/auth/reset-password`) |
-| HTTPS | Traefik + Let's Encrypt, redirection http → https, HSTS |
+| Emails | Resend (API HTTP, `EMAIL_PROVIDER=resend`) ou SMTP : code de vérification, nouveau code, mot de passe oublié |
+| HTTPS | Caddy sur le VPS (`server/Caddyfile`) : Let's Encrypt automatique, HSTS, API sur 127.0.0.1:8080 |
 | Proxy | en-têtes `X-Forwarded-*` pris en compte (vraie IP du client) |
 | Limites de débit | 10/min/IP sur connexion, inscription, codes (membres et admin) ; 60 envois de photos/h ; 600 requêtes/min/IP |
-| CORS | liste explicite (`Cors__AllowedOrigins__0`) ; la console passe par son domaine, sans CORS |
+| CORS | aucune origine autorisée (l'app mobile n'en a pas besoin) ; ajouter `Cors__AllowedOrigins__0` pour la future console |
 | En-têtes | `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` |
-| Santé | `/health` vérifie la base ; utilisé par Traefik |
+| Santé | `/health` vérifie la base ; utilisé par Caddy et par Ansible |
 | Journaux | JSON sur la sortie standard (`docker logs`, Loki, Datadog) |
 | Conteneur | utilisateur non root ; photos dans un bucket S3 (ou le volume `media` en mode local) |
 | Base | hébergée, connexion TLS obligatoire, réessais automatiques ; sauvegardes du fournisseur + copie quotidienne dans `server/backups` (7 j / 4 sem. / 6 mois) |
-| Console admin | Nginx non root ; accès restreignable par IP (`ADMIN_ALLOWED_IPS`) |
 | Développement seulement | `/api/dev/reset`, `/openapi/v1.json`, réponse simulée de messagerie, code `123456` |
 
 ## 4. Après le déploiement

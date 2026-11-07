@@ -2,7 +2,8 @@ deploy_user: deploy
 app_dir: /opt/beninconnect
 # Racine du dépôt sur la machine qui lance Ansible
 repo_root: "{{ playbook_dir }}/.."
-# Délai d'attente de l'API après démarrage (Let's Encrypt inclus)
+api_port: 8080
+# Délai d'attente de l'API après démarrage (migrations incluses)
 health_retries: 30
 
 # Images publiées par la CI GitHub (ex. sha-1a2b3c4) : le serveur les télécharge, sans build.

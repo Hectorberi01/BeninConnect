@@ -1,31 +1,10 @@
-# Production : Traefik (HTTPS Let's Encrypt) + API + console admin + MinIO (photos) + sauvegarde.
-# La base PostgreSQL est hébergée ailleurs (service managé) : voir DB_* dans .env.
+# Production : API + sauvegardes. HTTPS assuré par Caddy installé sur le VPS (voir server/Caddyfile).
+# La base PostgreSQL est hébergée ailleurs : voir DB_* dans .env.
 #   cp .env.example .env   # puis remplir les secrets
 #   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 name: beninconnect-prod
 
 services:
-  traefik:
-    image: traefik:v3.3
-    restart: unless-stopped
-    command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      - --entrypoints.web.http.redirections.entrypoint.to=websecure
-      - --entrypoints.web.http.redirections.entrypoint.scheme=https
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
-      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
-      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
-      - --accesslog=true
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - letsencrypt:/letsencrypt
-
   api:
     # Image de la CI (GHCR) si API_IMAGE est défini, sinon construite sur le serveur.
     image: ${API_IMAGE:-beninconnect-api:local}
@@ -33,79 +12,38 @@ services:
       context: ..
       dockerfile: server/src/BeninConnect.Api/Dockerfile
     restart: unless-stopped
+    # Joignable seulement depuis le VPS : Caddy fait le reverse proxy vers 127.0.0.1:8080.
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Database: "Host=${DB_HOST};Port=${DB_PORT:-5432};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};SSL Mode=${DB_SSLMODE:-Require};Maximum Pool Size=${DB_POOL_SIZE:-20};Timeout=15;Keepalive=30"
       Jwt__SigningKey: ${JWT_SIGNING_KEY}
-      Email__Provider: smtp
-      Email__Host: ${SMTP_HOST}
+      # Emails (codes de vérification, mot de passe oublié) : Resend par défaut, SMTP possible
+      Email__Provider: ${EMAIL_PROVIDER:-resend}
+      Email__ResendApiKey: ${RESEND_API_KEY:-}
+      Email__From: ${EMAIL_FROM}
+      Email__FromName: ${EMAIL_FROM_NAME:-BéninConnect}
+      Email__Host: ${SMTP_HOST:-}
       Email__Port: ${SMTP_PORT:-587}
-      Email__Username: ${SMTP_USERNAME}
-      Email__Password: ${SMTP_PASSWORD}
-      Email__From: ${SMTP_FROM}
+      Email__Username: ${SMTP_USERNAME:-}
+      Email__Password: ${SMTP_PASSWORD:-}
       Admin__BootstrapEmail: ${ADMIN_BOOTSTRAP_EMAIL}
       Admin__BootstrapPassword: ${ADMIN_BOOTSTRAP_PASSWORD}
-      Cors__AllowedOrigins__0: https://${ADMIN_DOMAIN}
-      # Photos : MinIO du compose par défaut ; autre fournisseur S3 (R2, Hetzner...) en changeant S3_* dans .env
-      Media__Provider: ${MEDIA_PROVIDER:-s3}
-      Media__S3__ServiceUrl: ${S3_SERVICE_URL:-http://minio:9000}
-      Media__S3__Region: ${S3_REGION:-us-east-1}
+      # Console admin sur un autre domaine (plus tard) : Cors__AllowedOrigins__0: https://admin.monbenin.com
+      # Photos : disque (volume media) par défaut ; S3 (R2, Hetzner, MinIO...) avec MEDIA_PROVIDER=s3 et S3_* dans .env
+      Media__Provider: ${MEDIA_PROVIDER:-local}
+      Media__S3__ServiceUrl: ${S3_SERVICE_URL:-}
+      Media__S3__Region: ${S3_REGION:-auto}
       Media__S3__Bucket: ${S3_BUCKET:-beninconnect-media}
-      Media__S3__AccessKey: ${S3_ACCESS_KEY:-${MINIO_ROOT_USER}}
-      Media__S3__SecretKey: ${S3_SECRET_KEY:-${MINIO_ROOT_PASSWORD}}
+      Media__S3__AccessKey: ${S3_ACCESS_KEY:-}
+      Media__S3__SecretKey: ${S3_SECRET_KEY:-}
       Media__S3__PublicBaseUrl: ${S3_PUBLIC_BASE_URL:-}
-      Media__S3__CreateBucket: ${S3_CREATE_BUCKET:-true}
+      Media__S3__CreateBucket: ${S3_CREATE_BUCKET:-false}
     volumes:
-      - media:/app/media # utilisé seulement si MEDIA_PROVIDER=local
-    depends_on:
-      minio:
-        condition: service_started # bucket créé au premier envoi, avec nouvel essai si MinIO n'est pas prêt
-    labels:
-      - traefik.enable=true
-      - traefik.http.services.api.loadbalancer.server.port=8080
-      - traefik.http.services.api.loadbalancer.healthcheck.path=/health
-      - traefik.http.routers.api.rule=Host(`${API_DOMAIN}`)
-      - traefik.http.routers.api.entrypoints=websecure
-      - traefik.http.routers.api.tls.certresolver=le
-      - traefik.http.routers.api.middlewares=secure-headers
-      # La console admin appelle l'API sur son propre domaine (/api, /uploads) : pas de CORS côté navigateur.
-      - traefik.http.routers.admin-api.rule=Host(`${ADMIN_DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/uploads`))
-      - traefik.http.routers.admin-api.entrypoints=websecure
-      - traefik.http.routers.admin-api.tls.certresolver=le
-      - traefik.http.routers.admin-api.service=api
-      - traefik.http.routers.admin-api.middlewares=secure-headers,admin-allowlist
-      - traefik.http.middlewares.secure-headers.headers.stsSeconds=31536000
-      - traefik.http.middlewares.secure-headers.headers.stsIncludeSubdomains=true
-      - traefik.http.middlewares.admin-allowlist.ipallowlist.sourcerange=${ADMIN_ALLOWED_IPS:-0.0.0.0/0}
+      - media:/app/media
 
-  # Photos (compatible S3). Aucun port publié : seule l'API y accède ; console via tunnel SSH (ssh -L 9001:localhost:9001).
-  minio:
-    # minio/minio n'existe plus sur Docker Hub : image Chainguard maintenue (gratuite en latest uniquement).
-    image: ${MINIO_IMAGE:-cgr.dev/chainguard/minio:latest}
-    user: "0:0" # l'image tourne en UID 65532 et le volume appartient à root
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    volumes:
-      - minio:/data
-
-  admin:
-    image: ${ADMIN_IMAGE:-beninconnect-admin:local}
-    build:
-      context: ../admin-console
-    restart: unless-stopped
-    labels:
-      - traefik.enable=true
-      - traefik.http.services.admin.loadbalancer.server.port=8080
-      - traefik.http.routers.admin.rule=Host(`${ADMIN_DOMAIN}`)
-      - traefik.http.routers.admin.entrypoints=websecure
-      - traefik.http.routers.admin.tls.certresolver=le
-      - traefik.http.routers.admin.middlewares=secure-headers,admin-allowlist
-
-  # Copie quotidienne indépendante de celle du fournisseur (7 jours, 4 semaines, 6 mois).
-  # Désactivable : docker compose ... up -d --scale backup=0
+  # Copie quotidienne de la base, indépendante de celle du fournisseur (7 jours, 4 semaines, 6 mois).
   backup:
     image: prodrigestivill/postgres-backup-local:17
     restart: unless-stopped
@@ -124,7 +62,7 @@ services:
     volumes:
       - ./backups:/backups
 
-  # Copie quotidienne des photos (volume MinIO) dans ./backups/media, 7 jours conservés.
+  # Copie quotidienne des photos (volume media) dans ./backups/media, 7 jours conservés.
   media-backup:
     image: offen/docker-volume-backup:v2
     restart: unless-stopped
@@ -133,10 +71,8 @@ services:
       BACKUP_FILENAME: photos-%Y-%m-%d.tar.gz
       BACKUP_RETENTION_DAYS: "7"
     volumes:
-      - minio:/backup/minio:ro
+      - media:/backup/media:ro
       - ./backups/media:/archive
 
 volumes:
   media:
-  minio:
-  letsencrypt:

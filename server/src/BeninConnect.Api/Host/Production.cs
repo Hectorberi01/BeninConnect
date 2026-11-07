@@ -35,9 +35,14 @@ public static class Production
             errors.Add("Auth__FixedVerificationCode doit être vide : un code fixe permet de valider n'importe quel email.");
         }
 
-        if (!email.IsSmtp && !config.GetValue("Email:AllowLogProvider", false))
+        if (!email.IsSmtp && !email.IsResend && !config.GetValue("Email:AllowLogProvider", false))
         {
-            errors.Add("Email__Provider=smtp requis (Email__Host, Email__Username, Email__Password, Email__From) : sinon aucun code n'est envoyé.");
+            errors.Add("Email__Provider=resend (Email__ResendApiKey, Email__From) ou smtp requis : sinon aucun code n'est envoyé.");
+        }
+
+        if (email.IsResend && (string.IsNullOrWhiteSpace(email.ResendApiKey) || string.IsNullOrWhiteSpace(email.From)))
+        {
+            errors.Add("Email__ResendApiKey et Email__From sont obligatoires avec le fournisseur resend.");
         }
 
         if (email.IsSmtp && (string.IsNullOrWhiteSpace(email.Host) || string.IsNullOrWhiteSpace(email.From)))

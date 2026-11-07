@@ -13,7 +13,7 @@
 | Console admin | oxlint, vitest, `tsc` + build Vite |
 | Application mobile | `tsc --noEmit`, jest |
 | Ansible | syntaxe des playbooks, ansible-lint |
-| Images | `ghcr.io/<propriétaire>/beninconnect-api` et `beninconnect-admin`, tags `sha-<commit>` et `latest` |
+| Images | `ghcr.io/<propriétaire>/beninconnect-api`, tags `sha-<commit>` et `latest` |
 
 L'application Avalonia (Desktop, Android, iOS, `tests/`) n'est ni testée ni construite par la CI.
 
@@ -27,11 +27,10 @@ Une pull request doit passer tous les jobs (à rendre obligatoire : Settings > B
    |---|---|
    | `SSH_PRIVATE_KEY` | clé privée dédiée au déploiement (`ssh-keygen -t ed25519 -f deploy_github -N ""`) |
    | `SSH_KNOWN_HOSTS` | sortie de `ssh-keyscan -p <port> <ip du serveur>` |
-   | `ANSIBLE_VAULT_PASSWORD` | contenu de `ansible/.vault_pass` |
 
 2. Ajouter la clé publique `deploy_github.pub` à `deploy_authorized_keys` (`ansible/group_vars/production/main.yml`)
    puis relancer `ansible-playbook site.yml` depuis le Mac.
-3. Committer `ansible/group_vars/production/vault.yml` **chiffré** (`ansible-vault encrypt`), jamais `.vault_pass`.
+3. Déposer le `.env` sur le serveur avant le premier déploiement (voir `ansible/README.md`) : le workflow s'arrête s'il manque.
 4. Recommandé : Settings > Environments > `production` > *Required reviewers* pour valider chaque mise en production.
 
 ## Déployer une version précise / revenir en arrière

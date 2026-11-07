@@ -3,6 +3,7 @@
   community.docker.docker_compose_v2:
     project_src: "{{ app_dir }}/server"
     files: [docker-compose.prod.yml]
+    env_files: [.env, .env.deploy]
     build: always
     state: present
     remove_orphans: true

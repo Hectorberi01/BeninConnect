@@ -34,7 +34,15 @@ public sealed class IdentityModule : IModule
         services.AddSingleton(config.GetSection("Auth").Get<AuthSettings>() ?? new AuthSettings());
         var email = config.GetSection(EmailSettings.Section).Get<EmailSettings>() ?? new EmailSettings();
         services.AddSingleton(email);
-        if (email.IsSmtp)
+        if (email.IsResend)
+        {
+            services.AddHttpClient<IEmailSender, ResendEmailSender>(c =>
+            {
+                c.BaseAddress = new Uri(ResendEmailSender.BaseAddress);
+                c.Timeout = TimeSpan.FromSeconds(10);
+            });
+        }
+        else if (email.IsSmtp)
         {
             services.AddSingleton<IEmailSender, SmtpEmailSender>();
         }

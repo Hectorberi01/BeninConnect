@@ -1,11 +1,12 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Net.Mail;
 using BeninConnect.Modules.Identity.Application;
 using Microsoft.Extensions.Logging;
 
 namespace BeninConnect.Modules.Identity.Infrastructure;
 
-/// <summary>Section « Email ». Provider : log (développement) ou smtp (production).</summary>
+/// <summary>Section « Email ». Provider : log (développement), resend ou smtp (production).</summary>
 public sealed class EmailSettings
 {
     public const string Section = "Email";
@@ -19,7 +20,11 @@ public sealed class EmailSettings
     public string Password { get; set; } = string.Empty;
     public bool EnableSsl { get; set; } = true;
 
+    /// <summary>Clé API Resend (re_...), domaine d'envoi vérifié dans Resend.</summary>
+    public string ResendApiKey { get; set; } = string.Empty;
+
     public bool IsSmtp => Provider.Equals("smtp", StringComparison.OrdinalIgnoreCase);
+    public bool IsResend => Provider.Equals("resend", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>Développement : l'email est écrit dans les journaux (le code y est lisible).</summary>
@@ -61,4 +66,47 @@ public sealed class SmtpEmailSender(EmailSettings settings, ILogger<SmtpEmailSen
             logger.LogError(ex, "Envoi d'email impossible vers {To} ({Subject})", to, subject);
         }
     }
+}
+
+/// <summary>Production : API HTTP Resend (https://resend.com), port 443, pas de SMTP à ouvrir.</summary>
+public sealed class ResendEmailSender(HttpClient http, EmailSettings settings, ILogger<ResendEmailSender> logger) : IEmailSender
+{
+    public const string BaseAddress = "https://api.resend.com/";
+
+    public async Task SendAsync(string to, string subject, string textBody, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "emails")
+        {
+            Content = JsonContent.Create(new
+            {
+                from = $"{settings.FromName} <{settings.From}>",
+                to = new[] { to },
+                subject,
+                text = textBody,
+                html = ToHtml(textBody)
+            })
+        };
+        request.Headers.Authorization = new("Bearer", settings.ResendApiKey);
+
+        try
+        {
+            using var response = await http.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                // Pas d'échec visible pour le membre (il peut redemander le code) ; l'erreur reste dans les journaux.
+                logger.LogError("Resend a refusé l'email vers {To} ({Subject}) : {Status} {Body}",
+                    to, subject, (int)response.StatusCode, await response.Content.ReadAsStringAsync(ct));
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Resend injoignable pour {To} ({Subject})", to, subject);
+        }
+    }
+
+    /// <summary>Version HTML minimale du texte (meilleur affichage et délivrabilité que le texte seul).</summary>
+    internal static string ToHtml(string text) =>
+        "<div style=\"font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#1f2933\">"
+        + string.Join("<br>", WebUtility.HtmlEncode(text).Split('\n'))
+        + "</div>";
 }

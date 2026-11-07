@@ -52,11 +52,10 @@ jobs:
           pip install ansible-core
           ansible-galaxy collection install -r requirements.yml -p collections
 
-      - name: Accès SSH et vault
+      - name: Accès SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
-          ANSIBLE_VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
         run: |
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
@@ -71,7 +70,6 @@ jobs:
           ENTRY=$([ "${PORT:-22}" = "22" ] && echo "$HOST" || echo "[$HOST]:$PORT")
           ssh-keygen -F "$ENTRY" -f ~/.ssh/known_hosts > /dev/null \
             || { echo "::error::SSH_KNOWN_HOSTS ne contient pas $ENTRY : relancer ssh-keyscan -p ${PORT:-22} $HOST"; exit 1; }
-          printf '%s' "$ANSIBLE_VAULT_PASSWORD" > ansible/.vault_pass && chmod 600 ansible/.vault_pass
 
       - name: Déploiement
         working-directory: ansible
@@ -86,4 +84,4 @@ jobs:
 
       - name: Nettoyage des secrets
         if: always()
-        run: rm -f ~/.ssh/id_ed25519 ansible/.vault_pass
+        run: rm -f ~/.ssh/id_ed25519

@@ -10,16 +10,10 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Database: "Host=host.docker.internal;Port=5432;Database=beninconnect;Username=admin;Password=AdminTest123"
       Jwt__SigningKey: "dev-only-signing-key-beninconnect-please-change-0123456789"
-      # Photos dans MinIO (bucket créé au premier envoi)
-      Media__Provider: s3
-      Media__S3__ServiceUrl: http://minio:9000
-      Media__S3__Region: us-east-1
-      Media__S3__Bucket: beninconnect-media
-      Media__S3__AccessKey: beninconnect
-      Media__S3__SecretKey: beninconnect-dev-secret
-      Media__S3__CreateBucket: "true"
-    depends_on:
-      - minio
+      # Photos sur disque (volume media). S3 : Media__Provider=s3 + Media__S3__* (ServiceUrl, Bucket, AccessKey...)
+      Media__Provider: local
+    volumes:
+      - media:/app/media
     # host.docker.internal = le Mac (PostgreSQL local sur 5432).
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -27,22 +21,8 @@ services:
       - "5080:8080"
     profiles: ["full"]
 
-  # Stockage des photos compatible S3. Console : http://localhost:9001 (beninconnect / beninconnect-dev-secret)
-  minio:
-    image: ${MINIO_IMAGE:-cgr.dev/chainguard/minio:latest}
-    user: "0:0"
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: beninconnect
-      MINIO_ROOT_PASSWORD: beninconnect-dev-secret
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio:/data
-
 #volumes:
 #  pgdata:
 
 volumes:
-  minio:
+  media:

@@ -8,3 +8,5 @@ obj/
 TestResults/
 .agent/
 server/src/BeninConnect.Api/media/
+mobile-expo/.claude
+mobile-expo/.expo

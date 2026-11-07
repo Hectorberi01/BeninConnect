@@ -1,0 +1,25 @@
+# Caddy installé sur le VPS (apt install caddy) : HTTPS automatique Let's Encrypt.
+#   sudo cp server/Caddyfile /etc/caddy/Caddyfile && sudo systemctl reload caddy
+api.monbenin.com {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# Photos : jusqu'à 10 Mo (marge pour l'en-tête multipart)
+	request_body {
+		max_size 12MB
+	}
+
+	reverse_proxy 127.0.0.1:8080 {
+		health_uri /health
+		health_interval 30s
+	}
+
+	log {
+		output file /var/log/caddy/api.log
+		format json
+	}
+}
