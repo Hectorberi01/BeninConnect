@@ -4,6 +4,8 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { InfoBox } from '@/components/Form';
 import { Avatar, Button, Card, Header, ListRow, Muted, Screen, Segmented, SwitchRow, T, TextField } from '@/components/ui';
+import Constants from 'expo-constants';
+import { DEV_TOOLS } from '@/core/config';
 import { confirm, info } from '@/core/dialog';
 import { type DataSourceKind, DEFAULT_API_URL, type ThemePreference, usePreferences, PRODUCTION_API_URL } from '@/core/preferences';
 import { useMe } from '@/core/session';
@@ -37,6 +39,9 @@ export default function Settings() {
     await signOut();
     toast(source === 'api' ? `Source : API ${apiUrl.trim()}` : 'Source : données de démonstration hors ligne.');
   };
+
+  const version = Constants.expoConfig?.version ?? '1.0.0';
+  const demo = data().kind === 'demo';
 
   const logout = async () => {
     if (await confirm('Se déconnecter ?', 'Vous reviendrez à l\'écran de connexion.', 'Se déconnecter', true)) await signOut();
@@ -88,7 +93,7 @@ export default function Settings() {
             onPress={() => toast("Le français est la langue de cette version. L'anglais arrivera dans une prochaine version.")} />
         </Group>
 
-        <Group title="Source de données">
+        {DEV_TOOLS && <Group title="Source de données">
           <View style={{ marginHorizontal: -16, paddingVertical: 8 }}>
             <Segmented<DataSourceKind> value={source} onChange={setSource}
               items={[{ key: 'demo', label: 'Démo hors ligne' }, { key: 'api', label: 'API BéninConnect' }]} />
@@ -100,9 +105,9 @@ export default function Settings() {
           )}
           <Muted style={{ marginBottom: 10 }}>{`Source active : ${data().kind === 'api' ? `API (${prefs.apiUrl})` : 'démonstration hors ligne'}`}</Muted>
           {sourceChanged && <Button title="Appliquer" icon="swap-horizontal" onPress={applySource} style={{ marginBottom: 8 }} />}
-        </Group>
+        </Group>}
 
-        {data().kind === 'demo' && (
+        {DEV_TOOLS && demo && (
           <Group title="Développeur">
             <SwitchRow icon="bug-outline" label="Simuler des erreurs réseau" description="Environ un appel sur deux échoue"
               value={prefs.simulateErrors} onChange={(simulateErrors) => {
@@ -113,14 +118,15 @@ export default function Settings() {
         )}
 
         <Group title="À propos">
-          <ListRow icon="information-outline" label="À propos de BéninConnect" value="1.0.0" onPress={() => info('À propos de BéninConnect',
-            'BéninConnect Community — prototype de démonstration (version 1.0, React Native / Expo).\n\n'
-            + 'Toutes les personnes, communautés, publications et événements sont fictifs.\n\n'
-            + 'Icônes : Material Design Icons (Apache 2.0). Police : Inter (SIL OFL). Images : illustrations générées pour le projet.')} />
+          <ListRow icon="information-outline" label="À propos de BéninConnect" value={version} onPress={() => info('À propos de BéninConnect',
+            (demo
+              ? `BéninConnect Community — démonstration (version ${version}).\n\nToutes les personnes, communautés, publications et événements sont fictifs.\n\n`
+              : `BéninConnect Community — la communauté de la diaspora béninoise (version ${version}).\n\n`)
+            + 'Icônes : Material Design Icons (Apache 2.0). Police : Inter (SIL OFL).')} />
         </Group>
 
         <View style={{ marginTop: 20 }}>
-          <InfoBox icon="flask-outline"><T v="caption" color={c.primaryDark}>Version 1.0.0 (démonstration)</T></InfoBox>
+          {demo && <InfoBox icon="flask-outline"><T v="caption" color={c.primaryDark}>{`Version ${version} (démonstration)`}</T></InfoBox>}
           <Button title="Se déconnecter" kind="danger" icon="logout" onPress={logout} />
         </View>
       </ScrollView>

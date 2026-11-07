@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "BéninConnect",
+    "name": "BeninConnect",
     "slug": "beninconnect",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,7 +13,9 @@
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         },
-        "NSLocalNetworkUsageDescription": "BéninConnect se connecte à l'API de développement sur votre réseau local."
+        "NSLocalNetworkUsageDescription": "BéninConnect se connecte à l'API de développement sur votre réseau local.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDisplayName": "BéninConnect"
       }
     },
     "android": {
@@ -45,14 +47,18 @@
         {
           "color": "#087F5B"
         }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#087F5B"
+        }
       ]
     ],
     "scheme": "beninconnect",
-    "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#087F5B"
-    },
     "extra": {
       "router": {
         "asyncRoutes": {
