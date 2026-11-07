@@ -62,7 +62,10 @@ jobs:
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           # Diagnostic : empreintes connues, à comparer avec celles du serveur (ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub)
-          ssh-keygen -lf ~/.ssh/known_hosts || { echo "::error::Secret SSH_KNOWN_HOSTS vide ou invalide (ssh-keyscan <ip>)"; exit 1; }
+          # Structure du secret (hôte et type de clé seulement) pour comprendre une erreur de format
+          echo "SSH_KNOWN_HOSTS : $(grep -c . ~/.ssh/known_hosts) ligne(s)"
+          awk 'NF { printf "  ligne %d : %d champ(s), type=%s\n", NR, NF, $2 }' ~/.ssh/known_hosts
+          ssh-keygen -lf ~/.ssh/known_hosts || { echo "::error::Secret SSH_KNOWN_HOSTS invalide : attendu la sortie de ssh-keyscan (« ip type clé »)"; exit 1; }
           HOST=$(grep -m1 'ansible_host:' ansible/inventory/production.yml | awk '{print $2}')
           PORT=$(grep -m1 'ansible_port:' ansible/inventory/production.yml | awk '{print $2}')
           ENTRY=$([ "${PORT:-22}" = "22" ] && echo "$HOST" || echo "[$HOST]:$PORT")
