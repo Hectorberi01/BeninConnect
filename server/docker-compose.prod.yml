@@ -22,7 +22,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       # true seulement pour une base sur le VPS ou un réseau privé (WireGuard) sans SSL
       Database__AllowInsecure: ${DB_ALLOW_INSECURE:-false}
-      ConnectionStrings__Database: "Host=${DB_HOST};Port=${DB_PORT:-5432};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};SSL Mode=${DB_SSLMODE:-Require};Maximum Pool Size=${DB_POOL_SIZE:-20};Timeout=15;Keepalive=30"
+      ConnectionStrings__Database: "Host=${DB_HOST};Port=${DB_PORT:-5432};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};SSL Mode=${DB_SSLMODE:-Require};Maximum Pool Size=${DB_POOL_SIZE:-20};Timeout=15;Keepalive=30;GSS Encryption Mode=Disable"
       Jwt__SigningKey: ${JWT_SIGNING_KEY}
       # Emails (codes de vérification, mot de passe oublié) : Resend par défaut, SMTP possible
       Email__Provider: ${EMAIL_PROVIDER:-resend}
@@ -35,7 +35,11 @@ services:
       Email__Password: ${SMTP_PASSWORD:-}
       Admin__BootstrapEmail: ${ADMIN_BOOTSTRAP_EMAIL}
       Admin__BootstrapPassword: ${ADMIN_BOOTSTRAP_PASSWORD}
-      # Console admin sur un autre domaine (plus tard) : Cors__AllowedOrigins__0: https://admin.monbenin.com
+      # Origines web autorisées (navigateur) : app Expo web en test, future console admin. Inutile pour l'app mobile.
+      Cors__AllowedOrigins__0: ${CORS_ORIGIN_1:-}
+      Cors__AllowedOrigins__1: ${CORS_ORIGIN_2:-}
+      # Notifications push via Expo ; jeton seulement si « Enhanced Security » est activé dans le projet Expo
+      Push__ExpoAccessToken: ${EXPO_ACCESS_TOKEN:-}
       # Photos : disque (volume media) par défaut ; S3 (R2, Hetzner, MinIO...) avec MEDIA_PROVIDER=s3 et S3_* dans .env
       Media__Provider: ${MEDIA_PROVIDER:-local}
       Media__S3__ServiceUrl: ${S3_SERVICE_URL:-}

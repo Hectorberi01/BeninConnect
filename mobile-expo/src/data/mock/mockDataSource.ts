@@ -29,6 +29,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export class MockDataSource implements DataSource {
   readonly kind = 'demo' as const;
   readonly demoVerificationCode = '123456';
+  readonly hasDemoAccount = true;
   readonly store: MockStore;
   private me: string | null = null;
 
@@ -531,6 +532,11 @@ export class MockDataSource implements DataSource {
     await this.net();
     return this.store.notifications.filter((n) => n.userId === this.userId && !n.isRead).length;
   }
+
+  // Mode démo : pas de serveur, donc pas de notification push.
+  async registerPushDevice() {}
+
+  async unregisterPushDevice() {}
 
   async markNotificationRead(id: string) {
     await this.net();

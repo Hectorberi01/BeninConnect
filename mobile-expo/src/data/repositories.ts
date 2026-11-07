@@ -9,7 +9,10 @@ import type {
  */
 export interface DataSource {
   readonly kind: 'demo' | 'api';
-  readonly demoVerificationCode: string;
+  /** Code de vérification fixe (démo, API de développement) ; null en production : le code arrive par email. */
+  readonly demoVerificationCode: string | null;
+  /** Le compte demo@beninconnect.test existe (absent en production). */
+  readonly hasDemoAccount: boolean;
 
   // Authentification
   login(email: string, password: string): Promise<AuthResult>;
@@ -79,6 +82,9 @@ export interface DataSource {
   getNotifications(category?: NotificationCategory): Promise<AppNotification[]>;
   getUnreadNotificationCount(): Promise<number>;
   markNotificationRead(id: string): Promise<AppNotification>;
+  /** Notifications push : téléphone enregistré pour le membre connecté (catégories coupées incluses). */
+  registerPushDevice(token: string, platform: 'ios' | 'android', mutedCategories: NotificationCategory[]): Promise<void>;
+  unregisterPushDevice(token: string): Promise<void>;
   markAllNotificationsRead(): Promise<number>;
 }
 

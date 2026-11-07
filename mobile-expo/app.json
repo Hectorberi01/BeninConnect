@@ -11,7 +11,6 @@
       "bundleIdentifier": "com.hbatech.beninconnect.rn",
       "infoPlist": {
         "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
         },
         "NSLocalNetworkUsageDescription": "BéninConnect se connecte à l'API de développement sur votre réseau local."
@@ -40,6 +39,12 @@
           "cameraPermission": "BéninConnect utilise l'appareil photo pour prendre une photo de profil ou illustrer une publication.",
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#087F5B"
+        }
       ]
     ],
     "scheme": "beninconnect",
@@ -47,6 +52,17 @@
       "image": "./assets/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#087F5B"
-    }
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "4a0ba136-2301-495e-abac-0be7e5ef4584"
+      }
+    },
+    "owner": "berihectors-team"
   }
 }

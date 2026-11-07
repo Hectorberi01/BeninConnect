@@ -12,8 +12,13 @@ public sealed class NotificationsDbContext(DbContextOptions<NotificationsDbConte
     public const string SchemaName = "notifications";
 
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<PushDevice> PushDevices => Set<PushDevice>();
 
-    public async Task<IReadOnlyList<LabelCount>> CountTablesAsync(CancellationToken ct) => [new("Notifications", await Notifications.CountAsync(ct))];
+    public async Task<IReadOnlyList<LabelCount>> CountTablesAsync(CancellationToken ct) =>
+    [
+        new("Notifications", await Notifications.CountAsync(ct)),
+        new("Téléphones (push)", await PushDevices.CountAsync(ct))
+    ];
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -23,6 +28,17 @@ public sealed class NotificationsDbContext(DbContextOptions<NotificationsDbConte
             e.ToTable("notifications");
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.UserId, x.CreatedAt });
+        });
+
+        b.Entity<PushDevice>(e =>
+        {
+            e.ToTable("push_devices");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Token).HasMaxLength(PushDevice.MaxTokenLength);
+            e.Property(x => x.Platform).HasMaxLength(16);
+            e.HasIndex(x => x.Token).IsUnique();
+            e.HasIndex(x => x.UserId);
         });
     }
 }

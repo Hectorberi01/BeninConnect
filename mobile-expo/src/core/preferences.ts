@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
+import { DEFAULT_API_URL, PRODUCTION_API_URL } from './config';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 export type DataSourceKind = 'demo' | 'api';
@@ -21,15 +22,14 @@ export interface Preferences {
   simulateErrors: boolean;
 }
 
-// API exposée par le tunnel ngrok (HTTPS : fonctionne sur l'iPhone hors du Wi‑Fi du Mac).
-export const DEFAULT_API_URL = 'https://unstormy-lorriane-poikiloblastic.ngrok-free.dev';
-const OLD_DEFAULT_API_URLS = ['http://localhost:5080'];
+export { DEFAULT_API_URL, PRODUCTION_API_URL };
+const OLD_DEFAULT_API_URLS = ['http://localhost:5080', 'https://unstormy-lorriane-poikiloblastic.ngrok-free.dev'];
 
 const defaults: Omit<Preferences, 'loaded'> = {
   theme: 'light',
   onboardingCompleted: false,
   rememberMe: true,
-  dataSource: 'demo',
+  dataSource: 'api',
   apiUrl: DEFAULT_API_URL,
   privateProfile: false,
   showCity: true,

@@ -9,7 +9,7 @@ using BeninConnect.Shared.Application;
 namespace BeninConnect.Modules.Notifications.Application;
 
 /// <summary>Transforme les événements des autres modules en notifications (textes identiques à l'application mobile).</summary>
-public sealed class NotificationSubscribers(INotificationsDb db, IIdentityModule identity, TimeProvider clock) :
+public sealed class NotificationSubscribers(INotificationsDb db, IIdentityModule identity, IPushQueue push, TimeProvider clock) :
     IIntegrationEventHandler<MemberVerified>,
     IIntegrationEventHandler<CommunityJoined>,
     IIntegrationEventHandler<PostLiked>,
@@ -54,11 +54,16 @@ public sealed class NotificationSubscribers(INotificationsDb db, IIdentityModule
 
     private async Task AddAsync(CancellationToken ct, params (Guid UserId, NotificationCategory Category, string Title, string Body, NotificationTarget Target, Guid? TargetId)[] items)
     {
-        foreach (var n in items)
-        {
-            db.Notifications.Add(Notification.Create(Guid.NewGuid(), n.UserId, n.Category, n.Title, n.Body, clock.GetUtcNow(), n.Target, n.TargetId));
-        }
-
+        var created = items
+            .Select(n => Notification.Create(Guid.NewGuid(), n.UserId, n.Category, n.Title, n.Body, clock.GetUtcNow(), n.Target, n.TargetId))
+            .ToList();
+        db.Notifications.AddRange(created);
         await db.SaveChangesAsync(ct);
+
+        // Push après enregistrement, en arrière-plan : n'allonge pas la requête du membre qui a agi.
+        foreach (var n in created)
+        {
+            push.Enqueue(new PushRequest(n.Id, n.UserId, n.Category, n.Title, n.Body, n.Target, n.TargetId));
+        }
     }
 }

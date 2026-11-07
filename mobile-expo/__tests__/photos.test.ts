@@ -34,7 +34,7 @@ describe('photos', () => {
       calls.push({ url, init });
       return { ok: true, status: 200, json: async () => ({ path: 'uploads/0123.jpg' }) } as Response;
     }) as unknown as typeof fetch;
-    const api = new ApiDataSource('http://x', fetchImpl);
+    const api = new ApiDataSource('http://x', fetchImpl, 15_000, fetchImpl);
     expect(await api.uploadImage({ uri: 'file:///p.jpg', mimeType: 'image/jpeg' })).toBe('uploads/0123.jpg');
     expect(calls[0].url).toBe('http://x/api/media');
     expect(calls[0].init.body).toBeInstanceOf(FormData);

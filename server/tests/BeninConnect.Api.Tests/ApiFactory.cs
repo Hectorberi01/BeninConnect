@@ -42,6 +42,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("ConnectionStrings:Database", ConnectionString);
         builder.UseSetting("Media:Root", Path.Combine(Path.GetTempPath(), "beninconnect-tests-media"));
         builder.UseSetting("RateLimiting:Enabled", "false");
+        builder.UseSetting("Push:Provider", "log"); // jamais de vrai push depuis les tests
         Configure(builder);
     }
 

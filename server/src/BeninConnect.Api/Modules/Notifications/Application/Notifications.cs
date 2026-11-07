@@ -8,6 +8,7 @@ namespace BeninConnect.Modules.Notifications.Application;
 public interface INotificationsDb
 {
     DbSet<Notification> Notifications { get; }
+    DbSet<PushDevice> PushDevices { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { InfoBox } from '@/components/Form';
 import { Avatar, Button, Card, Header, ListRow, Muted, Screen, Segmented, SwitchRow, T, TextField } from '@/components/ui';
 import { confirm, info } from '@/core/dialog';
-import { type DataSourceKind, DEFAULT_API_URL, type ThemePreference, usePreferences } from '@/core/preferences';
+import { type DataSourceKind, DEFAULT_API_URL, type ThemePreference, usePreferences, PRODUCTION_API_URL } from '@/core/preferences';
 import { useMe } from '@/core/session';
 import { useColors } from '@/core/theme';
 import { toast } from '@/core/toast';
@@ -96,7 +96,7 @@ export default function Settings() {
           {source === 'api' && (
             <TextField label="Adresse de l'API" value={apiUrl} onChangeText={setApiUrl} error={urlError} autoCapitalize="none" autoCorrect={false}
               keyboardType="url" placeholder={DEFAULT_API_URL}
-              hint="Simulateur iOS : http://localhost:5080 · Émulateur Android : http://10.0.2.2:5080 · Téléphone : IP du Mac" />
+              hint={`Production : ${PRODUCTION_API_URL} · Développement : http://localhost:5080 (simulateur iOS), http://10.0.2.2:5080 (émulateur Android)`} />
           )}
           <Muted style={{ marginBottom: 10 }}>{`Source active : ${data().kind === 'api' ? `API (${prefs.apiUrl})` : 'démonstration hors ligne'}`}</Muted>
           {sourceChanged && <Button title="Appliquer" icon="swap-horizontal" onPress={applySource} style={{ marginBottom: 8 }} />}

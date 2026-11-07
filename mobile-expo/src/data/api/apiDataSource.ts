@@ -1,3 +1,4 @@
+import { PRODUCTION_API_URL } from '@/core/config';
 import type { DataSource } from '../repositories';
 import type {
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
@@ -6,32 +7,43 @@ import type {
 } from '../types';
 import { Platform } from 'react-native';
 import { AppError } from '../types';
+import { xhrFetch } from './xhrFetch';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 /** Client de l'API ASP.NET Core (server/) : JWT, JSON, erreurs ProblemDetails converties en messages lisibles. */
 export class ApiDataSource implements DataSource {
   readonly kind = 'api' as const;
-  readonly demoVerificationCode = '123456';
   private token: string | null = null;
+
+  /** API de production : vrais emails, pas de compte de démonstration. */
+  readonly isProduction: boolean;
+  readonly demoVerificationCode: string | null;
+  readonly hasDemoAccount: boolean;
 
   constructor(
     private readonly baseUrl: string,
     private readonly fetchImpl: typeof fetch = (...args) => fetch(...args),
     private readonly timeoutMs = 15_000,
-  ) {}
+    // Envois de fichiers : XMLHttpRequest sur mobile (expo/fetch ne lit pas les fichiers { uri }).
+    private readonly uploadImpl: typeof fetch = Platform.OS === 'web' ? fetchImpl : xhrFetch,
+  ) {
+    this.isProduction = baseUrl.replace(/\/+$/, '') === PRODUCTION_API_URL;
+    this.demoVerificationCode = this.isProduction ? null : '123456';
+    this.hasDemoAccount = !this.isProduction;
+  }
 
   setToken(token: string | null) {
     this.token = token;
   }
 
-  private async request<T>(method: Method, path: string, body?: unknown): Promise<T> {
+  private async request<T>(method: Method, path: string, body?: unknown, timeoutMs = this.timeoutMs): Promise<T> {
     const form = body instanceof FormData;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     let response: Response;
     try {
-      response = await this.fetchImpl(`${this.baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`, {
+      response = await (form ? this.uploadImpl : this.fetchImpl)(`${this.baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`, {
         method,
         headers: {
           Accept: 'application/json',
@@ -43,7 +55,9 @@ export class ApiDataSource implements DataSource {
         body: form ? body : body !== undefined ? JSON.stringify(body) : undefined,
         signal: controller.signal,
       });
-    } catch {
+    } catch (error) {
+      if (__DEV__) console.warn(`[api] ${method} ${path}`, error);
+      if (controller.signal.aborted) throw new AppError("Le serveur met trop de temps à répondre. Vérifiez votre connexion et réessayez.");
       throw new AppError("Impossible de joindre le serveur. Vérifiez votre connexion et l'adresse de l'API.");
     } finally {
       clearTimeout(timer);
@@ -115,7 +129,8 @@ export class ApiDataSource implements DataSource {
       // Format React Native : le fichier est lu par le moteur réseau natif.
       form.append('file', { uri: photo.uri, name, type } as unknown as Blob);
     }
-    return (await this.post<{ path: string }>('api/media', form)).path;
+    // Photo de plusieurs Mo : délai plus long que les autres requêtes (réseau mobile lent)
+    return (await this.request<{ path: string }>('POST', 'api/media', form, 90_000)).path;
   }
 
   addComment = (id: string, content: string) => this.post<Comment>(`api/posts/${id}/comments`, { content });
@@ -161,5 +176,8 @@ export class ApiDataSource implements DataSource {
   getNotifications = (category?: NotificationCategory) => this.get<AppNotification[]>(`api/notifications${this.q({ category })}`);
   getUnreadNotificationCount = async () => (await this.get<{ count: number }>('api/notifications/unread-count')).count;
   markNotificationRead = (id: string) => this.post<AppNotification>(`api/notifications/${id}/read`);
+  registerPushDevice = (token: string, platform: 'ios' | 'android', mutedCategories: NotificationCategory[]) =>
+    this.post<void>('api/notifications/devices', { token, platform, mutedCategories });
+  unregisterPushDevice = (token: string) => this.post<void>('api/notifications/devices/unregister', { token });
   markAllNotificationsRead = async () => (await this.post<{ count: number }>('api/notifications/read-all')).count;
 }

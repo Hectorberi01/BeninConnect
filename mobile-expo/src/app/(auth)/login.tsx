@@ -72,13 +72,13 @@ export default function Login() {
 
         <Button title="Se connecter" onPress={submit} loading={busy} testID="login" />
 
-        <View style={{ marginTop: 20 }}>
+        {data().hasDemoAccount && <View style={{ marginTop: 20 }}>
           <InfoBox icon="flask-outline">
             <T v="label" color={c.primaryDark}>{data().kind === 'api' ? 'Compte de démonstration (API)' : 'Compte de démonstration'}</T>
             <T v="caption" color={c.primaryDark} style={{ marginTop: 2 }}>{`${DEMO_EMAIL} · ${DEMO_PASSWORD}`}</T>
             <T v="label" color={c.primary} style={{ marginTop: 8, fontFamily: font.semibold }} onPress={useDemo}>Remplir automatiquement</T>
           </InfoBox>
-        </View>
+        </View>}
 
         <View style={[styles.row, { justifyContent: 'center', marginTop: 12 }]}>
           <Muted style={{ fontSize: 15 }}>Pas encore de compte ? </Muted>

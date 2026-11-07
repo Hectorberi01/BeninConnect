@@ -122,14 +122,29 @@
     state: absent
 
 # Directement sur le port local (Caddy n'intervient pas) : vérifie l'API et sa base.
-- name: Attendre que l'API réponde
-  ansible.builtin.uri:
-    url: "http://127.0.0.1:{{ api_port }}/health"
-    status_code: 200
-  register: health
-  until: health.status == 200
-  retries: "{{ health_retries }}"
-  delay: 10
+- name: Santé de l'API
+  block:
+    - name: Attendre que l'API réponde
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ api_port }}/health"
+        status_code: 200
+      register: health
+      until: health.status == 200
+      retries: "{{ health_retries }}"
+      delay: 10
+  rescue:
+    # API qui redémarre en boucle : la cause est dans ses journaux (configuration refusée, base injoignable...).
+    - name: Journaux de l'API
+      ansible.builtin.command:
+        cmd: docker compose --env-file .env --env-file .env.deploy -f docker-compose.prod.yml logs --no-color --tail 60 api
+        chdir: "{{ app_dir }}/server"
+      register: api_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Échec du déploiement
+      ansible.builtin.fail:
+        msg: "L'API ne répond pas sur /health. Dernières lignes :\n{{ api_logs.stdout_lines[-40:] | join('\n') }}"
 
 - name: Supprimer les images inutilisées
   community.docker.docker_prune:

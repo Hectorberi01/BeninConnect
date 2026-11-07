@@ -40,7 +40,7 @@ export default function VerifyEmail() {
   const resend = async () => {
     try {
       await data().resendCode(email);
-      toast(`Nouveau code simulé : ${demoCode} (aucun email n'est envoyé).`);
+      toast(demoCode ? `Nouveau code simulé : ${demoCode} (aucun email n'est envoyé).` : `Un nouveau code a été envoyé à ${email}.`);
     } catch (err) {
       toast(errorMessage(err), 'error');
     }
@@ -58,10 +58,14 @@ export default function VerifyEmail() {
         </View>
         <TextField label="Code de vérification" value={code} onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))} error={error}
           keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="one-time-code" placeholder="000000" maxLength={6} />
-        <InfoBox icon="flask-outline">
-          <T v="caption" color={c.primaryDark}>{`Démonstration : aucun email n'est envoyé. Le code est ${demoCode}.`}</T>
-          <T v="label" color={c.primary} style={{ marginTop: 6 }} onPress={() => setCode(demoCode)}>Utiliser le code</T>
-        </InfoBox>
+        {demoCode ? (
+          <InfoBox icon="flask-outline">
+            <T v="caption" color={c.primaryDark}>{`Démonstration : aucun email n'est envoyé. Le code est ${demoCode}.`}</T>
+            <T v="label" color={c.primary} style={{ marginTop: 6 }} onPress={() => setCode(demoCode)}>Utiliser le code</T>
+          </InfoBox>
+        ) : (
+          <Muted style={{ marginBottom: 12, textAlign: 'center' }}>Pensez à vérifier vos courriers indésirables.</Muted>
+        )}
         <Button title="Vérifier" onPress={verify} loading={busy} />
         <Button title="Renvoyer le code" kind="ghost" onPress={resend} style={{ marginTop: 8 }} />
       </FormScroll>

@@ -5,6 +5,12 @@ import type { AuthResult, User } from '@/data/types';
 
 const TOKEN_KEY = 'beninconnect.token';
 
+// Actions à faire tant que le jeton est encore valide (ex. désinscription du téléphone aux notifications push).
+const signOutHooks: (() => Promise<void>)[] = [];
+export function beforeSignOut(hook: () => Promise<void>) {
+  signOutHooks.push(hook);
+}
+
 interface SessionStore {
   user: User | null;
   signIn: (result: AuthResult, remember: boolean) => Promise<void>;
@@ -41,6 +47,7 @@ export const useSession = create<SessionStore>((set) => ({
   },
   update: (user) => set((s) => (s.user?.id === user.id ? { user } : s)),
   signOut: async () => {
+    await Promise.all(signOutHooks.map((h) => h().catch(() => undefined)));
     data().setToken(null);
     await writeToken(null);
     set({ user: null });

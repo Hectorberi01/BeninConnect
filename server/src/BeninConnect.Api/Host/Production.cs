@@ -104,7 +104,7 @@ public static class Production
         builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = 12 * 1024 * 1024);
 
         // CORS : liste explicite en production (console admin, app web) ; tout est permis en développement.
-        var origins = config.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+        var origins = (config.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? []).Where(o => !string.IsNullOrWhiteSpace(o)).ToArray();
         builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
         {
             if (builder.Environment.IsDevelopment())
