@@ -12,7 +12,11 @@ namespace BeninConnect.Api.Tests;
 public sealed class S3ApiFactory : ApiFactory
 {
     public const string Bucket = "beninconnect-tests";
-    private readonly MinioContainer _minio = new MinioBuilder().Build();
+    // minio/minio retiré de Docker Hub (sept. 2026) : image Chainguard par défaut, remplaçable par BC_TEST_MINIO_IMAGE.
+    private readonly MinioContainer _minio = new MinioBuilder()
+        .WithImage(Environment.GetEnvironmentVariable("BC_TEST_MINIO_IMAGE") ?? "cgr.dev/chainguard/minio:latest")
+        .WithCreateParameterModifier(p => p.User = "0") // l'image tourne en UID 65532, sans droit d'écriture sur /data
+        .Build();
 
     protected override Task StartDependenciesAsync() => _minio.StartAsync();
 

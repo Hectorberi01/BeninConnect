@@ -31,8 +31,9 @@ MinIO n'a aucun port public (l'API relaie les photos). Console : publier tempora
 sur le service `minio`, puis `ssh -L 9001:localhost:9001 serveur` et ouvrir http://localhost:9001.
 Sauvegarde : le service `media-backup` archive le volume chaque nuit dans `server/backups/media` (7 jours).
 
-MinIO Community n'est plus distribué en binaires ni en images depuis octobre 2025 (dépôt archivé en 2026) :
-l'image est figée sur une version (`MINIO_IMAGE` pour la changer). Pour la durée, prévoir un fournisseur ci-dessous
+MinIO Community est archivé et `minio/minio` a été retiré de Docker Hub (septembre 2026) ; `quay.io/minio` refuse aussi.
+Image utilisée : `cgr.dev/chainguard/minio:latest` (Chainguard, maintenue, seul le tag `latest` est gratuit),
+modifiable avec `MINIO_IMAGE` (ex. le fork communautaire `pgsty/silo`). Pour la durée, prévoir un fournisseur ci-dessous
 ou un équivalent auto-hébergé compatible S3 (Garage, SeaweedFS) : seules les variables `S3_*` changent.
 
 Fournisseurs externes (renseigner `S3_*` dans `.env`, `S3_CREATE_BUCKET=false`) :

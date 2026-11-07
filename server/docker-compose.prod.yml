@@ -59,7 +59,7 @@ services:
       - media:/app/media # utilisé seulement si MEDIA_PROVIDER=local
     depends_on:
       minio:
-        condition: service_healthy
+        condition: service_started # bucket créé au premier envoi, avec nouvel essai si MinIO n'est pas prêt
     labels:
       - traefik.enable=true
       - traefik.http.services.api.loadbalancer.server.port=8080
@@ -80,7 +80,9 @@ services:
 
   # Photos (compatible S3). Aucun port publié : seule l'API y accède ; console via tunnel SSH (ssh -L 9001:localhost:9001).
   minio:
-    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2025-04-22T22-12-26Z}
+    # minio/minio n'existe plus sur Docker Hub : image Chainguard maintenue (gratuite en latest uniquement).
+    image: ${MINIO_IMAGE:-cgr.dev/chainguard/minio:latest}
+    user: "0:0" # l'image tourne en UID 65532 et le volume appartient à root
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -88,11 +90,6 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - minio:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
 
   admin:
     image: ${ADMIN_IMAGE:-beninconnect-admin:local}
