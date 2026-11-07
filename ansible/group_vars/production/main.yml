@@ -2,10 +2,11 @@
 
 # --- Serveur ---
 timezone: Europe/Paris
-deploy_user: deploy
+deploy_user: ubuntu
 # Clés publiques autorisées pour deploy_user (contenu de ~/.ssh/id_ed25519.pub)
 deploy_authorized_keys:
-  - "ssh-ed25519 AAAA...remplacer hector@mac"
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPUh3xzeHGzwSrBQMmPk/M3ZSChwWcLawIzhZjo2z0ly hector@pc-34.home"
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF2N8q7kzbEIiQZJ101akuP8NcQmn6js/S9R8ACjcmyC github-deploy"
 ssh_port: 22
 swap_size_mb: 2048
 
