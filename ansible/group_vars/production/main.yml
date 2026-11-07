@@ -1,0 +1,40 @@
+# Variables non secrètes. Les secrets sont dans vault.yml (chiffré : ansible-vault).
+
+# --- Serveur ---
+timezone: Europe/Paris
+deploy_user: deploy
+# Clés publiques autorisées pour deploy_user (contenu de ~/.ssh/id_ed25519.pub)
+deploy_authorized_keys:
+  - "ssh-ed25519 AAAA...remplacer hector@mac"
+ssh_port: 22
+swap_size_mb: 2048
+
+# --- Application ---
+app_dir: /opt/beninconnect
+api_domain: api.beninconnect.app
+admin_domain: admin.beninconnect.app
+acme_email: contact@hbatechettrade.com
+admin_allowed_ips: 0.0.0.0/0
+
+# Base PostgreSQL hébergée (hôte DIRECT, pas le pooler)
+db_host: ep-xxxx.eu-central-1.aws.neon.tech
+db_port: 5432
+db_name: beninconnect
+db_user: beninconnect_app
+db_sslmode: Require
+db_pool_size: 20
+
+# Photos : MinIO du compose (s3_service_url vide) ou fournisseur externe
+minio_root_user: beninconnect
+s3_service_url: ""
+s3_region: auto
+s3_bucket: beninconnect-media
+s3_public_base_url: ""
+
+# Emails
+smtp_host: smtp-relay.brevo.com
+smtp_port: 587
+smtp_username: ""
+smtp_from: no-reply@beninconnect.app
+
+admin_bootstrap_email: hector@hbatechettrade.com

@@ -1,0 +1,8 @@
+- name: Reconstruire
+  when: not app_from_registry
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}/server"
+    files: [docker-compose.prod.yml]
+    build: always
+    state: present
+    remove_orphans: true

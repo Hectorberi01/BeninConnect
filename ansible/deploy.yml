@@ -1,0 +1,7 @@
+# Nouvelle version de l'application uniquement (code, .env, conteneurs).
+#   ansible-playbook deploy.yml
+- name: Déploiement BéninConnect
+  hosts: production
+  become: true
+  roles:
+    - app

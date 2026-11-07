@@ -1,0 +1,11 @@
+# Serveur de production (Ubuntu 24.04 LTS ou Debian 12).
+# Premier lancement : ansible_user=root (ou l'utilisateur fourni par l'hébergeur) et ansible_port=22,
+# ensuite deploy_user et ssh_port définis dans group_vars/production/main.yml.
+all:
+  children:
+    production:
+      hosts:
+        beninconnect-prod:
+          ansible_host: 203.0.113.10
+          ansible_user: deploy
+          ansible_port: 22

@@ -1,0 +1,126 @@
+- name: Dossiers de l'application
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0750"
+  loop:
+    - "{{ app_dir }}"
+    - "{{ app_dir }}/server/backups/daily"
+    - "{{ app_dir }}/server/backups/media"
+
+- name: Mode de déploiement
+  ansible.builtin.set_fact:
+    app_from_registry: "{{ app_image_tag | length > 0 }}"
+
+# Seulement ce que les Dockerfile utilisent (pas de mobile, de tests ni de secrets locaux).
+- name: Fichiers racine du dépôt
+  when: not app_from_registry
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/{{ item }}"
+    dest: "{{ app_dir }}/{{ item }}"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0644"
+  loop: [global.json, Directory.Build.props, Directory.Packages.props, .dockerignore]
+
+# Images de la CI : seuls docker-compose.prod.yml et le .env servent sur le serveur.
+- name: Fichier compose
+  when: app_from_registry
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/server/docker-compose.prod.yml"
+    dest: "{{ app_dir }}/server/docker-compose.prod.yml"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0644"
+
+- name: Code du backend
+  when: not app_from_registry
+  ansible.posix.synchronize:
+    src: "{{ repo_root }}/server/"
+    dest: "{{ app_dir }}/server/"
+    delete: true
+    rsync_opts:
+      - "--exclude=bin/"
+      - "--exclude=obj/"
+      - "--exclude=tests/"
+      - "--exclude=media/"
+      - "--exclude=backups/"
+      - "--exclude=.env"
+      - "--exclude=Directory.Build.targets"
+  notify: Reconstruire
+
+- name: Code de la console admin
+  when: not app_from_registry
+  ansible.posix.synchronize:
+    src: "{{ repo_root }}/admin-console/"
+    dest: "{{ app_dir }}/admin-console/"
+    delete: true
+    rsync_opts:
+      - "--exclude=node_modules/"
+      - "--exclude=dist/"
+      - "--exclude=.env*"
+  notify: Reconstruire
+
+- name: Propriétaire des fichiers copiés
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    recurse: true
+
+- name: Secrets et réglages (.env)
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ app_dir }}/server/.env"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0600"
+  notify: Reconstruire
+
+- name: Appliquer les reconstructions en attente
+  ansible.builtin.meta: flush_handlers
+
+- name: Connexion au registre d'images
+  when: app_from_registry and registry_token | length > 0
+  community.docker.docker_login:
+    registry_url: "{{ app_image_registry.split('/')[0] }}"
+    username: "{{ registry_user }}"
+    password: "{{ registry_token }}"
+  no_log: true
+
+- name: Conteneurs démarrés
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}/server"
+    files: [docker-compose.prod.yml]
+    state: present
+    remove_orphans: true
+    pull: "{{ 'always' if app_from_registry else 'missing' }}"
+    build: "{{ 'never' if app_from_registry else 'policy' }}"
+
+# Le jeton de la CI expire à la fin du job : inutile de le garder sur le serveur.
+- name: Déconnexion du registre
+  when: app_from_registry and registry_token | length > 0
+  community.docker.docker_login:
+    registry_url: "{{ app_image_registry.split('/')[0] }}"
+    state: absent
+
+# Traefik route par nom de domaine : on l'appelle en local avec le bon en-tête Host.
+- name: Attendre que l'API réponde
+  ansible.builtin.uri:
+    url: https://127.0.0.1/health
+    headers:
+      Host: "{{ api_domain }}"
+    validate_certs: false
+    status_code: 200
+  register: health
+  until: health.status == 200
+  retries: "{{ health_retries }}"
+  delay: 10
+
+- name: Supprimer les images inutilisées
+  community.docker.docker_prune:
+    images: true
+    images_filters:
+      dangling: true

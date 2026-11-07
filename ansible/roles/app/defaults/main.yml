@@ -1,0 +1,13 @@
+deploy_user: deploy
+app_dir: /opt/beninconnect
+# Racine du dépôt sur la machine qui lance Ansible
+repo_root: "{{ playbook_dir }}/.."
+# Délai d'attente de l'API après démarrage (Let's Encrypt inclus)
+health_retries: 30
+
+# Images publiées par la CI GitHub (ex. sha-1a2b3c4) : le serveur les télécharge, sans build.
+# Vide : le code est copié et les images construites sur le serveur.
+app_image_tag: ""
+app_image_registry: ghcr.io/hectorberi01
+registry_user: ""
+registry_token: ""

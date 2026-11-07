@@ -1,0 +1,9 @@
+# Géré par Ansible (roles/security)
+Port {{ ssh_port }}
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+X11Forwarding no
+MaxAuthTries 3
+AllowUsers {{ deploy_user }}

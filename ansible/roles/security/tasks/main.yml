@@ -1,0 +1,62 @@
+- name: Durcir SSH (clé uniquement, pas de root)
+  ansible.builtin.template:
+    src: sshd.conf.j2
+    dest: /etc/ssh/sshd_config.d/10-beninconnect.conf
+    mode: "0644"
+  notify: Vérifier et redémarrer SSH
+
+# Ubuntu 24.04 : ssh.socket ignore le port de sshd_config ; on repasse sur le service classique.
+- name: Détecter l'activation par socket de SSH
+  ansible.builtin.stat:
+    path: /lib/systemd/system/ssh.socket
+  register: ssh_socket
+
+- name: Désactiver ssh.socket
+  when: ssh_socket.stat.exists
+  ansible.builtin.systemd_service:
+    name: ssh.socket
+    enabled: false
+    state: stopped
+  notify: Vérifier et redémarrer SSH
+
+- name: Service SSH actif au démarrage
+  ansible.builtin.systemd_service:
+    name: ssh
+    enabled: true
+
+- name: Pare-feu - SSH
+  community.general.ufw:
+    rule: limit
+    port: "{{ ssh_port }}"
+    proto: tcp
+
+- name: Pare-feu - HTTP et HTTPS
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: ["80", "443"]
+
+- name: Pare-feu - tout le reste refusé en entrée
+  community.general.ufw:
+    state: enabled
+    policy: deny
+    direction: incoming
+
+- name: Fail2ban sur SSH
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/sshd.local
+    mode: "0644"
+    content: |
+      [sshd]
+      enabled = true
+      port = {{ ssh_port }}
+      maxretry = {{ fail2ban_maxretry }}
+      bantime = {{ fail2ban_bantime }}
+  notify: Redémarrer fail2ban
+
+- name: Fail2ban démarré
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true

@@ -1,0 +1,14 @@
+- name: Vérifier et redémarrer SSH
+  ansible.builtin.command: /usr/sbin/sshd -t
+  changed_when: true
+  notify: Redémarrer SSH
+
+- name: Redémarrer SSH
+  ansible.builtin.systemd_service:
+    name: ssh
+    state: restarted
+
+- name: Redémarrer fail2ban
+  ansible.builtin.service:
+    name: fail2ban
+    state: restarted

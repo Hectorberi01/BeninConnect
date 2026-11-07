@@ -1,0 +1,79 @@
+# Déploiement en production avec Ansible : le serveur télécharge les images de la CI (aucun build sur le VPS).
+# Automatique après une CI verte sur main, ou manuel (Actions > Deploy > Run workflow) avec un tag d'image.
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag d'image à déployer (ex. sha-1a2b3c4, latest)"
+        required: true
+        default: latest
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    # Protection possible dans Settings > Environments > production (validation manuelle, branche main).
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Tag à déployer
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=sha-$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Ansible
+        working-directory: ansible
+        run: |
+          pip install ansible-core
+          ansible-galaxy collection install -r requirements.yml -p collections
+
+      - name: Accès SSH et vault
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          ANSIBLE_VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s' "$ANSIBLE_VAULT_PASSWORD" > ansible/.vault_pass && chmod 600 ansible/.vault_pass
+
+      - name: Déploiement
+        working-directory: ansible
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GHR_TOKEN }}
+        run: >-
+          ansible-playbook deploy.yml
+          -e app_image_tag=${{ steps.tag.outputs.value }}
+          -e app_image_registry=ghcr.io/${{ github.repository_owner }}
+          -e registry_user=${{ github.actor }}
+          -e registry_token="$REGISTRY_TOKEN"
+
+      - name: Nettoyage des secrets
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519 ansible/.vault_pass

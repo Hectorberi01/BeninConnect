@@ -27,6 +27,8 @@ services:
       - letsencrypt:/letsencrypt
 
   api:
+    # Image de la CI (GHCR) si API_IMAGE est défini, sinon construite sur le serveur.
+    image: ${API_IMAGE:-beninconnect-api:local}
     build:
       context: ..
       dockerfile: server/src/BeninConnect.Api/Dockerfile
@@ -76,7 +78,7 @@ services:
       - traefik.http.middlewares.secure-headers.headers.stsIncludeSubdomains=true
       - traefik.http.middlewares.admin-allowlist.ipallowlist.sourcerange=${ADMIN_ALLOWED_IPS:-0.0.0.0/0}
 
-  # Photos (compatible S3). Aucun port publié : seule l'API y accède (console : voir docs/MISE_EN_PROD.md).
+  # Photos (compatible S3). Aucun port publié : seule l'API y accède ; console via tunnel SSH (ssh -L 9001:localhost:9001).
   minio:
     image: ${MINIO_IMAGE:-minio/minio:RELEASE.2025-04-22T22-12-26Z}
     restart: unless-stopped
@@ -93,6 +95,7 @@ services:
       retries: 10
 
   admin:
+    image: ${ADMIN_IMAGE:-beninconnect-admin:local}
     build:
       context: ../admin-console
     restart: unless-stopped

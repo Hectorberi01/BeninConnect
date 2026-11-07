@@ -1,0 +1,16 @@
+timezone: Europe/Paris
+deploy_user: deploy
+deploy_authorized_keys: []
+swap_size_mb: 2048
+base_packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - rsync
+  - git
+  - jq
+  - htop
+  - ufw
+  - fail2ban
+  - unattended-upgrades
+  - python3-docker

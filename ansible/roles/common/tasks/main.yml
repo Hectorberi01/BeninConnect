@@ -1,0 +1,65 @@
+- name: Mettre à jour le système
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    upgrade: dist
+
+- name: Installer les paquets de base
+  ansible.builtin.apt:
+    name: "{{ base_packages }}"
+    state: present
+
+- name: Fuseau horaire
+  community.general.timezone:
+    name: "{{ timezone }}"
+
+- name: Mises à jour de sécurité automatiques
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+
+# Le build .NET et Vite sur le serveur consomme de la mémoire : le swap évite les arrêts brutaux.
+- name: Créer et activer le fichier d'échange
+  when: swap_size_mb | int > 0
+  ansible.builtin.shell: >-
+    fallocate -l {{ swap_size_mb }}M /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+  args:
+    creates: /swapfile
+
+- name: Swap au démarrage
+  when: swap_size_mb | int > 0
+  ansible.posix.mount:
+    src: /swapfile
+    path: none
+    fstype: swap
+    opts: sw
+    state: present
+
+- name: Swap utilisé en dernier recours
+  ansible.posix.sysctl:
+    name: vm.swappiness
+    value: "10"
+
+- name: Utilisateur de déploiement
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    shell: /bin/bash
+    groups: sudo
+    append: true
+
+- name: Clés SSH autorisées
+  ansible.posix.authorized_key:
+    user: "{{ deploy_user }}"
+    key: "{{ deploy_authorized_keys | join('\n') }}"
+    exclusive: true
+
+- name: Sudo sans mot de passe (connexion par clé uniquement)
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ deploy_user }}"
+    content: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    mode: "0440"
+    validate: visudo -cf %s

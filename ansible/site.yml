@@ -1,0 +1,11 @@
+# Installation complète du serveur puis déploiement.
+#   Premier passage (serveur neuf) : ansible-playbook site.yml -e ansible_user=root
+#   Ensuite                        : ansible-playbook site.yml
+- name: Serveur BéninConnect
+  hosts: production
+  become: true
+  roles:
+    - common
+    - docker
+    - app
+    - security # en dernier : peut changer le port SSH

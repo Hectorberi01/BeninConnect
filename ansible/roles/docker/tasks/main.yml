@@ -1,0 +1,60 @@
+- name: Retirer les paquets Docker de la distribution
+  ansible.builtin.apt:
+    name: [docker.io, docker-compose, docker-compose-v2, podman-docker, containerd, runc]
+    state: absent
+
+- name: Dossier des clés APT
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Clé du dépôt Docker
+  ansible.builtin.get_url:
+    url: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}/gpg"
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+
+- name: Dépôt Docker officiel
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [arch={{ docker_arch_map[ansible_facts['architecture']] }} signed-by=/etc/apt/keyrings/docker.asc]
+      https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }} {{ ansible_facts['distribution_release'] }} stable
+    filename: docker
+    state: present
+
+- name: Installer Docker et Compose
+  ansible.builtin.apt:
+    name: [docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin]
+    state: present
+    update_cache: true
+
+- name: Journaux des conteneurs limités (10 Mo x 3)
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    mode: "0644"
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "10m", "max-file": "3" },
+        "live-restore": true
+      }
+  notify: Redémarrer Docker
+
+- name: Docker démarré au boot
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: L'utilisateur de déploiement pilote Docker
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    groups: docker
+    append: true
+
+- name: Nettoyage hebdomadaire des images (volumes conservés)
+  ansible.builtin.cron:
+    name: docker-prune
+    special_time: weekly
+    job: "docker system prune -af --filter until=168h > /dev/null 2>&1"

@@ -1,0 +1,5 @@
+# Variables partagées entre rôles (deploy_user, app_dir...) : préfixe par rôle volontairement non imposé.
+skip_list:
+  - var-naming[no-role-prefix]
+exclude_paths:
+  - collections/
