@@ -21,10 +21,11 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#087F5B",
-        "foregroundImage": "./assets/icon.png"
+        "foregroundImage": "./assets/adaptive-icon.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.hbatech.beninconnect.rn"
+      "package": "com.hbatech.beninconnect.rn",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -61,6 +62,12 @@
         "expo-audio",
         {
           "microphonePermission": "BéninConnect utilise le micro pour enregistrer les messages vocaux que vous envoyez dans vos discussions."
+        }
+      ],
+      [
+        "./plugins/withAndroidAppName",
+        {
+          "name": "BéninConnect"
         }
       ]
     ],

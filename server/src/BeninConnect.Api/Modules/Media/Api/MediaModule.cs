@@ -106,7 +106,7 @@ public sealed class MediaModule : IModule, IModulePipeline
         }
 
         // S3 : redirection vers l'URL publique, sinon l'API relaie le fichier (avec plages Range pour la vidéo).
-        app.MapGet("/uploads/{name}", async (string name, IMediaStorage storage, MediaSettings settings, HttpContext http, CancellationToken ct) =>
+        app.MapMethods("/uploads/{name}", [HttpMethods.Get, HttpMethods.Head], async (string name, IMediaStorage storage, MediaSettings settings, HttpContext http, CancellationToken ct) =>
             {
                 if (!ImageFile.IsValidName(name))
                 {

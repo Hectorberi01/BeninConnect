@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1065650569202",
+    "project_id": "beninconnectre",
+    "storage_bucket": "beninconnectre.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1065650569202:android:fb8b8238912b483b5bf56b",
+        "android_client_info": {
+          "package_name": "com.hbatech.beninconnect.rn"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvknFiqHOw1nKH3iXf0PPt3-QSnaIhqug"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
