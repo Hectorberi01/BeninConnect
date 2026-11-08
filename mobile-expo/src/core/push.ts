@@ -75,6 +75,8 @@ function openFromPush(response: Notifications.NotificationResponse) {
 /** Zone connectée : enregistrement, réglages à jour côté serveur, ouverture au toucher. */
 export function usePushNotifications() {
   useEffect(() => {
+    // Pas de notifications push sur le web
+    if (Platform.OS === 'web') return;
     registerForPush().catch((e) => console.warn('Notifications push indisponibles', e));
 
     // Notification reçue : liste et compteur rafraîchis

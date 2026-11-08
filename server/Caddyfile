@@ -23,3 +23,16 @@ api.monbenin.com {
 		format json
 	}
 }
+
+# Site public : accueil, support et politique de confidentialité (dossier site/ copié dans /var/www/monbenin)
+monbenin.com {
+	encode zstd gzip
+	root * /var/www/monbenin
+	try_files {path} {path}/ {path}.html
+	file_server
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+}
+
+www.monbenin.com {
+	redir https://monbenin.com{uri} permanent
+}
