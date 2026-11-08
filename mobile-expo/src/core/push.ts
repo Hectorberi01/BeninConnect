@@ -1,8 +1,8 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { data } from '@/data';
 import type { AppNotification, NotificationCategory } from '@/data/types';
@@ -11,9 +11,29 @@ import { usePreferences } from './preferences';
 import { queryClient } from './queryClient';
 import { beforeSignOut } from './session';
 
-// Notification reçue app ouverte : bannière + son, comme en arrière-plan.
+/** Discussion affichée à l'écran (null sinon). */
+let openConversationId: string | null = null;
+
+/** À appeler dans l'écran de discussion. */
+export function useOpenConversation(id: string) {
+  useFocusEffect(useCallback(() => {
+    openConversationId = id;
+    return () => {
+      if (openConversationId === id) openConversationId = null;
+    };
+  }, [id]));
+}
+
+function isOpenConversation(d: Record<string, unknown>) {
+  return d.target === 'Conversation' && !!d.targetId && d.targetId === openConversationId;
+}
+
+// Notification reçue app ouverte : bannière + son, sauf pour la discussion déjà affichée.
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: true }),
+  handleNotification: async (n) => {
+    const show = !isOpenConversation(n.request.content.data ?? {});
+    return { shouldShowBanner: show, shouldShowList: show, shouldPlaySound: show, shouldSetBadge: true };
+  },
 });
 
 let currentToken: string | null = null;
@@ -65,11 +85,22 @@ export async function unregisterFromPush() {
   await data().unregisterPushDevice(token).catch(() => undefined);
 }
 
+/** Notifications déjà ouvertes : une seule ouverture par notification. */
+const handled = new Set<string>();
+
 function openFromPush(response: Notifications.NotificationResponse) {
+  const key = response.notification.request.identifier;
+  if (handled.has(key)) return;
+  handled.add(key);
+
   const d = response.notification.request.content.data as Record<string, string | undefined>;
   if (d.notificationId) data().markNotificationRead(d.notificationId).catch(() => undefined);
-  const href = notificationHref({ target: d.target ?? 'None', targetId: d.targetId ?? null } as AppNotification);
-  router.push(href ?? '/notifications');
+  if (isOpenConversation(d)) return; // déjà sur cette discussion
+
+  const href = notificationHref({ target: d.target ?? 'None', targetId: d.targetId ?? null } as AppNotification) ?? '/notifications';
+  // Depuis une autre discussion : on la remplace, pour ne pas empiler les écrans.
+  if (openConversationId && d.target === 'Conversation') router.replace(href);
+  else router.push(href);
 }
 
 /** Zone connectée : enregistrement, réglages à jour côté serveur, ouverture au toucher. */
@@ -88,7 +119,10 @@ export function usePushNotifications() {
 
     // App lancée en touchant une notification
     const last = Notifications.getLastNotificationResponse();
-    if (last) openFromPush(last);
+    if (last) {
+      openFromPush(last);
+      Notifications.clearLastNotificationResponse();
+    }
 
     // Catégories modifiées dans les réglages : préférences renvoyées au serveur
     const unsubscribe = usePreferences.subscribe((s, prev) => {

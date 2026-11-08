@@ -13,6 +13,7 @@ import type { ConversationSummary, Message, OutgoingFile } from '@/data/types';
 import { displayName, initials, location } from '@/data/types';
 import { confirm } from '@/core/dialog';
 import { pickPhoto } from '@/core/photos';
+import { useOpenConversation } from '@/core/push';
 import { toast } from '@/core/toast';
 import {
   useConversation, useDeleteMessage, useEditMessage, useMarkConversationRead, useMessages, useReactToMessage, useSendAttachment, useSendMessage,
@@ -36,6 +37,7 @@ function Chat({ summary }: { summary: ConversationSummary }) {
   const insets = useSafeAreaInsets();
   const me = useMe();
   const id = summary.conversation.id;
+  useOpenConversation(id);
   const other = summary.otherParticipant;
   const messages = useMessages(id);
   const send = useSendMessage(id);

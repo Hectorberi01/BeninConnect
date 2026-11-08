@@ -39,6 +39,20 @@ public sealed class AttachmentStore(IMediaStorage storage)
             return null;
         }
 
+        // Flux S3 non positionnable : copié en mémoire (20 Mo max) pour servir les plages Range,
+        // EXIGÉES par le lecteur audio iOS.
+        if (!content.CanSeek)
+        {
+            var buffer = new MemoryStream();
+            await using (content)
+            {
+                await content.CopyToAsync(buffer, ct);
+            }
+
+            buffer.Position = 0;
+            return new AttachmentContent(buffer, buffer.Length, AttachmentFile.ContentType(name));
+        }
+
         return new AttachmentContent(content, file.Length, AttachmentFile.ContentType(name));
     }
 

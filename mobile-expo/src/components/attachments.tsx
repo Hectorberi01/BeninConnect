@@ -1,4 +1,4 @@
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
@@ -51,9 +51,11 @@ function VoiceAttachment({ url, durationMs, mine }: { url: string; durationMs: n
   const progress = total > 0 ? Math.min(1, (status.currentTime * 1000) / total) : 0;
   const color = mine ? '#FFFFFF' : c.primary;
 
-  const toggle = () => {
+  const toggle = async () => {
     if (status.playing) return player.pause();
-    if (status.didJustFinish || (total > 0 && status.currentTime * 1000 >= total - 200)) player.seekTo(0);
+    // Lecture même avec le bouton silencieux iOS activé, sur le haut-parleur.
+    await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }).catch(() => undefined);
+    if (status.didJustFinish || (total > 0 && status.currentTime * 1000 >= total - 200)) await player.seekTo(0);
     player.play();
   };
 
