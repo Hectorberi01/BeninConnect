@@ -76,4 +76,15 @@ public sealed class DomainTests
         var message = Message.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Salut", Now);
         Assert.Throws<DomainException>(() => message.React(Guid.NewGuid(), "🍕", Now));
     }
+
+    [Fact]
+    public void A_message_can_only_be_edited_within_fifteen_minutes()
+    {
+        var sender = Guid.NewGuid();
+        var message = Message.Create(Guid.NewGuid(), Guid.NewGuid(), sender, "Salut", Now);
+        message.Edit(sender, "Salut à tous", Now.AddMinutes(14));
+        Assert.Equal("Salut à tous", message.Content);
+        Assert.NotNull(message.EditedAt);
+        Assert.Throws<DomainException>(() => message.Edit(sender, "Trop tard", Now.AddMinutes(16)));
+    }
 }

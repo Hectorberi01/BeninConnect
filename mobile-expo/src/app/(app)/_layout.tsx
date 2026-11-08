@@ -2,6 +2,7 @@ import { Redirect, Stack } from 'expo-router';
 import { usePushNotifications } from '@/core/push';
 import { useSession } from '@/core/session';
 import { useColors } from '@/core/theme';
+import { useRealtime } from '@/features/realtime';
 
 /** Zone connectée : sans session, retour à la connexion. */
 export default function AppLayout() {
@@ -11,9 +12,10 @@ export default function AppLayout() {
   return <SignedIn background={c.background} />;
 }
 
-/** Composant séparé : les notifications push ne s'activent qu'une fois connecté. */
+/** Composant séparé : notifications push et temps réel ne s'activent qu'une fois connecté. */
 function SignedIn({ background }: { background: string }) {
   usePushNotifications();
+  useRealtime();
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: background } }}>
       <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />

@@ -1,7 +1,7 @@
 import type {
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, MembershipStatus, Message,
-  NotificationCategory, Paged, Post, ReportReason, ReportTarget, RegisterRequest, UpdateProfileRequest, User, LocalPhoto } from './types';
+  NotificationCategory, OutgoingFile, Paged, Post, ReportReason, ReportTarget, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User, LocalPhoto } from './types';
 
 /**
  * Contrat unique de la couche données : implémenté par le mock hors ligne et par le client HTTP de l'API.
@@ -37,6 +37,8 @@ export interface DataSource {
   getPost(id: string): Promise<Post>;
   getPosts(filter: { authorId?: string; communityId?: string; search?: string }): Promise<Post[]>;
   createPost(request: CreatePostRequest): Promise<Post>;
+  /** Réservé à l'auteur ; la communauté ne change pas. */
+  updatePost(postId: string, request: UpdatePostRequest): Promise<Post>;
   toggleLike(postId: string): Promise<Post>;
   sharePost(postId: string): Promise<Post>;
   /** Réservé à l'auteur. */
@@ -71,6 +73,14 @@ export interface DataSource {
   /** Scénario de démonstration explicite : réponse marquée « simulée ». */
   simulateReply(conversationId: string, content: string): Promise<Message>;
   reactToMessage(conversationId: string, messageId: string, emoji: string): Promise<Message>;
+  /** Par l'expéditeur, dans les 15 minutes suivant l'envoi. */
+  editMessage(conversationId: string, messageId: string, content: string): Promise<Message>;
+  /** Par l'expéditeur : le message reste affiché « Message supprimé ». */
+  deleteMessage(conversationId: string, messageId: string): Promise<Message>;
+  /** Photo, PDF ou message vocal (20 Mo), avec une légende facultative. */
+  sendAttachment(conversationId: string, file: OutgoingFile, caption?: string): Promise<Message>;
+  /** Adresse de la pièce jointe, utilisable par l'image, le lecteur audio ou le navigateur (accès vérifié par le serveur). */
+  attachmentUrl(message: Message): string | null;
   markConversationRead(conversationId: string): Promise<number>;
   startConversation(otherUserId: string): Promise<Conversation>;
   getUnreadMessageCount(): Promise<number>;

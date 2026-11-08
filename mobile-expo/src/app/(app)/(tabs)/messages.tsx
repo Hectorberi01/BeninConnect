@@ -8,7 +8,7 @@ import { useMe } from '@/core/session';
 import { font, useColors } from '@/core/theme';
 import { matches } from '@/core/validation';
 import type { ConversationSummary } from '@/data/types';
-import { displayName, initials } from '@/data/types';
+import { displayName, initials, messagePreview } from '@/data/types';
 import { useConversations } from '@/features/queries';
 
 export default function Messages() {
@@ -18,7 +18,8 @@ export default function Messages() {
   const [search, setSearch] = useState('');
   const bottom = useTabBarSpace();
   const preview = (s: ConversationSummary) =>
-    !s.lastMessage ? 'Nouvelle conversation' : s.lastMessage.senderId === me.id ? `Vous : ${s.lastMessage.content}` : s.lastMessage.content;
+    !s.lastMessage ? 'Nouvelle conversation'
+      : s.lastMessage.senderId === me.id && !s.lastMessage.isDeleted ? `Vous : ${messagePreview(s.lastMessage)}` : messagePreview(s.lastMessage);
 
   const items = useMemo(() => {
     const q = search.trim();

@@ -39,6 +39,14 @@ public sealed class MessagingDbContext(DbContextOptions<MessagingDbContext> opti
             e.HasOne<Conversation>().WithMany().HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Reactions).WithOne().HasForeignKey(r => r.MessageId).OnDelete(DeleteBehavior.Cascade);
             e.Navigation(x => x.Reactions).UsePropertyAccessMode(PropertyAccessMode.Field);
+            // Pièce jointe facultative : colonnes Attachment_* de la table messages
+            e.OwnsOne(x => x.Attachment, a =>
+            {
+                a.Property(x => x.Name).HasMaxLength(64);
+                a.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
+                a.Property(x => x.FileName).HasMaxLength(MessageAttachment.MaxFileNameLength);
+                a.Property(x => x.ContentType).HasMaxLength(64);
+            });
         });
 
         b.Entity<MessageReaction>(e =>

@@ -42,6 +42,8 @@ export interface Post {
   likedBy: string[];
   commentCount: number;
   shareCount: number;
+  /** Date de la dernière modification par l'auteur. */
+  editedAt?: string | null;
 }
 
 export interface Reaction {
@@ -90,6 +92,25 @@ export interface Conversation {
   createdAt: string;
 }
 
+export type AttachmentKind = 'Image' | 'Audio' | 'File';
+
+/** Pièce jointe privée d'un message : téléchargée via data().attachmentUrl(message). */
+export interface Attachment {
+  kind: AttachmentKind;
+  fileName: string;
+  contentType: string;
+  size: number;
+  durationMs?: number | null;
+}
+
+/** Fichier de l'appareil à envoyer dans une discussion. */
+export interface OutgoingFile {
+  uri: string;
+  name: string;
+  mimeType: string;
+  durationMs?: number;
+}
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -99,6 +120,21 @@ export interface Message {
   isRead: boolean;
   isSimulated: boolean;
   reactions: Reaction[];
+  editedAt?: string | null;
+  /** Supprimé par l'expéditeur : contenu vide, affiché « Message supprimé ». */
+  isDeleted?: boolean;
+  attachment?: Attachment | null;
+}
+
+/** Aperçu d'un message (liste des conversations). */
+export function messagePreview(m: Message) {
+  if (m.isDeleted) return 'Message supprimé';
+  switch (m.attachment?.kind) {
+    case 'Image': return m.content ? `📷 ${m.content}` : '📷 Photo';
+    case 'Audio': return '🎤 Message vocal';
+    case 'File': return `📄 ${m.attachment.fileName}`;
+    default: return m.content;
+  }
 }
 
 export interface ConversationSummary {
@@ -164,6 +200,12 @@ export interface UpdateProfileRequest {
   /** null/absent : inchangé ; chaîne vide : retirée. */
   avatarImage?: string | null;
   coverImage?: string | null;
+}
+
+export interface UpdatePostRequest {
+  content: string;
+  imagePath: string | null;
+  visibility: PostVisibility;
 }
 
 export interface CreatePostRequest {

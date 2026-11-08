@@ -3,6 +3,7 @@ import { usePreferences } from '@/core/preferences';
 import { ApiDataSource } from '@/data/api/apiDataSource';
 import { MockDataSource } from '@/data/mock/mockDataSource';
 import { DEMO_EMAIL, DEMO_PASSWORD } from '@/data/repositories';
+import { messagePreview } from '@/data/types';
 
 jest.mock('@react-native-async-storage/async-storage', () => require('@react-native-async-storage/async-storage/jest/async-storage-mock'));
 
@@ -94,5 +95,77 @@ describe('signalement', () => {
     await new ApiDataSource('http://x', fetchImpl).report('Comment', 'c1', 'Harassment');
     expect(calls[0].url).toBe('http://x/api/reports');
     expect(JSON.parse(calls[0].init.body as string)).toEqual({ targetType: 'Comment', targetId: 'c1', reason: 'Harassment', details: null });
+  });
+});
+
+describe('modifications', () => {
+  it('démo : modifier sa publication, modifier puis supprimer son message', async () => {
+    const source = new MockDataSource({ latencyMs: 0, simulateErrors: () => false });
+    const { token, user } = await source.login(DEMO_EMAIL, DEMO_PASSWORD);
+    source.setToken(token);
+
+    const post = await source.createPost({ content: 'Première version', communityId: null, imagePath: null, visibility: 'Public' });
+    const edited = await source.updatePost(post.id, { content: 'Version corrigée', imagePath: null, visibility: 'OnlyMe' });
+    expect([edited.content, edited.visibility, !!edited.editedAt]).toEqual(['Version corrigée', 'OnlyMe', true]);
+    const other = (await source.getFeed(0, 50)).items.find((p) => p.authorId !== user.id)!;
+    await expect(source.updatePost(other.id, { content: 'Piraté', imagePath: null, visibility: 'Public' })).rejects.toMatchObject({ status: 403 });
+
+    const conversation = (await source.getConversations())[0].conversation;
+    const sent = await source.sendMessage(conversation.id, 'Bonjour');
+    const changed = await source.editMessage(conversation.id, sent.id, 'Bonjour à toi');
+    expect([changed.content, !!changed.editedAt]).toEqual(['Bonjour à toi', true]);
+    const removed = await source.deleteMessage(conversation.id, sent.id);
+    expect([removed.isDeleted, removed.content]).toEqual([true, '']);
+    await expect(source.editMessage(conversation.id, sent.id, 'Retour')).rejects.toMatchObject({ status: 400 });
+    const received = (await source.getMessages(conversation.id)).find((m) => m.senderId !== user.id)!;
+    await expect(source.deleteMessage(conversation.id, received.id)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('API : PUT de la publication, PUT et DELETE du message', async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const fetchImpl = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return { ok: true, status: 200, json: async () => ({}) } as Response;
+    }) as unknown as typeof fetch;
+    const api = new ApiDataSource('http://x/', fetchImpl);
+    await api.updatePost('p1', { content: 'Texte', imagePath: null, visibility: 'Public' });
+    await api.editMessage('c1', 'm1', 'Corrigé');
+    await api.deleteMessage('c1', 'm1');
+    expect(calls.map((c) => `${c.init.method} ${c.url}`)).toEqual([
+      'PUT http://x/api/posts/p1', 'PUT http://x/api/conversations/c1/messages/m1', 'DELETE http://x/api/conversations/c1/messages/m1',
+    ]);
+    expect(api.apiUrl).toBe('http://x');
+  });
+});
+
+describe('pièces jointes', () => {
+  it('démo : envoi d\'un PDF puis aperçu et suppression', async () => {
+    const source = new MockDataSource({ latencyMs: 0, simulateErrors: () => false });
+    const { token } = await source.login(DEMO_EMAIL, DEMO_PASSWORD);
+    source.setToken(token);
+    const conversation = (await source.getConversations())[0].conversation;
+    const sent = await source.sendAttachment(conversation.id, { uri: 'file:///devis.pdf', name: 'devis.pdf', mimeType: 'application/pdf' });
+    expect(sent.attachment).toMatchObject({ kind: 'File', fileName: 'devis.pdf' });
+    expect(source.attachmentUrl(sent)).toBe('file:///devis.pdf');
+    expect(messagePreview(sent)).toBe('📄 devis.pdf');
+    await expect(source.sendAttachment(conversation.id, { uri: 'file:///a.exe', name: 'a.exe', mimeType: 'application/x-msdownload' }))
+      .rejects.toMatchObject({ status: 400 });
+    const removed = await source.deleteMessage(conversation.id, sent.id);
+    expect([removed.attachment, source.attachmentUrl(removed), messagePreview(removed)]).toEqual([null, null, 'Message supprimé']);
+  });
+
+  it('API : envoi multipart et URL de téléchargement avec jeton', async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const upload = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return { ok: true, status: 201, json: async () => ({ id: 'm1', attachment: { kind: 'Audio' } }) } as Response;
+    }) as unknown as typeof fetch;
+    const api = new ApiDataSource('http://x', upload, 15_000, upload);
+    api.setToken('jeton+/=');
+    await api.sendAttachment('c1', { uri: 'file:///v.m4a', name: 'v.m4a', mimeType: 'audio/mp4', durationMs: 4200.6 });
+    expect(calls[0].url).toBe('http://x/api/conversations/c1/attachments');
+    expect(calls[0].init.body).toBeInstanceOf(FormData);
+    expect(api.attachmentUrl({ id: 'm1', attachment: { kind: 'Audio' } } as never)).toBe('http://x/api/messages/m1/attachment?access_token=jeton%2B%2F%3D');
+    expect(api.attachmentUrl({ id: 'm2' } as never)).toBeNull();
   });
 });

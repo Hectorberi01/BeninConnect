@@ -37,9 +37,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "BéninConnect accède à vos photos pour votre photo de profil, votre couverture et vos publications.",
-          "cameraPermission": "BéninConnect utilise l'appareil photo pour prendre une photo de profil ou illustrer une publication.",
-          "microphonePermission": false
+          "photosPermission": "BéninConnect accède à vos photos pour votre photo de profil, votre couverture, vos publications et vos discussions.",
+          "cameraPermission": "BéninConnect utilise l'appareil photo pour prendre une photo de profil, illustrer une publication ou l’envoyer dans une discussion.",
+          "microphonePermission": "BéninConnect utilise le micro pour enregistrer les messages vocaux que vous envoyez dans vos discussions."
         }
       ],
       [
@@ -55,6 +55,12 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#087F5B"
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "BéninConnect utilise le micro pour enregistrer les messages vocaux que vous envoyez dans vos discussions."
         }
       ]
     ],

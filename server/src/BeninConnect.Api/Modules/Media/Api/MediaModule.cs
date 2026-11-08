@@ -27,13 +27,18 @@ public sealed class MediaModule : IModule, IModulePipeline
         if (media.IsS3)
         {
             services.AddSingleton<IMediaStorage>(S3MediaStorage.Create(media.S3));
+            services.AddSingleton(new AttachmentStore(S3MediaStorage.CreatePrivate(media.S3)));
             return;
         }
 
+        // media/uploads : photos publiques (/uploads) ; media/private : pièces jointes, jamais servies directement.
         var root = media.Root is { Length: > 0 } configured ? configured : Path.Combine(builder.Environment.ContentRootPath, "media");
         var uploads = Path.Combine(root, "uploads");
+        var attachments = Path.Combine(root, "private");
         Directory.CreateDirectory(uploads);
+        Directory.CreateDirectory(attachments);
         services.AddSingleton<IMediaStorage>(new LocalMediaStorage(uploads));
+        services.AddSingleton(new AttachmentStore(new LocalMediaStorage(attachments)));
     }
 
     public void UsePipeline(WebApplication app)

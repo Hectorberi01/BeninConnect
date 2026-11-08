@@ -30,6 +30,7 @@ public sealed class Post
     public int ShareCount { get; private set; }
     public bool IsHidden { get; private set; }
     public string? HiddenReason { get; private set; }
+    public DateTimeOffset? EditedAt { get; private set; }
 
     /// <summary>Masquée par la modération : invisible pour les membres, conservée pour l'historique.</summary>
     public void Hide(string reason)
@@ -53,6 +54,36 @@ public sealed class Post
 
     public static Post Create(Guid id, Guid authorId, Guid? communityId, string content, string? imagePath, PostVisibility visibility, DateTimeOffset now)
     {
+        var text = Validate(content, visibility, communityId);
+        return new Post
+        {
+            Id = id,
+            AuthorId = authorId,
+            CommunityId = communityId,
+            Content = text,
+            ImagePath = imagePath,
+            Visibility = visibility,
+            CreatedAt = now
+        };
+    }
+
+    /// <summary>Modification par l'auteur : texte, photo et visibilité (la communauté ne change pas).</summary>
+    public void Edit(string content, string? imagePath, PostVisibility visibility, DateTimeOffset now)
+    {
+        var text = Validate(content, visibility, CommunityId);
+        if (text == Content && imagePath == ImagePath && visibility == Visibility)
+        {
+            return;
+        }
+
+        Content = text;
+        ImagePath = imagePath;
+        Visibility = visibility;
+        EditedAt = now;
+    }
+
+    private static string Validate(string content, PostVisibility visibility, Guid? communityId)
+    {
         var text = content.Trim();
         if (text.Length < 3)
         {
@@ -69,16 +100,7 @@ public sealed class Post
             throw new DomainException("Choisissez une communauté pour une publication réservée aux membres.");
         }
 
-        return new Post
-        {
-            Id = id,
-            AuthorId = authorId,
-            CommunityId = communityId,
-            Content = text,
-            ImagePath = imagePath,
-            Visibility = visibility,
-            CreatedAt = now
-        };
+        return text;
     }
 
     /// <summary>Retourne true si la publication est désormais aimée.</summary>

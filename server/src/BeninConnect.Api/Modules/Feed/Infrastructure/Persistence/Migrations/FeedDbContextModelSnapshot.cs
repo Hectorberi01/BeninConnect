@@ -96,6 +96,9 @@ namespace BeninConnect.Api.Modules.Feed.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTimeOffset?>("EditedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("HiddenReason")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");

@@ -65,3 +65,16 @@ export const eventSchedule = (start: string, end: string) =>
     : `Du ${new Date(start).getDate()} ${LONG_MONTHS[new Date(start).getMonth()]} au ${new Date(end).getDate()} ${LONG_MONTHS[new Date(end).getMonth()]} · ${clock(start)}`;
 
 export const plural = (n: number, singular: string, pluralForm = `${singular}s`) => `${n} ${n > 1 ? pluralForm : singular}`;
+
+/** Taille de fichier lisible : 820 Ko, 3,4 Mo. */
+export function fileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace('.', ',')} Mo`;
+}
+
+/** Durée m:ss (messages vocaux). */
+export function duration(ms: number) {
+  const total = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}

@@ -7,7 +7,7 @@ import { data } from '@/data';
 import type {
   Comment, Message,
   Community, CommunityEvent, CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, NotificationCategory,
-  Paged, Post, UpdateProfileRequest,
+  OutgoingFile, Paged, Post, UpdatePostRequest, UpdateProfileRequest,
 } from '@/data/types';
 import { errorMessage, toggleReaction } from '@/data/types';
 
@@ -55,7 +55,7 @@ export const useFeed = () =>
     getNextPageParam: (last: Paged<Post>) => (last.skip + last.items.length < last.totalCount ? last.skip + last.items.length : undefined),
   });
 
-export const usePost = (id: string) => useQuery({ queryKey: ['post', id], queryFn: () => data().getPost(id) });
+export const usePost = (id: string, enabled = true) => useQuery({ queryKey: ['post', id], queryFn: () => data().getPost(id), enabled });
 
 export const usePosts = (filter: { authorId?: string; communityId?: string; search?: string }, enabled = true) =>
   useQuery({ queryKey: ['posts', filter], queryFn: () => data().getPosts(filter), enabled });
@@ -135,6 +135,17 @@ export function useCreatePost() {
       qc.invalidateQueries({ queryKey: ['feed'] });
       qc.invalidateQueries({ queryKey: ['posts'] });
       toast('Votre publication est en ligne.', 'success');
+    },
+  });
+}
+
+export function useUpdatePost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, request }: { id: string; request: UpdatePostRequest }) => data().updatePost(id, request),
+    onSuccess: (post) => {
+      patchPost(qc, post);
+      toast('Publication modifiée.', 'success');
     },
   });
 }
@@ -227,6 +238,14 @@ export const useMessages = (id: string) => useQuery({ queryKey: ['messages', id]
 export const useUnreadMessages = () =>
   useQuery({ queryKey: ['unreadMessages'], queryFn: () => data().getUnreadMessageCount(), refetchInterval: 30_000 });
 
+/** Ajoute ou remplace un message dans le cache de sa conversation (envoi, temps réel). */
+export function upsertMessage(qc: QueryClient, message: Message) {
+  qc.setQueryData<Message[]>(['messages', message.conversationId], (old) => {
+    if (!old) return old;
+    return old.some((m) => m.id === message.id) ? old.map((m) => (m.id === message.id ? message : m)) : [...old, message];
+  });
+}
+
 const refreshMessaging = (qc: QueryClient, id?: string) =>
   Promise.all([
     qc.invalidateQueries({ queryKey: ['conversations'] }),
@@ -239,7 +258,46 @@ export function useSendMessage(conversationId: string) {
   return useMutation({
     mutationFn: ({ content, simulated }: { content: string; simulated?: boolean }) =>
       simulated ? data().simulateReply(conversationId, content) : data().sendMessage(conversationId, content),
-    onSuccess: () => refreshMessaging(qc, conversationId),
+    onSuccess: (message) => {
+      upsertMessage(qc, message);
+      return refreshMessaging(qc);
+    },
+    onError,
+  });
+}
+
+export function useSendAttachment(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ file, caption }: { file: OutgoingFile; caption?: string }) => data().sendAttachment(conversationId, file, caption),
+    onSuccess: (message) => {
+      upsertMessage(qc, message);
+      return refreshMessaging(qc);
+    },
+    onError,
+  });
+}
+
+export function useEditMessage(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ messageId, content }: { messageId: string; content: string }) => data().editMessage(conversationId, messageId, content),
+    onSuccess: (message) => {
+      upsertMessage(qc, message);
+      return refreshMessaging(qc);
+    },
+    onError,
+  });
+}
+
+export function useDeleteMessage(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (messageId: string) => data().deleteMessage(conversationId, messageId),
+    onSuccess: (message) => {
+      upsertMessage(qc, message);
+      return refreshMessaging(qc);
+    },
     onError,
   });
 }

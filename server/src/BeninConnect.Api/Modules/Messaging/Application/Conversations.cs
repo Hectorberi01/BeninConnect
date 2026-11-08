@@ -1,5 +1,6 @@
 using BeninConnect.Modules.Identity.Contracts;
 using BeninConnect.Modules.Messaging.Contracts;
+using BeninConnect.Modules.Media.Contracts;
 using BeninConnect.Modules.Messaging.Domain;
 using BeninConnect.Shared.Application;
 using BeninConnect.Shared.Domain;
@@ -17,9 +18,25 @@ public interface IMessagingDb
 
 public sealed record ConversationDto(Guid Id, IReadOnlyList<Guid> ParticipantIds, DateTimeOffset CreatedAt);
 
+public sealed record AttachmentDto(AttachmentKind Kind, string FileName, string ContentType, long Size, int? DurationMs);
+
 public sealed record MessageDto(
     Guid Id, Guid ConversationId, Guid SenderId, string Content, DateTimeOffset SentAt, bool IsRead, bool IsSimulated,
-    IReadOnlyList<ReactionDto> Reactions);
+    IReadOnlyList<ReactionDto> Reactions, DateTimeOffset? EditedAt = null, bool IsDeleted = false, AttachmentDto? Attachment = null);
+
+/// <summary>Fichier d'une pièce jointe, après contrôle d'accès.</summary>
+public sealed record AttachmentDownload(Stream Content, long? Length, string ContentType, string FileName);
+
+/// <summary>Diffusion en temps réel aux participants connectés (SignalR) ; sans effet pour les membres hors ligne.</summary>
+public interface IChatNotifier
+{
+    Task MessageCreatedAsync(IReadOnlyCollection<Guid> userIds, MessageDto message, CancellationToken ct);
+
+    /// <summary>Modification, suppression ou réaction.</summary>
+    Task MessageUpdatedAsync(IReadOnlyCollection<Guid> userIds, MessageDto message, CancellationToken ct);
+
+    Task ConversationReadAsync(IReadOnlyCollection<Guid> userIds, Guid conversationId, Guid readerId, CancellationToken ct);
+}
 
 public sealed record ConversationSummaryDto(ConversationDto Conversation, UserDto OtherParticipant, MessageDto? LastMessage, int UnreadCount);
 
@@ -30,7 +47,17 @@ public static class MessagingMapping
 
     /// <summary>Nécessite l'inclusion de Reactions.</summary>
     public static MessageDto ToDto(this Message m) =>
-        new(m.Id, m.ConversationId, m.SenderId, m.Content, m.SentAt, m.IsRead, m.IsSimulated, m.Reactions.ToDto());
+        new(m.Id, m.ConversationId, m.SenderId, m.Content, m.SentAt, m.IsRead, m.IsSimulated, m.Reactions.ToDto(), m.EditedAt, m.IsDeleted,
+            m.Attachment is { } a ? new AttachmentDto(a.Kind, a.FileName, a.ContentType, a.Size, a.DurationMs) : null);
+
+    /// <summary>Aperçu (notification, liste des conversations) : texte ou type de pièce jointe.</summary>
+    public static string Preview(this Message m) => m.Attachment switch
+    {
+        { Kind: AttachmentKind.Image } => string.IsNullOrEmpty(m.Content) ? "📷 Photo" : $"📷 {m.Content}",
+        { Kind: AttachmentKind.Audio } => "🎤 Message vocal",
+        { } file => $"📄 {file.FileName}",
+        null => m.Content,
+    };
 }
 
 public sealed record GetConversationsQuery : IQuery<IReadOnlyList<ConversationSummaryDto>>;
@@ -51,11 +78,35 @@ public sealed record SimulateReplyCommand(Guid ConversationId, string Content) :
 
 public sealed record MarkConversationReadCommand(Guid ConversationId) : ICommand<int>;
 
+public sealed record EditMessageCommand(Guid ConversationId, Guid MessageId, string Content) : ICommand<MessageDto>, IValidatable
+{
+    public IEnumerable<(string, string)> Validate() => Rules.Length(nameof(Content), Content, "Le message", 1, Message.MaxLength);
+}
+
+public sealed record DeleteMessageCommand(Guid ConversationId, Guid MessageId) : ICommand<MessageDto>;
+
+/// <summary>Photo, PDF ou message vocal (20 Mo), avec une légende facultative. Content doit permettre la lecture répétée.</summary>
+public sealed record SendAttachmentCommand(Guid ConversationId, Stream Content, long Length, string? FileName, string? Caption, int? DurationMs)
+    : ICommand<MessageDto>, IValidatable
+{
+    public IEnumerable<(string, string)> Validate()
+    {
+        if ((Caption?.Length ?? 0) > Message.MaxLength)
+        {
+            yield return (nameof(Caption), $"Le message ne doit pas dépasser {Message.MaxLength} caractères.");
+        }
+    }
+}
+
+/// <summary>Téléchargement réservé aux participants de la conversation.</summary>
+public sealed record GetAttachmentQuery(Guid MessageId) : IQuery<AttachmentDownload>;
+
 public sealed record StartDirectConversationCommand(Guid OtherUserId) : ICommand<ConversationDto>;
 
 public sealed record GetUnreadMessageCountQuery : IQuery<CountDto>;
 
-public sealed class ConversationHandlers(IMessagingDb db, IIdentityModule identity, IEventBus bus, ICurrentUser me, TimeProvider clock) :
+public sealed class ConversationHandlers(
+    IMessagingDb db, IIdentityModule identity, IMediaModule media, IEventBus bus, IChatNotifier live, ICurrentUser me, TimeProvider clock) :
     IRequestHandler<GetConversationsQuery, IReadOnlyList<ConversationSummaryDto>>,
     IRequestHandler<GetConversationQuery, ConversationSummaryDto>,
     IRequestHandler<GetMessagesQuery, IReadOnlyList<MessageDto>>,
@@ -64,7 +115,11 @@ public sealed class ConversationHandlers(IMessagingDb db, IIdentityModule identi
     IRequestHandler<MarkConversationReadCommand, int>,
     IRequestHandler<StartDirectConversationCommand, ConversationDto>,
     IRequestHandler<GetUnreadMessageCountQuery, CountDto>,
-    IRequestHandler<ReactToMessageCommand, MessageDto>
+    IRequestHandler<ReactToMessageCommand, MessageDto>,
+    IRequestHandler<EditMessageCommand, MessageDto>,
+    IRequestHandler<DeleteMessageCommand, MessageDto>,
+    IRequestHandler<SendAttachmentCommand, MessageDto>,
+    IRequestHandler<GetAttachmentQuery, AttachmentDownload>
 {
     public async Task<IReadOnlyList<ConversationSummaryDto>> Handle(GetConversationsQuery request, CancellationToken ct)
     {
@@ -97,9 +152,53 @@ public sealed class ConversationHandlers(IMessagingDb db, IIdentityModule identi
         db.Messages.Add(message);
         await db.SaveChangesAsync(ct);
 
+        return await AnnounceAsync(conversation, message, ct);
+    }
+
+    public async Task<MessageDto> Handle(SendAttachmentCommand request, CancellationToken ct)
+    {
+        var conversation = await LoadMineAsync(request.ConversationId, ct);
+        var stored = await media.SaveAttachmentAsync(request.Content, request.Length, ct);
+        var kind = Enum.Parse<AttachmentKind>(stored.Kind);
+        var fallback = kind switch { AttachmentKind.Audio => "Message vocal", AttachmentKind.Image => "Photo", _ => "Document" };
+        var attachment = new MessageAttachment(stored.Name, kind, MessageAttachment.CleanFileName(request.FileName, fallback), stored.ContentType,
+            stored.Size, kind == AttachmentKind.Audio && request.DurationMs is > 0 ? request.DurationMs : null);
+
+        try
+        {
+            var message = conversation.Post(Guid.NewGuid(), me.Id, request.Caption ?? string.Empty, clock.GetUtcNow(), attachment: attachment);
+            db.Messages.Add(message);
+            await db.SaveChangesAsync(ct);
+            return await AnnounceAsync(conversation, message, ct);
+        }
+        catch
+        {
+            await bus.PublishAsync(new AttachmentsReleased([stored.Name]), ct); // message refusé : fichier orphelin effacé
+            throw;
+        }
+    }
+
+    public async Task<AttachmentDownload> Handle(GetAttachmentQuery request, CancellationToken ct)
+    {
+        var message = await db.Messages.AsNoTracking().FirstOrDefaultAsync(m => m.Id == request.MessageId, ct);
+        if (message?.Attachment is not { } attachment)
+        {
+            throw new NotFoundException("Pièce jointe");
+        }
+
+        await LoadMineAsync(message.ConversationId, ct); // participants uniquement (404 sinon)
+        var file = await media.OpenAttachmentAsync(attachment.Name, ct) ?? throw new NotFoundException("Pièce jointe");
+        return new AttachmentDownload(file.Content, file.Length, file.ContentType, attachment.FileName);
+    }
+
+    /// <summary>Temps réel pour les participants connectés, notification (et push) pour les destinataires.</summary>
+    private async Task<MessageDto> AnnounceAsync(Conversation conversation, Message message, CancellationToken ct)
+    {
         var recipients = conversation.Participants.Select(p => p.UserId).Where(id => id != me.Id).ToList();
-        await bus.PublishAsync(new MessageSent(conversation.Id, me.Id, recipients, Text.Excerpt(message.Content)), ct);
-        return message.ToDto();
+        var dto = message.ToDto();
+        await live.MessageCreatedAsync(Participants(conversation), dto, ct);
+        await bus.PublishAsync(new MessageSent(conversation.Id, me.Id, recipients, Text.Excerpt(message.Preview())), ct);
+        return dto;
     }
 
     public async Task<MessageDto> Handle(SimulateReplyCommand request, CancellationToken ct)
@@ -109,24 +208,49 @@ public sealed class ConversationHandlers(IMessagingDb db, IIdentityModule identi
         var message = conversation.Post(Guid.NewGuid(), other, request.Content, clock.GetUtcNow(), isSimulated: true);
         db.Messages.Add(message);
         await db.SaveChangesAsync(ct);
-        return message.ToDto();
+        var dto = message.ToDto();
+        await live.MessageCreatedAsync(Participants(conversation), dto, ct);
+        return dto;
     }
 
-    public async Task<MessageDto> Handle(ReactToMessageCommand request, CancellationToken ct)
+    public Task<MessageDto> Handle(ReactToMessageCommand request, CancellationToken ct) =>
+        ChangeAsync(request.ConversationId, request.MessageId, m => m.React(me.Id, request.Emoji, clock.GetUtcNow()), ct);
+
+    public Task<MessageDto> Handle(EditMessageCommand request, CancellationToken ct) =>
+        ChangeAsync(request.ConversationId, request.MessageId, m => m.Edit(me.Id, request.Content, clock.GetUtcNow()), ct);
+
+    public async Task<MessageDto> Handle(DeleteMessageCommand request, CancellationToken ct)
     {
-        await LoadMineAsync(request.ConversationId, ct);
+        string? file = null;
+        var dto = await ChangeAsync(request.ConversationId, request.MessageId, m => file = m.Delete(me.Id), ct);
+        if (file is not null)
+        {
+            await bus.PublishAsync(new AttachmentsReleased([file]), ct);
+        }
+
+        return dto;
+    }
+
+    /// <summary>Modifie un message de la conversation puis prévient les participants connectés.</summary>
+    private async Task<MessageDto> ChangeAsync(Guid conversationId, Guid messageId, Action<Message> change, CancellationToken ct)
+    {
+        var conversation = await LoadMineAsync(conversationId, ct);
         var message = await db.Messages.Include(m => m.Reactions)
-                          .FirstOrDefaultAsync(m => m.Id == request.MessageId && m.ConversationId == request.ConversationId, ct)
+                          .FirstOrDefaultAsync(m => m.Id == messageId && m.ConversationId == conversationId, ct)
                       ?? throw new NotFoundException("Message");
 
-        message.React(me.Id, request.Emoji, clock.GetUtcNow());
+        change(message);
         await db.SaveChangesAsync(ct);
-        return message.ToDto();
+        var dto = message.ToDto();
+        await live.MessageUpdatedAsync(Participants(conversation), dto, ct);
+        return dto;
     }
+
+    private static List<Guid> Participants(Conversation c) => c.Participants.Select(p => p.UserId).ToList();
 
     public async Task<int> Handle(MarkConversationReadCommand request, CancellationToken ct)
     {
-        await LoadMineAsync(request.ConversationId, ct);
+        var conversation = await LoadMineAsync(request.ConversationId, ct);
         var unread = await db.Messages
             .Where(m => m.ConversationId == request.ConversationId && m.SenderId != me.Id && !m.IsRead)
             .ToListAsync(ct);
@@ -137,6 +261,11 @@ public sealed class ConversationHandlers(IMessagingDb db, IIdentityModule identi
         }
 
         await db.SaveChangesAsync(ct);
+        if (unread.Count > 0)
+        {
+            await live.ConversationReadAsync(Participants(conversation), conversation.Id, me.Id, ct);
+        }
+
         return unread.Count;
     }
 

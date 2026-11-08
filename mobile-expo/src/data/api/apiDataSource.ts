@@ -3,7 +3,7 @@ import type { DataSource } from '../repositories';
 import type {
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, MembershipStatus, Message, NotificationCategory,
-  LocalPhoto, Paged, Post, ReportReason, ReportTarget, RegisterRequest, UpdateProfileRequest, User,
+  LocalPhoto, OutgoingFile, Paged, Post, ReportReason, ReportTarget, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User,
 } from '../types';
 import { Platform } from 'react-native';
 import { AppError } from '../types';
@@ -31,6 +31,15 @@ export class ApiDataSource implements DataSource {
     this.isProduction = baseUrl.replace(/\/+$/, '') === PRODUCTION_API_URL;
     this.demoVerificationCode = this.isProduction ? null : '123456';
     this.hasDemoAccount = !this.isProduction;
+  }
+
+  /** Temps réel (SignalR) : adresse de l'API et jeton courant. */
+  get apiUrl() {
+    return this.baseUrl.replace(/\/$/, '');
+  }
+
+  get currentToken() {
+    return this.token;
   }
 
   setToken(token: string | null) {
@@ -116,6 +125,7 @@ export class ApiDataSource implements DataSource {
   getPost = (id: string) => this.get<Post>(`api/posts/${id}`);
   getPosts = (f: { authorId?: string; communityId?: string; search?: string }) => this.get<Post[]>(`api/posts${this.q(f)}`);
   createPost = (r: CreatePostRequest) => this.post<Post>('api/posts', r);
+  updatePost = (id: string, r: UpdatePostRequest) => this.request<Post>('PUT', `api/posts/${id}`, r);
   toggleLike = (id: string) => this.post<Post>(`api/posts/${id}/like`);
   sharePost = (id: string) => this.post<Post>(`api/posts/${id}/share`);
   deletePost = async (id: string) => { await this.request<void>('DELETE', `api/posts/${id}`); };
@@ -160,6 +170,28 @@ export class ApiDataSource implements DataSource {
   getConversation = (id: string) => this.get<ConversationSummary>(`api/conversations/${id}`);
   getMessages = (id: string) => this.get<Message[]>(`api/conversations/${id}/messages`);
   sendMessage = (id: string, content: string) => this.post<Message>(`api/conversations/${id}/messages`, { content });
+  editMessage = (id: string, messageId: string, content: string) =>
+    this.request<Message>('PUT', `api/conversations/${id}/messages/${messageId}`, { content });
+  deleteMessage = (id: string, messageId: string) => this.request<Message>('DELETE', `api/conversations/${id}/messages/${messageId}`);
+  async sendAttachment(id: string, file: OutgoingFile, caption?: string) {
+    const form = new FormData();
+    if (Platform.OS === 'web') {
+      form.append('file', await (await fetch(file.uri)).blob(), file.name);
+    } else {
+      form.append('file', { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob);
+    }
+    if (caption?.trim()) form.append('content', caption.trim());
+    if (file.durationMs) form.append('durationMs', String(Math.round(file.durationMs)));
+    // Jusqu'à 20 Mo : délai long (réseau mobile)
+    return this.request<Message>('POST', `api/conversations/${id}/attachments`, form, 120_000);
+  }
+
+  /** Le jeton est dans l'URL : l'image, le lecteur audio et le navigateur ne peuvent pas envoyer d'en-tête. */
+  attachmentUrl(message: Message) {
+    if (!message.attachment || !this.token) return null;
+    return `${this.apiUrl}/api/messages/${message.id}/attachment?access_token=${encodeURIComponent(this.token)}`;
+  }
+
   simulateReply = (id: string, content: string) => this.post<Message>(`api/conversations/${id}/demo-reply`, { content });
   reactToMessage = (id: string, messageId: string, emoji: string) =>
     this.post<Message>(`api/conversations/${id}/messages/${messageId}/reactions`, { emoji });

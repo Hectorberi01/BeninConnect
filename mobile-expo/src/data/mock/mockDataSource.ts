@@ -3,7 +3,7 @@ import type { DataSource } from '../repositories';
 import { INTERESTS, REACTIONS } from '../repositories';
 import type {
   AppNotification, Comment, Community, CommunityEvent, CommunityMember, Conversation, CreateEventRequest, EventFilter,
-  MembershipStatus, Message, Paged, Post, User, LocalPhoto, ReportReason, ReportTarget,
+  MembershipStatus, Message, OutgoingFile, Paged, Post, User, LocalPhoto, ReportReason, ReportTarget,
 } from '../types';
 import { AppError, displayName, isEventFull, membershipStatus, toggleReaction } from '../types';
 import { COMMUNITY_CATEGORIES, EVENT_CATEGORIES } from './seed/seed';
@@ -220,6 +220,14 @@ export class MockDataSource implements DataSource {
     };
     this.store.posts.push(post);
     return post;
+  }
+
+  async updatePost(postId: string, r: Parameters<DataSource['updatePost']>[1]) {
+    const post = await this.getPost(postId);
+    if (post.authorId !== this.userId) throw new AppError('Vous ne pouvez modifier que vos propres publications.', 403);
+    this.validate({ content: v.length(r.content, 'La publication', 3, 2000) });
+    if (r.visibility === 'CommunityMembers' && !post.communityId) throw new AppError('Choisissez une communauté pour une publication réservée aux membres.', 400);
+    return this.replace(this.store.posts, { ...post, content: r.content.trim(), imagePath: r.imagePath, visibility: r.visibility, editedAt: new Date().toISOString() });
   }
 
   async toggleLike(postId: string) {
@@ -454,6 +462,51 @@ export class MockDataSource implements DataSource {
     const message = this.store.messages.find((m) => m.id === messageId && m.conversationId === conversationId);
     if (!message) throw new AppError('Message introuvable.', 404);
     return this.replace(this.store.messages, { ...message, reactions: toggleReaction(message.reactions, this.userId, checkReaction(emoji)) });
+  }
+
+  private ownMessage(conversationId: string, messageId: string) {
+    this.mine(conversationId);
+    const message = this.store.messages.find((m) => m.id === messageId && m.conversationId === conversationId);
+    if (!message) throw new AppError('Message introuvable.', 404);
+    if (message.isDeleted) throw new AppError('Ce message a été supprimé.', 400);
+    if (message.senderId !== this.userId) throw new AppError('Vous ne pouvez modifier que vos propres messages.', 403);
+    return message;
+  }
+
+  async editMessage(conversationId: string, messageId: string, content: string) {
+    await this.net();
+    const message = this.ownMessage(conversationId, messageId);
+    this.validate({ content: v.length(content, 'Le message', 1, 2000) });
+    if (Date.now() - Date.parse(message.sentAt) > 15 * 60_000) throw new AppError('Un message ne peut plus être modifié 15 minutes après son envoi.', 400);
+    return this.replace(this.store.messages, { ...message, content: content.trim(), editedAt: new Date().toISOString() });
+  }
+
+  async deleteMessage(conversationId: string, messageId: string) {
+    await this.net();
+    const message = this.ownMessage(conversationId, messageId);
+    this.attachmentUris.delete(messageId);
+    return this.replace(this.store.messages, { ...message, content: '', reactions: [], isDeleted: true, attachment: null });
+  }
+
+  /** Démo : le fichier reste sur l'appareil, son adresse locale sert d'URL. */
+  private readonly attachmentUris = new Map<string, string>();
+
+  async sendAttachment(conversationId: string, file: OutgoingFile, caption?: string) {
+    await this.net();
+    this.mine(conversationId);
+    const kind = file.mimeType.startsWith('image/') ? 'Image' : file.mimeType.startsWith('audio/') ? 'Audio' : 'File';
+    if (kind === 'File' && file.mimeType !== 'application/pdf') throw new AppError('Format non pris en charge : envoyez une photo, un PDF ou un fichier audio.', 400);
+    const m: Message = {
+      id: newId(), conversationId, senderId: this.userId, content: caption?.trim() ?? '', sentAt: new Date().toISOString(), isRead: false,
+      isSimulated: false, reactions: [], attachment: { kind, fileName: file.name, contentType: file.mimeType, size: 0, durationMs: file.durationMs ?? null },
+    };
+    this.attachmentUris.set(m.id, file.uri);
+    this.store.messages.push(m);
+    return m;
+  }
+
+  attachmentUrl(message: Message) {
+    return this.attachmentUris.get(message.id) ?? null;
   }
 
   async markConversationRead(conversationId: string) {

@@ -5,6 +5,7 @@ import { REACTIONS } from '@/data/repositories';
 import type { Reaction } from '@/data/types';
 import { groupReactions } from '@/data/types';
 import { Glass } from './glass';
+import { Icon, type IconName } from './ui';
 
 /** Résumé des réactions sous un commentaire ou un message ; un appui bascule l'emoji. */
 export function ReactionBar({ reactions, me, onToggle, align = 'flex-start' }: {
@@ -32,7 +33,10 @@ export function ReactionBar({ reactions, me, onToggle, align = 'flex-start' }: {
   );
 }
 
-type PickerState = { y: number; current: string | null; onPick: (emoji: string) => void } | null;
+/** Action affichée sous la barre d'emojis (ex. Modifier, Supprimer pour ses propres messages). */
+export type PickerAction = { label: string; icon: IconName; destructive?: boolean; onPress: () => void };
+
+type PickerState = { y: number; current: string | null; onPick: (emoji: string) => void; actions: PickerAction[] } | null;
 
 /** Barre d'emojis flottante, ouverte par un appui long à hauteur du doigt. */
 export function useReactionPicker() {
@@ -40,11 +44,12 @@ export function useReactionPicker() {
   const { height } = useWindowDimensions();
   const [state, setState] = useState<PickerState>(null);
 
-  const open = (e: GestureResponderEvent | null, current: string | null, onPick: (emoji: string) => void) =>
-    setState({ y: e?.nativeEvent.pageY ?? height / 2, current, onPick });
+  const open = (e: GestureResponderEvent | null, current: string | null, onPick: (emoji: string) => void, actions: PickerAction[] = []) =>
+    setState({ y: e?.nativeEvent.pageY ?? height / 2, current, onPick, actions });
   const close = () => setState(null);
 
-  const top = state ? Math.min(Math.max(state.y - 84, 60), height - 140) : 0;
+  const extra = (state?.actions.length ?? 0) * 48;
+  const top = state ? Math.min(Math.max(state.y - 84, 60), height - 140 - extra) : 0;
   const element = (
     <Modal visible={!!state} transparent animationType="fade" onRequestClose={close}>
       <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.12)' }]} onPress={close} accessibilityLabel="Fermer" />
@@ -65,6 +70,21 @@ export function useReactionPicker() {
           </Glass>
         </View>
         {state?.current && <Text style={[styles.hint, { color: c.onPrimary }]}>Touchez votre réaction pour la retirer</Text>}
+        {!!state?.actions.length && (
+          <View style={[styles.actionsShadow, depth(c, 3)]}>
+            <Glass radius={18} intensity={60} strong style={styles.actions}>
+              {state.actions.map((a, i) => (
+                <Pressable key={a.label} accessibilityRole="button" accessibilityLabel={a.label}
+                  onPress={() => { close(); a.onPress(); }}
+                  style={({ pressed }) => [styles.action, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderColor: c.border },
+                    pressed && { backgroundColor: c.primaryLight }]}>
+                  <Text style={[styles.actionLabel, { color: a.destructive ? c.error : c.text }]}>{a.label}</Text>
+                  <Icon name={a.icon} size={20} color={a.destructive ? c.error : c.textSecondary} />
+                </Pressable>
+              ))}
+            </Glass>
+          </View>
+        )}
       </View>
     </Modal>
   );
@@ -81,5 +101,9 @@ const styles = StyleSheet.create({
   picker: { flexDirection: 'row', padding: 6, gap: 2 },
   option: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center' },
   optionEmoji: { fontSize: 28 },
+  actionsShadow: { marginTop: 10, borderRadius: 18, minWidth: 220 },
+  actions: { overflow: 'hidden' },
+  action: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, paddingHorizontal: 16, height: 48 },
+  actionLabel: { fontSize: 16, fontFamily: font.medium },
   hint: { marginTop: 8, fontSize: 12, fontFamily: font.medium, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 4 },
 });

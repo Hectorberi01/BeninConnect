@@ -11,13 +11,18 @@ public sealed class S3MediaStorage : IMediaStorage, IDisposable
 {
     private const string CacheControl = "public, max-age=31536000, immutable"; // noms uniques : jamais modifiés
     private readonly S3Settings _s3;
+    private readonly string _prefix;
+    private readonly bool _public;
     private readonly AmazonS3Client _client;
     private readonly bool _https;
     private Lazy<Task> _bucketReady;
 
-    public S3MediaStorage(S3Settings s3)
+    /// <param name="prefix">« uploads/ » (photos publiques) ou « private/ » (pièces jointes des discussions, jamais redirigées).</param>
+    public S3MediaStorage(S3Settings s3, string prefix = ImageFile.PathPrefix, bool isPublic = true)
     {
         _s3 = s3;
+        _prefix = prefix;
+        _public = isPublic;
         var config = new AmazonS3Config
         {
             ForcePathStyle = s3.ForcePathStyle,
@@ -53,7 +58,7 @@ public sealed class S3MediaStorage : IMediaStorage, IDisposable
         }
     }
 
-    private static string Key(string name) => ImageFile.PathPrefix + name;
+    private string Key(string name) => _prefix + name;
 
     public async Task SaveAsync(string name, Stream content, string contentType, CancellationToken ct)
     {
@@ -77,13 +82,17 @@ public sealed class S3MediaStorage : IMediaStorage, IDisposable
             UseChunkEncoding = false,
             DisablePayloadSigning = _https, // HTTPS uniquement
         };
-        request.Headers.CacheControl = CacheControl;
+        if (_public)
+        {
+            request.Headers.CacheControl = CacheControl;
+        }
+
         await _client.PutObjectAsync(request, ct);
     }
 
     public async Task<StoredImage?> OpenAsync(string name, CancellationToken ct)
     {
-        if (!string.IsNullOrWhiteSpace(_s3.PublicBaseUrl))
+        if (_public && !string.IsNullOrWhiteSpace(_s3.PublicBaseUrl))
         {
             return new StoredImage(null, null, ImageFile.ContentType(name), $"{_s3.PublicBaseUrl.TrimEnd('/')}/{Key(name)}");
         }
@@ -104,7 +113,7 @@ public sealed class S3MediaStorage : IMediaStorage, IDisposable
     public async Task<(long Files, long Bytes)> UsageAsync(CancellationToken ct)
     {
         var (count, bytes) = (0L, 0L);
-        var request = new ListObjectsV2Request { BucketName = _s3.Bucket, Prefix = "uploads/" };
+        var request = new ListObjectsV2Request { BucketName = _s3.Bucket, Prefix = _prefix };
         await foreach (var obj in _client.Paginators.ListObjectsV2(request).S3Objects.WithCancellation(ct))
         {
             count++;
@@ -117,4 +126,7 @@ public sealed class S3MediaStorage : IMediaStorage, IDisposable
     public void Dispose() => _client.Dispose();
 
     public static IMediaStorage Create(S3Settings settings) => new S3MediaStorage(settings);
+
+    /// <summary>Pièces jointes privées (préfixe private/) : toujours relayées par l'API après contrôle d'accès.</summary>
+    public static IMediaStorage CreatePrivate(S3Settings settings) => new S3MediaStorage(settings, "private/", isPublic: false);
 }

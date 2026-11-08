@@ -17,7 +17,7 @@ public interface IFeedDb
 
 public sealed record PostDto(
     Guid Id, Guid AuthorId, Guid? CommunityId, string Content, string? ImagePath, DateTimeOffset CreatedAt,
-    PostVisibility Visibility, IReadOnlyList<Guid> LikedBy, int CommentCount, int ShareCount);
+    PostVisibility Visibility, IReadOnlyList<Guid> LikedBy, int CommentCount, int ShareCount, DateTimeOffset? EditedAt = null);
 
 public sealed record CommentDto(Guid Id, Guid PostId, Guid AuthorId, string Content, DateTimeOffset CreatedAt, IReadOnlyList<ReactionDto> Reactions);
 
@@ -26,7 +26,7 @@ public static class FeedMapping
     /// <summary>Nécessite l'inclusion de Likes.</summary>
     public static PostDto ToDto(this Post p) => new(
         p.Id, p.AuthorId, p.CommunityId, p.Content, p.ImagePath, p.CreatedAt, p.Visibility,
-        p.Likes.Select(l => l.UserId).ToList(), p.CommentCount, p.ShareCount);
+        p.Likes.Select(l => l.UserId).ToList(), p.CommentCount, p.ShareCount, p.EditedAt);
 
     /// <summary>Nécessite l'inclusion de Reactions.</summary>
     public static CommentDto ToDto(this Comment c) => new(c.Id, c.PostId, c.AuthorId, c.Content, c.CreatedAt, c.Reactions.ToDto());

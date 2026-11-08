@@ -66,6 +66,19 @@ public sealed class IdentityModule : IModule
             // Membre suspendu par la modération : ses jetons en cours sont refusés immédiatement.
             o.Events = new JwtBearerEvents
             {
+                // WebSocket (SignalR) et pièces jointes ouvertes par le téléphone (image, audio, PDF) : jeton dans l'URL.
+                OnMessageReceived = ctx =>
+                {
+                    var path = ctx.HttpContext.Request.Path;
+                    var allowed = path.StartsWithSegments("/hubs")
+                                  || (path.StartsWithSegments("/api/messages") && path.Value!.EndsWith("/attachment", StringComparison.Ordinal));
+                    if (allowed && ctx.Request.Query["access_token"] is { Count: > 0 } token)
+                    {
+                        ctx.Token = token.ToString();
+                    }
+
+                    return Task.CompletedTask;
+                },
                 OnTokenValidated = async ctx =>
                 {
                     var sub = ctx.Principal?.FindFirstValue(ClaimTypes.NameIdentifier) ?? ctx.Principal?.FindFirstValue("sub");

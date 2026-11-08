@@ -14,6 +14,7 @@ import {
   useCommunitiesMap, useDeletePost, useJoinRequests, useMembership, useSharePost, useToggleLike, useToggleParticipation, useUsersMap,
 } from '@/features/queries';
 import { reportContent } from '@/features/report';
+import { AttachmentView } from './attachments';
 import { ReactionBar } from './reactions';
 import { Avatar, Button, Card, Cover, Icon, type IconName, Muted, T, Tag } from './ui';
 
@@ -45,10 +46,13 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
     remove.mutate(post.id, { onSuccess: () => { if (detailed && router.canGoBack()) router.back(); } });
   };
   const openMenu = () => Alert.alert('Publication', undefined, [
-    mine
-      ? { text: 'Supprimer la publication', style: 'destructive', onPress: askDelete }
-      : { text: 'Signaler la publication', style: 'destructive', onPress: () => reportContent('Post', post.id) },
-    { text: 'Annuler', style: 'cancel' },
+    ...(mine
+      ? [
+        { text: 'Modifier la publication', onPress: () => router.push({ pathname: '/post/new', params: { edit: post.id } }) },
+        { text: 'Supprimer la publication', style: 'destructive' as const, onPress: askDelete },
+      ]
+      : [{ text: 'Signaler la publication', style: 'destructive' as const, onPress: () => reportContent('Post', post.id) }]),
+    { text: 'Annuler', style: 'cancel' as const },
   ]);
 
   return (
@@ -63,6 +67,7 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
           </T>
           <View style={styles.meta}>
             <Muted>{fmt.relative(post.createdAt)}</Muted>
+            {post.editedAt && <Muted>· modifié</Muted>}
             {community && (
               <>
                 <Muted>·</Muted>
@@ -298,28 +303,39 @@ export function MessageBubble({ message, mine, me, onLongPress, onToggleReaction
   onLongPress?: (e: GestureResponderEvent) => void; onToggleReaction?: (emoji: string) => void;
 }) {
   const c = useColors();
-  const meta = [type.caption, { fontSize: 11, color: mine ? '#D1FAE5' : c.textSecondary }];
+  const deleted = !!message.isDeleted;
+  const meta = [type.caption, { fontSize: 11, color: mine && !deleted ? '#D1FAE5' : c.textSecondary }];
   const body = (
     <>
-      <T color={mine ? '#FFFFFF' : c.text}>{message.content}</T>
+      {deleted
+        ? <T color={c.textSecondary} style={{ fontStyle: 'italic' }}>Message supprimé</T>
+        : (
+          <>
+            {message.attachment && <AttachmentView message={message} mine={mine} />}
+            {!!message.content && <T color={mine ? '#FFFFFF' : c.text}>{message.content}</T>}
+          </>
+        )}
       <View style={[styles.rowCenter, { gap: 6, alignSelf: 'flex-end', marginTop: 2 }]}>
         {message.isSimulated && <Text style={meta}>Simulé</Text>}
+        {!deleted && message.editedAt && <Text style={meta}>modifié</Text>}
         <Text style={meta}>{fmt.clock(message.sentAt)}</Text>
       </View>
     </>
   );
   return (
     <View style={[styles.bubbleRow, { alignItems: mine ? 'flex-end' : 'flex-start' }]}>
-      <Pressable onLongPress={onLongPress} delayLongPress={280} accessibilityHint="Appui long pour réagir"
-        style={({ pressed }) => [{ maxWidth: '80%' }, pressed && { transform: [{ scale: 0.98 }] }]}>
-        {mine ? (
+      <Pressable onLongPress={deleted ? undefined : onLongPress} delayLongPress={280}
+        accessibilityHint={deleted ? undefined : mine ? 'Appui long pour réagir, modifier ou supprimer' : 'Appui long pour réagir'}
+        style={({ pressed }) => [{ maxWidth: '80%' }, pressed && !deleted && { transform: [{ scale: 0.98 }] }]}>
+        {mine && !deleted ? (
           <LinearGradient colors={[c.primaryTop, c.bubbleMine]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={[styles.bubble, { borderBottomRightRadius: 6 }, depth(c, 1)]}>{body}</LinearGradient>
         ) : (
-          <View style={[styles.bubble, { backgroundColor: c.glassStrong, borderBottomLeftRadius: 6, borderColor: c.glassBorder, borderWidth: 1 }, depth(c, 1)]}>{body}</View>
+          <View style={[styles.bubble, mine ? { borderBottomRightRadius: 6 } : { borderBottomLeftRadius: 6 },
+            { backgroundColor: deleted ? 'transparent' : c.glassStrong, borderColor: c.glassBorder, borderWidth: 1 }, !deleted && depth(c, 1)]}>{body}</View>
         )}
       </Pressable>
-      {onToggleReaction && message.reactions.length > 0 && (
+      {onToggleReaction && !deleted && message.reactions.length > 0 && (
         <View style={{ marginTop: -6, paddingHorizontal: 8 }}>
           <ReactionBar reactions={message.reactions} me={me} onToggle={onToggleReaction} align={mine ? 'flex-end' : 'flex-start'} />
         </View>

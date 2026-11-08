@@ -8,9 +8,9 @@ api.monbenin.com {
 		-Server
 	}
 
-	# Photos : jusqu'à 10 Mo (marge pour l'en-tête multipart)
+	# Photos (10 Mo) et pièces jointes des discussions (20 Mo), marge pour l'en-tête multipart
 	request_body {
-		max_size 12MB
+		max_size 25MB
 	}
 
 	reverse_proxy 127.0.0.1:8080 {
@@ -18,9 +18,17 @@ api.monbenin.com {
 		health_interval 30s
 	}
 
+	# Temps réel (/hubs/chat) : le jeton passe dans l'URL, masqué dans les journaux
 	log {
 		output file /var/log/caddy/api.log
-		format json
+		format filter {
+			wrap json
+			fields {
+				request>uri query {
+					replace access_token REDACTED
+				}
+			}
+		}
 	}
 }
 

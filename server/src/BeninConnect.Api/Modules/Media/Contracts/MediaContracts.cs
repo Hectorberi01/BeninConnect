@@ -4,11 +4,28 @@ namespace BeninConnect.Modules.Media.Contracts;
 
 public sealed record MediaUsage(long Files, long Bytes);
 
+/// <summary>Image, Audio ou File (PDF).</summary>
+public sealed record StoredAttachment(string Name, string Kind, string ContentType, long Size);
+
+public sealed record AttachmentContent(Stream Content, long? Length, string ContentType);
+
 public interface IMediaModule
 {
     /// <summary>Nombre de photos envoyées et volume total (page Système de la console).</summary>
     Task<MediaUsage> UsageAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Enregistre une pièce jointe privée (photo, PDF, audio ; 20 Mo) après contrôle du format.
+    /// Le contenu doit permettre la lecture répétée (Seek). Lève une DomainException si le fichier est refusé.
+    /// </summary>
+    Task<StoredAttachment> SaveAttachmentAsync(Stream content, long length, CancellationToken ct);
+
+    /// <summary>null : fichier absent. L'appelant vérifie au préalable le droit d'accès.</summary>
+    Task<AttachmentContent?> OpenAttachmentAsync(string name, CancellationToken ct);
 }
 
 /// <summary>Photos qui ne sont plus utilisées (publication ou compte supprimé) : effacées du stockage.</summary>
 public sealed record ImagesReleased(IReadOnlyList<string> Paths) : IIntegrationEvent;
+
+/// <summary>Pièces jointes privées qui ne sont plus utilisées (message ou conversation supprimés).</summary>
+public sealed record AttachmentsReleased(IReadOnlyList<string> Names) : IIntegrationEvent;

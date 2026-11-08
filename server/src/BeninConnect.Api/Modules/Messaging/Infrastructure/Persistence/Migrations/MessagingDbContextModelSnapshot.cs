@@ -66,6 +66,12 @@ namespace BeninConnect.Api.Modules.Messaging.Infrastructure.Persistence.Migratio
                     b.Property<Guid>("ConversationId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("EditedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsRead")
                         .HasColumnType("boolean");
 
@@ -122,6 +128,47 @@ namespace BeninConnect.Api.Modules.Messaging.Infrastructure.Persistence.Migratio
                         .HasForeignKey("ConversationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.OwnsOne("BeninConnect.Modules.Messaging.Domain.MessageAttachment", "Attachment", b1 =>
+                        {
+                            b1.Property<Guid>("MessageId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("ContentType")
+                                .IsRequired()
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)");
+
+                            b1.Property<int?>("DurationMs")
+                                .HasColumnType("integer");
+
+                            b1.Property<string>("FileName")
+                                .IsRequired()
+                                .HasMaxLength(120)
+                                .HasColumnType("character varying(120)");
+
+                            b1.Property<string>("Kind")
+                                .IsRequired()
+                                .HasMaxLength(16)
+                                .HasColumnType("character varying(16)");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)");
+
+                            b1.Property<long>("Size")
+                                .HasColumnType("bigint");
+
+                            b1.HasKey("MessageId");
+
+                            b1.ToTable("messages", "messaging");
+
+                            b1.WithOwner()
+                                .HasForeignKey("MessageId");
+                        });
+
+                    b.Navigation("Attachment");
                 });
 
             modelBuilder.Entity("BeninConnect.Modules.Messaging.Domain.MessageReaction", b =>

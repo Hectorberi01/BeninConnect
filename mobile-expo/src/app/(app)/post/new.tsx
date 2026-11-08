@@ -5,6 +5,7 @@ import { Image } from 'expo-image';
 import { ImageGrid } from '@/components/cards';
 import { FormError, FormScroll } from '@/components/Form';
 import { Avatar, Button, Header, Icon, Muted, Screen, Select, T } from '@/components/ui';
+import { DEV_TOOLS } from '@/core/config';
 import { confirm } from '@/core/dialog';
 import { imagePaths, imageSource } from '@/core/images';
 import { askPhotoSource, pickPhoto } from '@/core/photos';
@@ -13,7 +14,7 @@ import { useMe } from '@/core/session';
 import { font, radius, useColors } from '@/core/theme';
 import type { PostVisibility } from '@/data/types';
 import { displayName, errorMessage, initials, type LocalPhoto } from '@/data/types';
-import { useCreatePost, useMemberCommunities } from '@/features/queries';
+import { useCreatePost, useMemberCommunities, usePost, useUpdatePost } from '@/features/queries';
 import { MAX_POST_LENGTH, validatePost } from '@/features/rules';
 
 const VISIBILITIES: { value: PostVisibility; label: string; description: string }[] = [
@@ -22,12 +23,17 @@ const VISIBILITIES: { value: PostVisibility; label: string; description: string 
   { value: 'OnlyMe', label: 'Moi uniquement', description: 'Brouillon visible seulement par vous' },
 ];
 
+/** Nouvelle publication, ou modification d'une publication existante (paramètre edit). */
 export default function CreatePost() {
   const c = useColors();
   const me = useMe();
-  const params = useLocalSearchParams<{ communityId?: string; image?: string }>();
+  const params = useLocalSearchParams<{ communityId?: string; image?: string; edit?: string }>();
+  const editing = !!params.edit;
+  const original = usePost(params.edit ?? '', editing).data;
   const mine = useMemberCommunities(me.id).data ?? [];
   const create = useCreatePost();
+  const update = useUpdatePost();
+  const saving = editing ? update : create;
   const [content, setContent] = useState('');
   const [communityId, setCommunityId] = useState<string | null>(params.communityId ?? null);
   const [visibility, setVisibility] = useState<PostVisibility>('Public');
@@ -38,7 +44,8 @@ export default function CreatePost() {
   const preview = typeof image === 'string' || image === null ? image : image.uri;
 
   const addPhoto = async () => {
-    const choice = await askPhotoSource('Ajouter une photo', { demo: 'Images de démonstration' });
+    // Images de démonstration : outils de développement uniquement
+    const choice = await askPhotoSource('Ajouter une photo', { demo: DEV_TOOLS ? 'Images de démonstration' : undefined });
     if (choice === 'demo') setPickerOpen(true);
     else if (choice === 'library' || choice === 'camera') {
       const photo = await pickPhoto(choice);
@@ -56,11 +63,28 @@ export default function CreatePost() {
   }, []);
   const [error, setError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
-  const dirty = !!content.trim() || !!image;
+
+  // Modification : formulaire pré-rempli une fois la publication chargée.
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    if (!original || loaded) return;
+    setContent(original.content);
+    setImage(original.imagePath);
+    setVisibility(original.visibility);
+    setCommunityId(original.communityId);
+    setLoaded(true);
+  }, [original, loaded]);
+
+  const dirty = editing
+    ? loaded && (content.trim() !== original?.content || (typeof image === 'string' ? image : image?.uri ?? null) !== original?.imagePath || visibility !== original?.visibility)
+    : !!content.trim() || !!image;
 
   // Confirmation avant d'abandonner un brouillon (bouton retour, geste, Annuler).
   usePreventRemove(dirty && !leaving, ({ repeat }) => {
-    confirm('Abandonner la publication ?', 'Votre texte ne sera pas conservé.', 'Abandonner', true).then((ok) => {
+    const [title, message] = editing
+      ? ['Abandonner les modifications ?', 'Vos changements ne seront pas enregistrés.']
+      : ['Abandonner la publication ?', 'Votre texte ne sera pas conservé.'];
+    confirm(title, message, 'Abandonner', true).then((ok) => {
       if (!ok) return;
       setLeaving(true);
       repeat();
@@ -69,8 +93,8 @@ export default function CreatePost() {
 
   // Fermeture après publication, une fois la protection levée.
   useEffect(() => {
-    if (leaving && create.isSuccess) router.back();
-  }, [leaving, create.isSuccess]);
+    if (leaving && saving.isSuccess) router.back();
+  }, [leaving, saving.isSuccess]);
 
   const chooseCommunity = (id: string | null) => {
     setCommunityId(id);
@@ -93,17 +117,17 @@ export default function CreatePost() {
         setUploading(false);
       }
     }
-    create.mutate({ content: content.trim(), communityId, imagePath, visibility }, {
-      onSuccess: () => setLeaving(true),
-      onError: (err) => setError(errorMessage(err)),
-    });
+    const callbacks = { onSuccess: () => setLeaving(true), onError: (err: unknown) => setError(errorMessage(err)) };
+    if (editing) update.mutate({ id: params.edit!, request: { content: content.trim(), imagePath, visibility } }, callbacks);
+    else create.mutate({ content: content.trim(), communityId, imagePath, visibility }, callbacks);
   };
 
   return (
     <Screen>
       <FormScroll header={
-        <Header title="Nouvelle publication" right={
-          <Button small title="Publier" onPress={publish} loading={create.isPending || uploading} disabled={!content.trim()} style={{ marginRight: 8 }} />
+        <Header title={editing ? 'Modifier la publication' : 'Nouvelle publication'} right={
+          <Button small title={editing ? 'Enregistrer' : 'Publier'} onPress={publish} loading={saving.isPending || uploading}
+            disabled={!content.trim() || (editing && !dirty)} style={{ marginRight: 8 }} />
         } />
       }>
         <View style={styles.author}>
@@ -139,8 +163,11 @@ export default function CreatePost() {
         )}
 
         <View style={{ height: 16 }} />
-        <Select label="Communauté" value={communityId} onChange={chooseCommunity}
-          options={[{ value: null, label: 'Aucune (fil public)' }, ...mine.map((x) => ({ value: x.id as string | null, label: x.name }))]} />
+        {/* La communauté d'une publication ne change pas après coup */}
+        {!editing && (
+          <Select label="Communauté" value={communityId} onChange={chooseCommunity}
+            options={[{ value: null, label: 'Aucune (fil public)' }, ...mine.map((x) => ({ value: x.id as string | null, label: x.name }))]} />
+        )}
         <Select label="Visibilité" value={visibility} onChange={setVisibility}
           options={VISIBILITIES.filter((x) => x.value !== 'CommunityMembers' || communityId)} />
       </FormScroll>

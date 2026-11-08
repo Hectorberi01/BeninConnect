@@ -1,6 +1,7 @@
 using BeninConnect.Modules.Administration.Contracts;
 using BeninConnect.Modules.Feed.Application;
 using BeninConnect.Modules.Feed.Contracts;
+using BeninConnect.Modules.Feed.Domain;
 using BeninConnect.Modules.Feed.Infrastructure;
 using BeninConnect.Modules.Feed.Infrastructure.Persistence;
 using BeninConnect.Shared.Api;
@@ -8,6 +9,8 @@ using BeninConnect.Shared.Application;
 using BeninConnect.Shared.Infrastructure;
 
 namespace BeninConnect.Modules.Feed.Api;
+
+public sealed record UpdatePostRequest(string Content, string? ImagePath, PostVisibility Visibility);
 
 /// <summary>Publications, commentaires, j'aime et réactions.</summary>
 public sealed class FeedModule : IModule
@@ -39,6 +42,8 @@ public sealed class FeedModule : IModule
             var post = await s.Send(c, ct);
             return Results.Created($"/api/posts/{post.Id}", post);
         });
+        feed.MapPut("/posts/{id:guid}", (Guid id, UpdatePostRequest r, ISender s, CancellationToken ct) =>
+            s.Send(new UpdatePostCommand(id, r.Content, r.ImagePath, r.Visibility), ct));
         feed.MapDelete("/posts/{id:guid}", async (Guid id, ISender s, CancellationToken ct) =>
         {
             await s.Send(new DeleteMyPostCommand(id), ct);

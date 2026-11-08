@@ -1,3 +1,4 @@
+using BeninConnect.Modules.Feed.Domain;
 using BeninConnect.Modules.Identity.Contracts;
 using BeninConnect.Modules.Media.Contracts;
 using BeninConnect.Shared.Application;
@@ -27,6 +28,36 @@ public sealed class DeleteMyPostHandler(IFeedDb db, IEventBus bus, ICurrentUser 
         }
 
         return true;
+    }
+}
+
+/// <summary>Modification par l'auteur ; l'ancienne photo remplacée est effacée du stockage.</summary>
+public sealed record UpdatePostCommand(Guid Id, string Content, string? ImagePath, PostVisibility Visibility) : ICommand<PostDto>, IValidatable
+{
+    public IEnumerable<(string, string)> Validate() =>
+        Rules.Length(nameof(Content), Content, "La publication", 3, Post.MaxLength)
+            .Concat(Rules.ImagePath(nameof(ImagePath), ImagePath));
+}
+
+public sealed class UpdatePostHandler(IFeedDb db, IEventBus bus, ICurrentUser me, TimeProvider clock) : IRequestHandler<UpdatePostCommand, PostDto>
+{
+    public async Task<PostDto> Handle(UpdatePostCommand request, CancellationToken ct)
+    {
+        var post = await db.Posts.Include(p => p.Likes).FirstOrDefaultAsync(p => p.Id == request.Id, ct) ?? throw new NotFoundException("Publication");
+        if (post.AuthorId != me.Id)
+        {
+            throw new ForbiddenException("Vous ne pouvez modifier que vos propres publications.");
+        }
+
+        var previousImage = post.ImagePath;
+        post.Edit(request.Content, string.IsNullOrWhiteSpace(request.ImagePath) ? null : request.ImagePath, request.Visibility, clock.GetUtcNow());
+        await db.SaveChangesAsync(ct);
+        if (previousImage is not null && previousImage != post.ImagePath)
+        {
+            await bus.PublishAsync(new ImagesReleased([previousImage]), ct);
+        }
+
+        return post.ToDto();
     }
 }
 
