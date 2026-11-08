@@ -1,5 +1,5 @@
 # Caddy installé sur le VPS (apt install caddy) : HTTPS automatique Let's Encrypt.
-#   sudo cp server/Caddyfile /etc/caddy/Caddyfile && sudo systemctl reload caddy
+# Déployé par Ansible (rôle web) dans /etc/caddy/sites/beninconnect.caddy, importé par /etc/caddy/Caddyfile.
 api.monbenin.com {
 	encode zstd gzip
 
@@ -24,13 +24,35 @@ api.monbenin.com {
 	}
 }
 
-# Site public : accueil, support et politique de confidentialité (dossier site/ copié dans /var/www/monbenin)
+# Site public : accueil, support, confidentialité, conditions (dossier site/ copié dans /var/www/monbenin)
 monbenin.com {
 	encode zstd gzip
 	root * /var/www/monbenin
 	try_files {path} {path}/ {path}.html
 	file_server
-	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	@static path /img/* /style.css
+	header @static Cache-Control "public, max-age=86400"
+
+	handle_errors {
+		@notFound expression {err.status_code} == 404
+		handle @notFound {
+			rewrite * /404.html
+			file_server
+		}
+	}
+
+	log {
+		output file /var/log/caddy/site.log
+		format json
+	}
 }
 
 www.monbenin.com {

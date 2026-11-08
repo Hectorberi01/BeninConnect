@@ -109,6 +109,26 @@ jobs:
       - run: ansible-playbook site.yml deploy.yml --syntax-check
       - run: ansible-lint site.yml deploy.yml
 
+  site:
+    name: Site public et Caddy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validation du Caddyfile
+        run: >-
+          docker run --rm -v "$PWD/server/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine
+          sh -c "mkdir -p /var/log/caddy && caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile"
+      - name: Pages et liens internes
+        run: |
+          test -f site/index.html && test -f site/404.html
+          # Chaque lien interne (/chemin/) doit correspondre à une page du dossier site/
+          missing=0
+          for link in $(grep -rhoE 'href="/[^"#?]*"' site --include=*.html | sed -E 's/href="([^"]*)"/\1/' | sort -u); do
+            target="site${link}"
+            [ -f "$target" ] || [ -f "${target%/}/index.html" ] || [ -f "${target}index.html" ] || { echo "::error::Lien cassé : $link"; missing=1; }
+          done
+          exit $missing
+
   images:
     name: Images Docker (GHCR)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

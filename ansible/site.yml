@@ -8,4 +8,5 @@
     - common
     - docker
     - app
+    - web
     - security # en dernier : peut changer le port SSH

@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://monbenin.com/sitemap.xml

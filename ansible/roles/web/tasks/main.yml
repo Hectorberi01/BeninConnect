@@ -1,0 +1,49 @@
+# Configuration Caddy (API + site public) et fichiers du site, depuis le dépôt.
+- name: Caddy installé
+  ansible.builtin.apt:
+    name: caddy
+    state: present
+
+- name: Dossiers Caddy et site
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.owner }}"
+    mode: "0755"
+  loop:
+    - { path: /etc/caddy/sites, owner: root }
+    - { path: /var/log/caddy, owner: caddy }
+    - { path: "{{ web_root }}", owner: root }
+
+- name: Import des sites dans le Caddyfile principal
+  ansible.builtin.lineinfile:
+    path: /etc/caddy/Caddyfile
+    line: "import sites/*"
+  notify: Recharger Caddy
+
+- name: Configuration Caddy de BéninConnect
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/server/Caddyfile"
+    dest: "{{ caddy_site_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: caddy validate --adapter caddyfile --config %s
+  notify: Recharger Caddy
+
+- name: Fichiers du site public
+  ansible.posix.synchronize:
+    src: "{{ repo_root }}/site/"
+    dest: "{{ web_root }}/"
+    delete: true
+    owner: false
+    group: false
+    rsync_opts:
+      - "--chmod=D755,F644"
+
+- name: Caddy actif
+  ansible.builtin.systemd_service:
+    name: caddy
+    state: started
+    enabled: true

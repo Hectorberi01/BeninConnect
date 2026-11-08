@@ -1,0 +1,3 @@
+# Site public servi par Caddy (installé sur le VPS)
+web_root: /var/www/monbenin
+caddy_site_file: /etc/caddy/sites/beninconnect.caddy

@@ -3,7 +3,7 @@
 | Workflow | Déclenchement | Rôle |
 |---|---|---|
 | `CI` (`.github/workflows/ci.yml`) | push sur `main`, pull request, manuel | tests de chaque partie ; sur `main`, images Docker publiées sur GHCR |
-| `Deploy` (`.github/workflows/deploy.yml`) | après une CI verte sur `main`, ou manuel avec un tag | Ansible `deploy.yml` : le serveur télécharge les images (pas de build sur le VPS) |
+| `Deploy` (`.github/workflows/deploy.yml`) | après une CI verte sur `main`, ou manuel avec un tag | Ansible `deploy.yml` : le serveur télécharge les images (pas de build sur le VPS), puis installe la configuration Caddy et le site public |
 
 ## Jobs de la CI
 
@@ -13,11 +13,20 @@
 | Console admin | oxlint, vitest, `tsc` + build Vite |
 | Application mobile | `tsc --noEmit`, jest |
 | Ansible | syntaxe des playbooks, ansible-lint |
+| Site public et Caddy | `caddy validate` sur `server/Caddyfile`, liens internes du dossier `site/` |
 | Images | `ghcr.io/<propriétaire>/beninconnect-api`, tags `sha-<commit>` et `latest` |
 
 L'application Avalonia (Desktop, Android, iOS, `tests/`) n'est ni testée ni construite par la CI.
 
 Une pull request doit passer tous les jobs (à rendre obligatoire : Settings > Branches > règle sur `main`).
+
+## Site public (monbenin.com)
+
+Le dossier `site/` (accueil, support, confidentialité, conditions, mentions légales, suppression de compte) est publié par le rôle Ansible `web` à chaque déploiement :
+- `server/Caddyfile` copié dans `/etc/caddy/sites/beninconnect.caddy` (validé par `caddy validate` avant remplacement), Caddy rechargé s'il a changé ;
+- `site/` synchronisé dans `/var/www/monbenin` (les fichiers retirés du dépôt sont supprimés du serveur).
+
+Modifier une page : éditer le HTML dans `site/`, commit, push sur `main`. Prérequis : DNS `monbenin.com` et `www` vers le VPS.
 
 ## À configurer une fois sur GitHub
 
