@@ -1,3 +1,4 @@
+using BeninConnect.Modules.Media.Contracts;
 using BeninConnect.Modules.Media.Domain;
 using BeninConnect.Shared.Application;
 using BeninConnect.Shared.Domain;
@@ -16,6 +17,9 @@ public interface IMediaStorage
     Task<StoredImage?> OpenAsync(string name, CancellationToken ct);
 
     Task<(long Files, long Bytes)> UsageAsync(CancellationToken ct);
+
+    /// <summary>Sans effet si la photo n'existe pas.</summary>
+    Task DeleteAsync(string name, CancellationToken ct);
 }
 
 public sealed record MediaResponse(string Path);
@@ -46,5 +50,26 @@ public sealed class StoreImageHandler(IMediaStorage storage) : IRequestHandler<S
         var name = ImageFile.NewName(extension);
         await storage.SaveAsync(name, request.Content, ImageFile.ContentType(name), ct);
         return new MediaResponse(ImageFile.PathPrefix + name);
+    }
+}
+
+/// <summary>Efface les photos envoyées par les membres (uploads/...) ; les images du jeu de démonstration sont ignorées.</summary>
+public sealed class DeleteReleasedImages(IMediaStorage storage) : IIntegrationEventHandler<ImagesReleased>
+{
+    public async Task Handle(ImagesReleased e, CancellationToken ct)
+    {
+        foreach (var path in e.Paths.Distinct())
+        {
+            if (!path.StartsWith(ImageFile.PathPrefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var name = path[ImageFile.PathPrefix.Length..];
+            if (ImageFile.IsValidName(name))
+            {
+                await storage.DeleteAsync(name, ct);
+            }
+        }
     }
 }

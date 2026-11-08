@@ -240,6 +240,24 @@ export class MockDataSource implements DataSource {
     return this.replace(this.store.posts, { ...post, shareCount: post.shareCount + 1 });
   }
 
+  async deletePost(postId: string) {
+    const post = await this.getPost(postId);
+    if (post.authorId !== this.userId) throw new AppError('Vous ne pouvez supprimer que vos propres publications.', 403);
+    this.store.posts = this.store.posts.filter((p) => p.id !== postId);
+    this.store.comments = this.store.comments.filter((c) => c.postId !== postId);
+  }
+
+  async deleteAccount(password: string) {
+    await this.net();
+    const me = this.find(this.store.users, this.userId, 'Compte');
+    if (this.store.credentials.get(me.email) !== password) throw new AppError('Mot de passe incorrect.', 400);
+    this.store.credentials.delete(me.email);
+    this.store.users = this.store.users.filter((u) => u.id !== me.id);
+    this.store.posts = this.store.posts.filter((p) => p.authorId !== me.id);
+    this.store.comments = this.store.comments.filter((c) => c.authorId !== me.id);
+    this.me = null;
+  }
+
   async getComments(postId: string) {
     await this.getPost(postId);
     return this.store.comments.filter((c) => c.postId === postId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));

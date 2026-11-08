@@ -88,10 +88,6 @@ export default function Settings() {
           <SwitchRow icon="calendar-outline" label="Événements" value={prefs.notifyEvents} onChange={(notifyEvents) => prefs.set({ notifyEvents })} />
         </Group>
 
-        <Group title="Langue">
-          <ListRow icon="translate" label="Langue de l'application" value="Français"
-            onPress={() => toast("Le français est la langue de cette version. L'anglais arrivera dans une prochaine version.")} />
-        </Group>
 
         {DEV_TOOLS && <Group title="Source de données">
           <View style={{ marginHorizontal: -16, paddingVertical: 8 }}>
@@ -128,6 +124,9 @@ export default function Settings() {
         <View style={{ marginTop: 20 }}>
           {demo && <InfoBox icon="flask-outline"><T v="caption" color={c.primaryDark}>{`Version ${version} (démonstration)`}</T></InfoBox>}
           <Button title="Se déconnecter" kind="danger" icon="logout" onPress={logout} />
+          <T v="label" color={c.error} style={{ textAlign: 'center', marginTop: 18 }} onPress={() => router.push('/account/delete')}>
+            Supprimer mon compte
+          </T>
         </View>
       </ScrollView>
     </Screen>

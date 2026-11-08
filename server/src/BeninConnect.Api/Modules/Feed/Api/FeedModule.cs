@@ -39,6 +39,11 @@ public sealed class FeedModule : IModule
             var post = await s.Send(c, ct);
             return Results.Created($"/api/posts/{post.Id}", post);
         });
+        feed.MapDelete("/posts/{id:guid}", async (Guid id, ISender s, CancellationToken ct) =>
+        {
+            await s.Send(new DeleteMyPostCommand(id), ct);
+            return Results.NoContent();
+        });
         feed.MapPost("/posts/{id:guid}/like", (Guid id, ISender s, CancellationToken ct) => s.Send(new ToggleLikeCommand(id), ct));
         feed.MapPost("/posts/{id:guid}/share", (Guid id, ISender s, CancellationToken ct) => s.Send(new SharePostCommand(id), ct));
         feed.MapGet("/posts/{id:guid}/comments", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetCommentsQuery(id), ct));

@@ -59,6 +59,12 @@ public sealed class LocalMediaStorage(string directory) : IMediaStorage
             : null);
     }
 
+    public Task DeleteAsync(string name, CancellationToken ct)
+    {
+        File.Delete(Path.Combine(Directory, name));
+        return Task.CompletedTask;
+    }
+
     public Task<(long Files, long Bytes)> UsageAsync(CancellationToken ct)
     {
         var files = new DirectoryInfo(Directory).EnumerateFiles().ToList();

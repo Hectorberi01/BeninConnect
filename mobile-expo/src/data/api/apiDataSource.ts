@@ -118,6 +118,8 @@ export class ApiDataSource implements DataSource {
   createPost = (r: CreatePostRequest) => this.post<Post>('api/posts', r);
   toggleLike = (id: string) => this.post<Post>(`api/posts/${id}/like`);
   sharePost = (id: string) => this.post<Post>(`api/posts/${id}/share`);
+  deletePost = async (id: string) => { await this.request<void>('DELETE', `api/posts/${id}`); };
+  deleteAccount = async (password: string) => { await this.post<void>('api/users/me/delete', { password }); };
   getComments = (id: string) => this.get<Comment[]>(`api/posts/${id}/comments`);
   async uploadImage(photo: LocalPhoto) {
     const type = photo.mimeType || 'image/jpeg';

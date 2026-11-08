@@ -109,6 +109,12 @@ public sealed class IdentityModule : IModule
         users.MapPost("/batch", (IdsRequest r, ISender s, CancellationToken ct) => s.Send(new GetUsersByIdsQuery(r.Ids), ct));
         users.MapGet("/{id:guid}", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetUserQuery(id), ct));
         users.MapPut("/me", (UpdateProfileCommand c, ISender s, CancellationToken ct) => s.Send(c, ct));
+        // POST : le mot de passe de confirmation voyage dans le corps
+        users.MapPost("/me/delete", async (DeleteAccountCommand c, ISender s, CancellationToken ct) =>
+        {
+            await s.Send(c, ct);
+            return Results.NoContent();
+        }).RequireRateLimiting(RateLimits.Auth);
 
         var admin = app.MapGroup("/api/admin/members").WithTags("Administration");
         admin.MapGet("", (string? search, string? status, int? skip, int? take, ISender s, CancellationToken ct) =>

@@ -99,6 +99,8 @@ public sealed class S3MediaStorage : IMediaStorage, IDisposable
         }
     }
 
+    public Task DeleteAsync(string name, CancellationToken ct) => _client.DeleteObjectAsync(_s3.Bucket, Key(name), ct);
+
     public async Task<(long Files, long Bytes)> UsageAsync(CancellationToken ct)
     {
         var (count, bytes) = (0L, 0L);

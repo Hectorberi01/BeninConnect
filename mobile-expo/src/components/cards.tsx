@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { memo, useState } from 'react';
-import { type GestureResponderEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, type GestureResponderEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import { confirm } from '@/core/dialog';
 import * as fmt from '@/core/format';
 import { imageSource } from '@/core/images';
@@ -11,7 +11,7 @@ import { depth, font, radius, type, useColors } from '@/core/theme';
 import type { AppNotification, Community, CommunityEvent, Message, Post, User } from '@/data/types';
 import { displayName, initials, isEventFull, location, membershipStatus } from '@/data/types';
 import {
-  useCommunitiesMap, useJoinRequests, useMembership, useSharePost, useToggleLike, useToggleParticipation, useUsersMap,
+  useCommunitiesMap, useDeletePost, useJoinRequests, useMembership, useSharePost, useToggleLike, useToggleParticipation, useUsersMap,
 } from '@/features/queries';
 import { ReactionBar } from './reactions';
 import { Avatar, Button, Card, Cover, Icon, type IconName, Muted, T, Tag } from './ui';
@@ -32,10 +32,21 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
   const me = useMe();
   const like = useToggleLike();
   const share = useSharePost();
+  const remove = useDeletePost();
+  const mine = post.authorId === me.id;
   const liked = post.likedBy.includes(me.id);
   const likes = post.likedBy.length;
   const open = () => router.push(`/post/${post.id}`);
   const source = imageSource(post.imagePath);
+
+  const askDelete = async () => {
+    if (!(await confirm('Supprimer la publication ?', 'Elle sera définitivement supprimée, avec ses commentaires et ses j\'aime.', 'Supprimer', true))) return;
+    remove.mutate(post.id, { onSuccess: () => { if (detailed && router.canGoBack()) router.back(); } });
+  };
+  const openMenu = () => Alert.alert('Publication', undefined, [
+    { text: 'Supprimer la publication', style: 'destructive', onPress: askDelete },
+    { text: 'Annuler', style: 'cancel' },
+  ]);
 
   return (
     <Card style={styles.post} onPress={detailed ? undefined : open}>
@@ -60,6 +71,12 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
             {post.visibility === 'OnlyMe' && <Icon name="lock-outline" size={14} color={c.textSecondary} />}
           </View>
         </View>
+        {mine && (
+          <Pressable accessibilityRole="button" accessibilityLabel="Options de la publication" hitSlop={12} onPress={openMenu}
+            disabled={remove.isPending} style={({ pressed }) => [styles.menu, pressed && { opacity: 0.6 }]}>
+            <Icon name="dots-horizontal" size={22} color={c.textSecondary} />
+          </Pressable>
+        )}
       </View>
 
       <T style={styles.postContent} lines={detailed ? undefined : 6}>{post.content}</T>
@@ -77,7 +94,7 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
         <Action icon="comment-outline" label={post.commentCount === 0 ? 'Commenter' : String(post.commentCount)} a11y="Commenter"
           onPress={() => router.push({ pathname: '/post/[id]', params: { id: post.id, focus: '1' } })} />
         <Action icon="share-variant-outline" label={post.shareCount === 0 ? 'Partager' : String(post.shareCount)} a11y="Partager"
-          onPress={() => share.mutate(post.id)} />
+          onPress={() => share.mutate({ post, authorName: author ? displayName(author) : 'Un membre' })} />
       </View>
     </Card>
   );
@@ -332,6 +349,7 @@ export function ImageGrid({ paths, selected, onSelect, columns = 4 }: { paths: s
 const styles = StyleSheet.create({
   post: { marginHorizontal: 16, marginBottom: 12 },
   postHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, paddingBottom: 8 },
+  menu: { padding: 4, marginRight: -4 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   postContent: { paddingHorizontal: 16, paddingBottom: 10 },
   postImage: { width: '100%', aspectRatio: 4 / 3 },

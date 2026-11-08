@@ -35,3 +35,6 @@ public interface IIdentityModule
 
 /// <summary>Email vérifié pour la première fois (message de bienvenue).</summary>
 public sealed record MemberVerified(Guid UserId) : IIntegrationEvent;
+
+/// <summary>Compte supprimé par son titulaire : chaque module efface les données du membre.</summary>
+public sealed record MemberDeleted(Guid UserId) : IIntegrationEvent;

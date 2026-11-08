@@ -41,3 +41,33 @@ describe('photos', () => {
     expect((calls[0].init.headers as Record<string, string>)['Content-Type']).toBeUndefined();
   });
 });
+
+describe('suppression', () => {
+  it('démo : seul l\'auteur supprime sa publication, puis le compte est supprimé', async () => {
+    const source = new MockDataSource({ latencyMs: 0, simulateErrors: () => false });
+    const { token, user } = await source.login(DEMO_EMAIL, DEMO_PASSWORD);
+    source.setToken(token);
+    const mine = await source.createPost({ content: 'Publication à supprimer', visibility: 'Public' } as never);
+    const other = (await source.getFeed(0, 50)).items.find((p) => p.authorId !== user.id)!;
+    await expect(source.deletePost(other.id)).rejects.toMatchObject({ status: 403 });
+    await source.deletePost(mine.id);
+    await expect(source.getPost(mine.id)).rejects.toMatchObject({ status: 404 });
+
+    await expect(source.deleteAccount('mauvais')).rejects.toMatchObject({ status: 400 });
+    await source.deleteAccount(DEMO_PASSWORD);
+    await expect(source.login(DEMO_EMAIL, DEMO_PASSWORD)).rejects.toBeDefined();
+  });
+
+  it('API : DELETE de la publication et POST de suppression du compte', async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const fetchImpl = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return { ok: true, status: 204, json: async () => undefined } as Response;
+    }) as unknown as typeof fetch;
+    const api = new ApiDataSource('http://x', fetchImpl);
+    await api.deletePost('p1');
+    await api.deleteAccount('Secret123!');
+    expect([calls[0].init.method, calls[0].url]).toEqual(['DELETE', 'http://x/api/posts/p1']);
+    expect([calls[1].init.method, calls[1].url, calls[1].init.body]).toEqual(['POST', 'http://x/api/users/me/delete', JSON.stringify({ password: 'Secret123!' })]);
+  });
+});

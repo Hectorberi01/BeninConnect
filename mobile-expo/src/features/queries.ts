@@ -1,4 +1,6 @@
 import { type InfiniteData, type QueryClient, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Share } from 'react-native';
+import { SITE_URL } from '@/core/config';
 import { useSession } from '@/core/session';
 import { toast } from '@/core/toast';
 import { data } from '@/data';
@@ -87,13 +89,39 @@ export function useToggleLike() {
   });
 }
 
+/** Feuille de partage du téléphone ; le compteur n'augmente que si le partage a bien eu lieu. */
 export function useSharePost() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => data().sharePost(id),
+    mutationFn: async ({ post, authorName }: { post: Post; authorName: string }) => {
+      const excerpt = post.content.length > 200 ? `${post.content.slice(0, 200).trimEnd()}…` : post.content;
+      const result = await Share.share({
+        message: `${authorName} sur BéninConnect :\n\n« ${excerpt} »\n\nRejoignez la communauté : ${SITE_URL}`,
+      });
+      return result.action === Share.sharedAction ? data().sharePost(post.id) : null;
+    },
     onSuccess: (post) => {
-      patchPost(qc, post);
-      toast('Publication partagée (simulation : aucun envoi réel).', 'success');
+      if (post) patchPost(qc, post);
+    },
+    onError,
+  });
+}
+
+/** Retire une publication de tous les caches où elle apparaît. */
+export function removePost(qc: QueryClient, id: string) {
+  qc.removeQueries({ queryKey: ['post', id] });
+  qc.setQueriesData<InfiniteData<Paged<Post>>>({ queryKey: ['feed'] }, (old) =>
+    old && { ...old, pages: old.pages.map((p) => ({ ...p, items: p.items.filter((x) => x.id !== id) })) });
+  qc.setQueriesData<Post[]>({ queryKey: ['posts'] }, (old) => old?.filter((x) => x.id !== id));
+}
+
+export function useDeletePost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => data().deletePost(id),
+    onSuccess: (_, id) => {
+      removePost(qc, id);
+      toast('Publication supprimée.', 'success');
     },
     onError,
   });

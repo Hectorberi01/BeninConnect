@@ -29,6 +29,8 @@ export interface DataSource {
   getUsers(ids: string[]): Promise<User[]>;
   searchUsers(search?: string): Promise<User[]>;
   updateProfile(request: UpdateProfileRequest): Promise<User>;
+  /** Suppression définitive du compte connecté (mot de passe de confirmation). */
+  deleteAccount(password: string): Promise<void>;
 
   // Publications
   getFeed(skip: number, take: number): Promise<Paged<Post>>;
@@ -37,6 +39,8 @@ export interface DataSource {
   createPost(request: CreatePostRequest): Promise<Post>;
   toggleLike(postId: string): Promise<Post>;
   sharePost(postId: string): Promise<Post>;
+  /** Réservé à l'auteur. */
+  deletePost(postId: string): Promise<void>;
   getComments(postId: string): Promise<Comment[]>;
   addComment(postId: string, content: string): Promise<Comment>;
   /** Envoie une photo de l'appareil ; retourne le chemin à enregistrer (profil, couverture, publication). */
