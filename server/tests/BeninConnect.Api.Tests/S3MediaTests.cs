@@ -67,5 +67,45 @@ public sealed class S3MediaTests(S3ApiFactory factory) : IClassFixture<S3ApiFact
 
         Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync($"uploads/{Guid.NewGuid():N}.png")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync("uploads/..%2Fappsettings.json")).StatusCode);
+    
+    [Fact]
+    public async Task Videos_are_relayed_with_byte_ranges_and_attachments_stay_in_the_private_prefix()
+    {
+        var http = factory.CreateClient();
+        var login = await http.PostAsJsonAsync("api/auth/login", new { email = "demo@beninconnect.test", password = "Demo123!" });
+        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", (await login.Content.ReadFromJsonAsync<TokenView>())!.Token);
+
+        var form = new MultipartFormDataContent { { new ByteArrayContent(VideoTests.Mp4), "file", "clip.mp4" } };
+        var video = (await (await http.PostAsync("api/media/video", form)).EnsureSuccessStatusCode().Content.ReadFromJsonAsync<MediaView>())!;
+
+        var request = new HttpRequestMessage(HttpMethod.Get, video.Path);
+        request.Headers.Range = new RangeHeaderValue(4, 11);
+        var part = await http.SendAsync(request);
+        Assert.Equal(HttpStatusCode.PartialContent, part.StatusCode);
+        Assert.Equal($"bytes 4-11/{VideoTests.Mp4.Length}", part.Content.Headers.ContentRange?.ToString());
+        Assert.Equal(VideoTests.Mp4[4..12], await part.Content.ReadAsByteArrayAsync());
+
+        var open = new HttpRequestMessage(HttpMethod.Get, video.Path);
+        open.Headers.Range = new RangeHeaderValue(100, null);
+        var tail = await http.SendAsync(open);
+        Assert.Equal(HttpStatusCode.PartialContent, tail.StatusCode);
+        Assert.Equal(VideoTests.Mp4[100..], await tail.Content.ReadAsByteArrayAsync());
+
+        // Pièce jointe d'une discussion : préfixe private/, jamais servie sous /uploads
+        var conversations = await http.GetFromJsonAsync<List<ConversationView>>("api/conversations");
+        var pdf = "%PDF-1.4 test S3"u8.ToArray();
+        var attachment = new MultipartFormDataContent { { new ByteArrayContent(pdf), "file", "devis.pdf" } };
+        var message = (await (await http.PostAsync($"api/conversations/{conversations![0].Conversation.Id}/attachments", attachment))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<IdView>())!;
+        using var s3 = factory.Client();
+        var keys = (await s3.ListObjectsV2Async(new Amazon.S3.Model.ListObjectsV2Request { BucketName = S3ApiFactory.Bucket, Prefix = "private/" })).S3Objects;
+        Assert.Contains(keys ?? [], o => o.Key.EndsWith(".pdf", StringComparison.Ordinal));
+        Assert.Equal(pdf, await (await http.GetAsync($"api/messages/{message.Id}/attachment")).Content.ReadAsByteArrayAsync());
     }
+
+    private sealed record IdView(Guid Id);
+
+    private sealed record ConversationRef(Guid Id);
+
+    private sealed record ConversationView(ConversationRef Conversation);
 }

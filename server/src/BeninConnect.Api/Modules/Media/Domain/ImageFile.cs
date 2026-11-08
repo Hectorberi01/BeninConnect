@@ -20,6 +20,8 @@ public static partial class ImageFile
         ".png" => "image/png",
         ".webp" => "image/webp",
         ".heic" => "image/heic",
+        ".mp4" => "video/mp4",
+        ".mov" => "video/quicktime",
         _ => "application/octet-stream",
     };
 
@@ -52,6 +54,7 @@ public static partial class ImageFile
         return isHeic ? "heic" : null;
     }
 
-    [GeneratedRegex("^[a-f0-9]{32}\\.(jpg|png|webp|heic)$")]
+    /// <summary>Photos et vidéos des publications (même dossier public uploads/).</summary>
+    [GeneratedRegex("^[a-f0-9]{32}\\.(jpg|png|webp|heic|mp4|mov)$")]
     private static partial Regex NameRegex();
 }

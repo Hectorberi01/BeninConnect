@@ -1,4 +1,4 @@
-import { imageSource } from '@/core/images';
+import { imageSource, mediaUri } from '@/core/images';
 import { usePreferences } from '@/core/preferences';
 import { ApiDataSource } from '@/data/api/apiDataSource';
 import { MockDataSource } from '@/data/mock/mockDataSource';
@@ -167,5 +167,27 @@ describe('pièces jointes', () => {
     expect(calls[0].init.body).toBeInstanceOf(FormData);
     expect(api.attachmentUrl({ id: 'm1', attachment: { kind: 'Audio' } } as never)).toBe('http://x/api/messages/m1/attachment?access_token=jeton%2B%2F%3D');
     expect(api.attachmentUrl({ id: 'm2' } as never)).toBeNull();
+  });
+});
+
+describe('vidéo', () => {
+  it('démo : publication avec vidéo et miniature', async () => {
+    const source = new MockDataSource({ latencyMs: 0, simulateErrors: () => false });
+    const { token } = await source.login(DEMO_EMAIL, DEMO_PASSWORD);
+    source.setToken(token);
+    const ratios: number[] = [];
+    const videoPath = await source.uploadVideo({ uri: 'file:///clip.mp4', durationMs: 12_000, thumbnailUri: 'file:///clip.jpg' }, (r) => ratios.push(r));
+    const post = await source.createPost({ content: 'Ma vidéo', communityId: null, imagePath: 'file:///clip.jpg', visibility: 'Public', videoPath });
+    expect([post.videoPath, post.imagePath, ratios.at(-1)]).toEqual(['file:///clip.mp4', 'file:///clip.jpg', 1]);
+    const edited = await source.updatePost(post.id, { content: 'Sans vidéo', imagePath: null, visibility: 'Public', videoPath: null });
+    expect(edited.videoPath).toBeNull();
+  });
+
+  it('adresse des médias envoyés', () => {
+    usePreferences.setState({ apiUrl: 'http://192.168.1.10:5080/' });
+    expect(mediaUri('uploads/0123456789abcdef0123456789abcdef.mp4')).toBe('http://192.168.1.10:5080/uploads/0123456789abcdef0123456789abcdef.mp4');
+    expect(mediaUri('file:///clip.mp4')).toBe('file:///clip.mp4');
+    expect(mediaUri('Posts/post_01.jpg')).toBeUndefined();
+    expect(mediaUri(null)).toBeUndefined();
   });
 });

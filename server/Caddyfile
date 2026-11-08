@@ -8,9 +8,9 @@ api.monbenin.com {
 		-Server
 	}
 
-	# Photos (10 Mo) et pièces jointes des discussions (20 Mo), marge pour l'en-tête multipart
+	# Photos (10 Mo), pièces jointes (20 Mo), vidéos (60 Mo) ; marge pour l'en-tête multipart
 	request_body {
-		max_size 25MB
+		max_size 70MB
 	}
 
 	reverse_proxy 127.0.0.1:8080 {

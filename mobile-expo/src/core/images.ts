@@ -1,3 +1,4 @@
+import { DEV_TOOLS, PRODUCTION_API_URL } from './config';
 import { usePreferences } from './preferences';
 // Images embarquées (hors ligne). Les chemins sont ceux renvoyés par l'API et le mock (« Posts/post_01.jpg »).
 const IMAGES: Record<string, number> = {
@@ -53,15 +54,23 @@ const IMAGES: Record<string, number> = {
   'Profile/cover_06.jpg': require('../../assets/images/Profile/cover_06.jpg'),
 };
 
+/** Adresse d'un fichier envoyé (uploads/…) ou local ; en production, toujours l'API de production. */
+export function mediaUri(path: string | null | undefined): string | undefined {
+  if (!path) return undefined;
+  if (path.startsWith('uploads/')) {
+    const base = DEV_TOOLS ? usePreferences.getState().apiUrl : PRODUCTION_API_URL;
+    return `${base.replace(/\/+$/, '')}/${path}`;
+  }
+  return /^(file|https?|blob|data|ph|content):/.test(path) ? path : undefined;
+}
+
 /** Image embarquée, photo envoyée à l'API (uploads/…) ou fichier local (démo, aperçu avant envoi). */
 export function imageSource(path: string | null | undefined): number | { uri: string; headers?: Record<string, string> } | undefined {
   if (!path) return undefined;
   if (IMAGES[path]) return IMAGES[path];
-  if (path.startsWith('uploads/')) {
-    return { uri: `${usePreferences.getState().apiUrl.replace(/\/+$/, '')}/${path}`, headers: { 'ngrok-skip-browser-warning': '1' } };
-  }
-  if (/^(file|https?|blob|data|ph|content):/.test(path)) return { uri: path };
-  return undefined;
+  const uri = mediaUri(path);
+  if (!uri) return undefined;
+  return path.startsWith('uploads/') ? { uri, headers: { 'ngrok-skip-browser-warning': '1' } } : { uri };
 }
 
 export const imagePaths = (prefix: 'Posts' | 'Covers' | 'Events' | 'Profile') =>

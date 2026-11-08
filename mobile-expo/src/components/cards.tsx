@@ -16,6 +16,7 @@ import {
 import { reportContent } from '@/features/report';
 import { AttachmentView } from './attachments';
 import { ReactionBar } from './reactions';
+import { PostVideo } from './video';
 import { Avatar, Button, Card, Cover, Icon, type IconName, Muted, T, Tag } from './ui';
 
 // --- Publications -------------------------------------------------------------------------
@@ -86,7 +87,9 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
       </View>
 
       <T style={styles.postContent} lines={detailed ? undefined : 6}>{post.content}</T>
-      {source && <Image source={source} style={styles.postImage} contentFit="cover" transition={150} accessibilityLabel="Image de la publication" />}
+      {post.videoPath
+        ? <PostVideo videoPath={post.videoPath} posterPath={post.imagePath} />
+        : source && <Image source={source} style={styles.postImage} contentFit="cover" transition={150} accessibilityLabel="Image de la publication" />}
 
       {detailed && (
         <Muted style={{ paddingHorizontal: 16, paddingTop: 10 }}>

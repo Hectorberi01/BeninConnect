@@ -38,6 +38,18 @@ public sealed class S3Settings
 
     /// <summary>Crée le bucket s'il n'existe pas (MinIO auto-hébergé). Inutile chez un fournisseur.</summary>
     public bool CreateBucket { get; set; }
+
+    /// <summary>
+    /// Bucket des pièces jointes des discussions (privé, jamais public). Vide : même bucket que les photos, préfixe private/.
+    /// À renseigner si le bucket principal est public (PublicBaseUrl, domaine public R2).
+    /// </summary>
+    public string? PrivateBucket { get; set; }
+
+    public S3Settings WithBucket(string bucket) => new()
+    {
+        ServiceUrl = ServiceUrl, Region = Region, Bucket = bucket, AccessKey = AccessKey, SecretKey = SecretKey,
+        ForcePathStyle = ForcePathStyle, CreateBucket = CreateBucket,
+    };
 }
 
 public sealed class LocalMediaStorage(string directory) : IMediaStorage
@@ -57,6 +69,26 @@ public sealed class LocalMediaStorage(string directory) : IMediaStorage
         return Task.FromResult(File.Exists(path)
             ? new StoredImage(File.OpenRead(path), new FileInfo(path).Length, ImageFile.ContentType(name), null)
             : null);
+    }
+
+    public Task<StoredRange?> OpenRangeAsync(string name, long from, long? to, CancellationToken ct)
+    {
+        var path = Path.Combine(Directory, name);
+        if (!File.Exists(path))
+        {
+            return Task.FromResult<StoredRange?>(null);
+        }
+
+        var total = new FileInfo(path).Length;
+        var end = Math.Min(to ?? total - 1, total - 1);
+        if (from < 0 || from > end)
+        {
+            return Task.FromResult<StoredRange?>(null);
+        }
+
+        var stream = File.OpenRead(path);
+        stream.Seek(from, SeekOrigin.Begin);
+        return Task.FromResult<StoredRange?>(new StoredRange(stream, from, end, total, ImageFile.ContentType(name)));
     }
 
     public Task DeleteAsync(string name, CancellationToken ct)

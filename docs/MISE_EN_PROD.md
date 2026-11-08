@@ -35,42 +35,47 @@ Choisir une région proche du VPS (Europe de l'Ouest) : chaque requête fait l'a
 L'API refuse de démarrer si la connexion n'est pas chiffrée ou pointe vers `localhost`.
 Elle réessaie automatiquement les coupures réseau passagères (5 fois).
 
-## 0 bis. Photos
+## 0 bis. Photos, vidéos et pièces jointes
 
-Aujourd'hui : **disque du serveur** (`MEDIA_PROVIDER=local`, volume Docker `media`), servies par l'API sous `/uploads`.
+Deux zones de stockage :
+- **public** (`uploads/`) : photos et vidéos des publications, profils, couvertures. Servi sous `https://api.monbenin.com/uploads/<nom>`.
+- **privé** (`private/`) : pièces jointes des discussions (photos, PDF, messages vocaux). Jamais servi directement :
+  `GET /api/messages/{id}/attachment` vérifie que le demandeur participe à la conversation.
+
+Par défaut : **disque du serveur** (`MEDIA_PROVIDER=local`, volume Docker `media`, dossiers `uploads/` et `private/`).
 Sauvegarde : le service `media-backup` archive le volume chaque nuit dans `server/backups/media` (7 jours).
 
-Plus tard, stockage objet compatible S3 : la configuration est prête, il suffit de passer `MEDIA_PROVIDER=s3`
-et de remplir `S3_*` dans `.env` (ou `media_provider` / `s3_*` dans Ansible). Aucun changement de code.
-
-Fournisseurs externes (renseigner `S3_*` dans `.env`, `S3_CREATE_BUCKET=false`) :
-
-Les photos des membres vont dans un bucket compatible S3 (`MEDIA_PROVIDER=s3`) : rien sur le disque du VPS,
-stockage redondant chez le fournisseur, plusieurs instances de l'API possibles.
-En base, les chemins restent `uploads/<nom>` et les applications appellent toujours `https://API_DOMAIN/uploads/<nom>` :
-l'API redirige vers `S3_PUBLIC_BASE_URL` si elle est renseignée, sinon relaie le fichier.
+### Passer à S3 (recommandé avec la vidéo)
 
 | Fournisseur | Prix indicatif | Remarque |
 |---|---|---|
-| Cloudflare R2 | 10 Go gratuits, puis ~0,015 $/Go/mois, **trafic sortant gratuit** | domaine public + CDN Cloudflare en 2 clics : conseillé |
-| Hetzner Object Storage | ~5 €/mois (1 To inclus) | même datacenter que le VPS |
-| Scaleway | à l'usage | hébergé en France |
-| AWS S3 | à l'usage, trafic sortant payant | `eu-west-3` (Paris) |
+| Cloudflare R2 | 10 Go gratuits, puis ~0,015 $/Go/mois, **trafic sortant gratuit** | conseillé pour la vidéo |
+| Hetzner Object Storage | ~5 €/mois (1 To inclus) | |
+| Scaleway / OVHcloud | à l'usage | hébergés en France |
 
-1. Créer le bucket `beninconnect-media` (privé).
-2. Créer une clé d'accès limitée à ce bucket (lecture + écriture) : `S3_ACCESS_KEY`, `S3_SECRET_KEY`.
-3. Recommandé : brancher un domaine public en lecture seule (R2 : Settings > Custom Domains, ex. `media.monbenin.com`)
-   et le mettre dans `S3_PUBLIC_BASE_URL`. Les photos ne passent alors plus par le VPS et sont mises en cache par le CDN.
-4. Renseigner `S3_SERVICE_URL`, `S3_REGION`, `S3_BUCKET` dans `.env`.
+1. Créer **deux buckets** : `beninconnect-media` (photos et vidéos) et `beninconnect-private` (pièces jointes, **toujours privé**).
+2. Créer une clé d'accès limitée à ces deux buckets (lecture + écriture).
+3. Facultatif mais conseillé pour la vidéo : domaine public sur `beninconnect-media` uniquement
+   (R2 : Settings > Custom Domains, ex. `media.monbenin.com`) → `S3_PUBLIC_BASE_URL=https://media.monbenin.com`.
+   Les fichiers ne passent alors plus par le VPS (CDN Cloudflare). Sans domaine public, l'API relaie les fichiers,
+   avec lecture partielle (Range) pour la vidéo.
+4. Dans le `.env` du serveur :
+   ```
+   S3_SERVICE_URL=https://<compte>.r2.cloudflarestorage.com
+   S3_REGION=auto
+   S3_BUCKET=beninconnect-media
+   S3_PRIVATE_BUCKET=beninconnect-private
+   S3_ACCESS_KEY=...
+   S3_SECRET_KEY=...
+   S3_PUBLIC_BASE_URL=https://media.monbenin.com
+   ```
+5. Copier les fichiers existants (le volume reste intact, retour arrière possible) :
+   `ssh ubuntu@51.255.40.214 'cd /opt/beninconnect/server && bash -s' < server/tools/media-to-s3.sh`
+6. `MEDIA_PROVIDER=s3` dans `.env`, puis redémarrer l'API (ou relancer le déploiement).
+7. Vérifier une photo existante, une vidéo et une pièce jointe dans l'application.
 
-Reprise de photos déjà stockées sur le disque (passage de `local` à `s3`) :
-
-```bash
-rclone copy /var/lib/docker/volumes/beninconnect-prod_media/_data/uploads r2:beninconnect-media/uploads --progress
-```
-
-Les photos ne sont jamais modifiées (nom unique) : le versionnage du bucket ou une réplication vers un 2e bucket
-suffit comme sauvegarde.
+En base, les chemins restent `uploads/<nom>` : aucune donnée à modifier. Les noms de fichiers sont uniques et jamais
+modifiés : le versionnage du bucket suffit comme sauvegarde.
 
 ## 0 ter. Emails avec Resend
 

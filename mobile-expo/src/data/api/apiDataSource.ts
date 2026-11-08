@@ -3,7 +3,7 @@ import type { DataSource } from '../repositories';
 import type {
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, MembershipStatus, Message, NotificationCategory,
-  LocalPhoto, OutgoingFile, Paged, Post, ReportReason, ReportTarget, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User,
+  LocalPhoto, LocalVideo, OutgoingFile, Paged, Post, ReportReason, ReportTarget, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User,
 } from '../types';
 import { Platform } from 'react-native';
 import { AppError } from '../types';
@@ -146,6 +146,31 @@ export class ApiDataSource implements DataSource {
     }
     // Photo de plusieurs Mo : délai plus long que les autres requêtes (réseau mobile lent)
     return (await this.request<{ path: string }>('POST', 'api/media', form, 90_000)).path;
+  }
+
+  /** XMLHttpRequest direct : progression d'envoi (une vidéo peut prendre une minute sur réseau mobile). */
+  uploadVideo(video: LocalVideo, onProgress?: (ratio: number) => void) {
+    return new Promise<string>((resolve, reject) => {
+      const form = new FormData();
+      form.append('file', { uri: video.uri, name: video.fileName || 'video.mp4', type: video.mimeType || 'video/mp4' } as unknown as Blob);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${this.apiUrl}/api/media/video`);
+      xhr.setRequestHeader('Accept', 'application/json');
+      if (this.token) xhr.setRequestHeader('Authorization', `Bearer ${this.token}`);
+      xhr.timeout = 10 * 60_000;
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress?.(e.loaded / e.total); };
+      xhr.onload = () => {
+        let body: { path?: string; detail?: string; title?: string } = {};
+        try { body = JSON.parse(xhr.responseText || '{}'); } catch { /* réponse non JSON */ }
+        if (xhr.status >= 200 && xhr.status < 300 && body.path) return resolve(body.path);
+        if (xhr.status === 401) return reject(new AppError('Votre session a expiré. Reconnectez-vous.', 401));
+        if (xhr.status === 413) return reject(new AppError('La vidéo ne doit pas dépasser 60 Mo.', 413));
+        reject(new AppError(body.detail || body.title || "Envoi de la vidéo impossible.", xhr.status || undefined));
+      };
+      xhr.onerror = () => reject(new AppError("Impossible de joindre le serveur. Vérifiez votre connexion."));
+      xhr.ontimeout = () => reject(new AppError("L'envoi de la vidéo a pris trop de temps. Réessayez en Wi-Fi."));
+      xhr.send(form);
+    });
   }
 
   addComment = (id: string, content: string) => this.post<Comment>(`api/posts/${id}/comments`, { content });

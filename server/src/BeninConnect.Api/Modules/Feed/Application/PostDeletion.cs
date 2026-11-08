@@ -22,9 +22,9 @@ public sealed class DeleteMyPostHandler(IFeedDb db, IEventBus bus, ICurrentUser 
 
         db.Posts.Remove(post);
         await db.SaveChangesAsync(ct);
-        if (post.ImagePath is { } image)
+        if (post.Files() is { Count: > 0 } files)
         {
-            await bus.PublishAsync(new ImagesReleased([image]), ct);
+            await bus.PublishAsync(new ImagesReleased(files), ct);
         }
 
         return true;
@@ -32,11 +32,13 @@ public sealed class DeleteMyPostHandler(IFeedDb db, IEventBus bus, ICurrentUser 
 }
 
 /// <summary>Modification par l'auteur ; l'ancienne photo remplacée est effacée du stockage.</summary>
-public sealed record UpdatePostCommand(Guid Id, string Content, string? ImagePath, PostVisibility Visibility) : ICommand<PostDto>, IValidatable
+public sealed record UpdatePostCommand(Guid Id, string Content, string? ImagePath, PostVisibility Visibility, string? VideoPath = null)
+    : ICommand<PostDto>, IValidatable
 {
     public IEnumerable<(string, string)> Validate() =>
         Rules.Length(nameof(Content), Content, "La publication", 3, Post.MaxLength)
-            .Concat(Rules.ImagePath(nameof(ImagePath), ImagePath));
+            .Concat(Rules.ImagePath(nameof(ImagePath), ImagePath))
+            .Concat(Rules.VideoPath(nameof(VideoPath), VideoPath));
 }
 
 public sealed class UpdatePostHandler(IFeedDb db, IEventBus bus, ICurrentUser me, TimeProvider clock) : IRequestHandler<UpdatePostCommand, PostDto>
@@ -49,12 +51,13 @@ public sealed class UpdatePostHandler(IFeedDb db, IEventBus bus, ICurrentUser me
             throw new ForbiddenException("Vous ne pouvez modifier que vos propres publications.");
         }
 
-        var previousImage = post.ImagePath;
-        post.Edit(request.Content, string.IsNullOrWhiteSpace(request.ImagePath) ? null : request.ImagePath, request.Visibility, clock.GetUtcNow());
+        var previous = post.Files();
+        post.Edit(request.Content, string.IsNullOrWhiteSpace(request.ImagePath) ? null : request.ImagePath, request.Visibility, clock.GetUtcNow(),
+            string.IsNullOrWhiteSpace(request.VideoPath) ? null : request.VideoPath);
         await db.SaveChangesAsync(ct);
-        if (previousImage is not null && previousImage != post.ImagePath)
+        if (previous.Except(post.Files()).ToList() is { Count: > 0 } replaced)
         {
-            await bus.PublishAsync(new ImagesReleased([previousImage]), ct);
+            await bus.PublishAsync(new ImagesReleased(replaced), ct);
         }
 
         return post.ToDto();
@@ -70,7 +73,7 @@ public sealed class DeleteMemberFeedData(IFeedDb db, IEventBus bus, TimeProvider
         var now = clock.GetUtcNow();
 
         var posts = await db.Posts.Where(p => p.AuthorId == id).ToListAsync(ct);
-        var images = posts.Select(p => p.ImagePath).OfType<string>().ToList();
+        var images = posts.SelectMany(p => p.Files()).ToList();
         var ownIds = posts.Select(p => p.Id).ToList();
         db.Posts.RemoveRange(posts);
 

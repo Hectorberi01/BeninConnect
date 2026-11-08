@@ -3,7 +3,7 @@ import type { DataSource } from '../repositories';
 import { INTERESTS, REACTIONS } from '../repositories';
 import type {
   AppNotification, Comment, Community, CommunityEvent, CommunityMember, Conversation, CreateEventRequest, EventFilter,
-  MembershipStatus, Message, OutgoingFile, Paged, Post, User, LocalPhoto, ReportReason, ReportTarget,
+  MembershipStatus, Message, OutgoingFile, Paged, Post, User, LocalPhoto, LocalVideo, ReportReason, ReportTarget,
 } from '../types';
 import { AppError, displayName, isEventFull, membershipStatus, toggleReaction } from '../types';
 import { COMMUNITY_CATEGORIES, EVENT_CATEGORIES } from './seed/seed';
@@ -179,6 +179,14 @@ export class MockDataSource implements DataSource {
   }
 
   // En démo, la photo reste sur l'appareil : son adresse locale sert de chemin.
+  /** Démo : la vidéo reste sur l'appareil. */
+  async uploadVideo(video: LocalVideo, onProgress?: (ratio: number) => void) {
+    await this.net();
+    this.userId;
+    onProgress?.(1);
+    return video.uri;
+  }
+
   async uploadImage(photo: LocalPhoto) {
     await this.net();
     this.userId;
@@ -216,7 +224,7 @@ export class MockDataSource implements DataSource {
     if (r.communityId && !this.memberOf(this.userId).has(r.communityId)) throw new AppError('Rejoignez la communauté pour y publier.', 403);
     const post: Post = {
       id: newId(), authorId: this.userId, communityId: r.communityId, content: r.content.trim(), imagePath: r.imagePath,
-      createdAt: new Date().toISOString(), visibility: r.visibility, likedBy: [], commentCount: 0, shareCount: 0,
+      createdAt: new Date().toISOString(), visibility: r.visibility, likedBy: [], commentCount: 0, shareCount: 0, videoPath: r.videoPath ?? null,
     };
     this.store.posts.push(post);
     return post;
@@ -227,7 +235,7 @@ export class MockDataSource implements DataSource {
     if (post.authorId !== this.userId) throw new AppError('Vous ne pouvez modifier que vos propres publications.', 403);
     this.validate({ content: v.length(r.content, 'La publication', 3, 2000) });
     if (r.visibility === 'CommunityMembers' && !post.communityId) throw new AppError('Choisissez une communauté pour une publication réservée aux membres.', 400);
-    return this.replace(this.store.posts, { ...post, content: r.content.trim(), imagePath: r.imagePath, visibility: r.visibility, editedAt: new Date().toISOString() });
+    return this.replace(this.store.posts, { ...post, content: r.content.trim(), imagePath: r.imagePath, visibility: r.visibility, videoPath: r.videoPath ?? null, editedAt: new Date().toISOString() });
   }
 
   async toggleLike(postId: string) {

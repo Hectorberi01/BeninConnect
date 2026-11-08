@@ -40,7 +40,7 @@ services:
       Cors__AllowedOrigins__1: ${CORS_ORIGIN_2:-}
       # Notifications push via Expo ; jeton seulement si « Enhanced Security » est activé dans le projet Expo
       Push__ExpoAccessToken: ${EXPO_ACCESS_TOKEN:-}
-      # Photos : disque (volume media) par défaut ; S3 (R2, Hetzner, MinIO...) avec MEDIA_PROVIDER=s3 et S3_* dans .env
+      # Photos, vidéos et pièces jointes : disque (volume media) par défaut ; S3 (R2, Hetzner, MinIO...) avec MEDIA_PROVIDER=s3 et S3_* dans .env
       Media__Provider: ${MEDIA_PROVIDER:-local}
       Media__S3__ServiceUrl: ${S3_SERVICE_URL:-}
       Media__S3__Region: ${S3_REGION:-auto}
@@ -49,6 +49,7 @@ services:
       Media__S3__SecretKey: ${S3_SECRET_KEY:-}
       Media__S3__PublicBaseUrl: ${S3_PUBLIC_BASE_URL:-}
       Media__S3__CreateBucket: ${S3_CREATE_BUCKET:-false}
+      Media__S3__PrivateBucket: ${S3_PRIVATE_BUCKET:-}
     volumes:
       - media:/app/media
 

@@ -17,6 +17,17 @@ public static partial class Rules
         }
     }
 
+    public static IEnumerable<(string, string)> VideoPath(string field, string? value)
+    {
+        if (!string.IsNullOrEmpty(value) && !VideoPathRegex().IsMatch(value))
+        {
+            yield return (field, "Vidéo invalide.");
+        }
+    }
+
+    [GeneratedRegex(@"^uploads/[a-f0-9]{32}\.(mp4|mov)$")]
+    private static partial Regex VideoPathRegex();
+
     [GeneratedRegex(@"^((Posts|Covers|Events|Profile)/[A-Za-z0-9_-]+\.(jpg|jpeg|png)|uploads/[a-f0-9]{32}\.(jpg|png|webp|heic))$")]
     private static partial Regex ImagePathRegex();
 

@@ -10,7 +10,7 @@ using BeninConnect.Shared.Infrastructure;
 
 namespace BeninConnect.Modules.Feed.Api;
 
-public sealed record UpdatePostRequest(string Content, string? ImagePath, PostVisibility Visibility);
+public sealed record UpdatePostRequest(string Content, string? ImagePath, PostVisibility Visibility, string? VideoPath = null);
 
 /// <summary>Publications, commentaires, j'aime et réactions.</summary>
 public sealed class FeedModule : IModule
@@ -43,7 +43,7 @@ public sealed class FeedModule : IModule
             return Results.Created($"/api/posts/{post.Id}", post);
         });
         feed.MapPut("/posts/{id:guid}", (Guid id, UpdatePostRequest r, ISender s, CancellationToken ct) =>
-            s.Send(new UpdatePostCommand(id, r.Content, r.ImagePath, r.Visibility), ct));
+            s.Send(new UpdatePostCommand(id, r.Content, r.ImagePath, r.Visibility, r.VideoPath), ct));
         feed.MapDelete("/posts/{id:guid}", async (Guid id, ISender s, CancellationToken ct) =>
         {
             await s.Send(new DeleteMyPostCommand(id), ct);

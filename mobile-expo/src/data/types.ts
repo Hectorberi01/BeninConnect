@@ -44,6 +44,8 @@ export interface Post {
   shareCount: number;
   /** Date de la dernière modification par l'auteur. */
   editedAt?: string | null;
+  /** Vidéo (imagePath : sa miniature). */
+  videoPath?: string | null;
 }
 
 export interface Reaction {
@@ -206,6 +208,7 @@ export interface UpdatePostRequest {
   content: string;
   imagePath: string | null;
   visibility: PostVisibility;
+  videoPath?: string | null;
 }
 
 export interface CreatePostRequest {
@@ -213,6 +216,7 @@ export interface CreatePostRequest {
   communityId: string | null;
   imagePath: string | null;
   visibility: PostVisibility;
+  videoPath?: string | null;
 }
 
 export interface CreateCommunityRequest {
@@ -292,4 +296,10 @@ export interface LocalPhoto {
   uri: string;
   mimeType?: string | null;
   fileName?: string | null;
+}
+
+/** Vidéo de l'appareil (compressée en 720p à la sélection), avec sa miniature. */
+export interface LocalVideo extends LocalPhoto {
+  durationMs: number;
+  thumbnailUri: string | null;
 }

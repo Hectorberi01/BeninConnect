@@ -108,6 +108,31 @@ public sealed class S3MediaStorage : IMediaStorage, IDisposable
         }
     }
 
+    public async Task<StoredRange?> OpenRangeAsync(string name, long from, long? to, CancellationToken ct)
+    {
+        try
+        {
+            var obj = await _client.GetObjectAsync(new GetObjectRequest
+            {
+                BucketName = _s3.Bucket,
+                Key = Key(name),
+                // Fin inconnue : borne haute, S3 s'arrête à la fin du fichier (RFC 9110)
+                ByteRange = new ByteRange(from, to ?? long.MaxValue - 1),
+            }, ct);
+
+            // Content-Range : « bytes 0-1023/52428800 »
+            var range = obj.ContentRange ?? string.Empty;
+            var slash = range.LastIndexOf('/');
+            var total = slash > 0 && long.TryParse(range[(slash + 1)..], out var t) ? t : Convert.ToInt64((object?)obj.ContentLength);
+            var last = from + Convert.ToInt64((object?)obj.ContentLength) - 1;
+            return new StoredRange(obj.ResponseStream, from, last, total, ImageFile.ContentType(name));
+        }
+        catch (AmazonS3Exception e) when (e.StatusCode is System.Net.HttpStatusCode.NotFound or System.Net.HttpStatusCode.RequestedRangeNotSatisfiable)
+        {
+            return null;
+        }
+    }
+
     public Task DeleteAsync(string name, CancellationToken ct) => _client.DeleteObjectAsync(_s3.Bucket, Key(name), ct);
 
     public async Task<(long Files, long Bytes)> UsageAsync(CancellationToken ct)
@@ -128,5 +153,6 @@ public sealed class S3MediaStorage : IMediaStorage, IDisposable
     public static IMediaStorage Create(S3Settings settings) => new S3MediaStorage(settings);
 
     /// <summary>Pièces jointes privées (préfixe private/) : toujours relayées par l'API après contrôle d'accès.</summary>
-    public static IMediaStorage CreatePrivate(S3Settings settings) => new S3MediaStorage(settings, "private/", isPublic: false);
+    public static IMediaStorage CreatePrivate(S3Settings settings) =>
+        new S3MediaStorage(string.IsNullOrWhiteSpace(settings.PrivateBucket) ? settings : settings.WithBucket(settings.PrivateBucket), "private/", isPublic: false);
 }

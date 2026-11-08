@@ -1,7 +1,7 @@
 import type {
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, MembershipStatus, Message,
-  NotificationCategory, OutgoingFile, Paged, Post, ReportReason, ReportTarget, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User, LocalPhoto } from './types';
+  NotificationCategory, OutgoingFile, Paged, Post, ReportReason, ReportTarget, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User, LocalPhoto, LocalVideo } from './types';
 
 /**
  * Contrat unique de la couche données : implémenté par le mock hors ligne et par le client HTTP de l'API.
@@ -49,6 +49,8 @@ export interface DataSource {
   addComment(postId: string, content: string): Promise<Comment>;
   /** Envoie une photo de l'appareil ; retourne le chemin à enregistrer (profil, couverture, publication). */
   uploadImage(photo: LocalPhoto): Promise<string>;
+  /** Vidéo d'une publication (60 Mo) ; onProgress reçoit 0 à 1. Retourne le chemin à enregistrer (videoPath). */
+  uploadVideo(video: LocalVideo, onProgress?: (ratio: number) => void): Promise<string>;
   /** Même emoji : retire la réaction ; autre emoji : la remplace. */
   reactToComment(postId: string, commentId: string, emoji: string): Promise<Comment>;
 

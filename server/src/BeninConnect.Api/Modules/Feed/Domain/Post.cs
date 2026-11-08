@@ -23,7 +23,9 @@ public sealed class Post
     public Guid AuthorId { get; private set; }
     public Guid? CommunityId { get; private set; }
     public string Content { get; private set; } = string.Empty;
+    /// <summary>Photo, ou miniature de la vidéo.</summary>
     public string? ImagePath { get; private set; }
+    public string? VideoPath { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public PostVisibility Visibility { get; private set; }
     public int CommentCount { get; private set; }
@@ -52,7 +54,8 @@ public sealed class Post
 
     public IReadOnlyCollection<PostLike> Likes => _likes;
 
-    public static Post Create(Guid id, Guid authorId, Guid? communityId, string content, string? imagePath, PostVisibility visibility, DateTimeOffset now)
+    public static Post Create(
+        Guid id, Guid authorId, Guid? communityId, string content, string? imagePath, PostVisibility visibility, DateTimeOffset now, string? videoPath = null)
     {
         var text = Validate(content, visibility, communityId);
         return new Post
@@ -62,22 +65,24 @@ public sealed class Post
             CommunityId = communityId,
             Content = text,
             ImagePath = imagePath,
+            VideoPath = videoPath,
             Visibility = visibility,
             CreatedAt = now
         };
     }
 
-    /// <summary>Modification par l'auteur : texte, photo et visibilité (la communauté ne change pas).</summary>
-    public void Edit(string content, string? imagePath, PostVisibility visibility, DateTimeOffset now)
+    /// <summary>Modification par l'auteur : texte, photo ou vidéo, visibilité (la communauté ne change pas).</summary>
+    public void Edit(string content, string? imagePath, PostVisibility visibility, DateTimeOffset now, string? videoPath = null)
     {
         var text = Validate(content, visibility, CommunityId);
-        if (text == Content && imagePath == ImagePath && visibility == Visibility)
+        if (text == Content && imagePath == ImagePath && visibility == Visibility && videoPath == VideoPath)
         {
             return;
         }
 
         Content = text;
         ImagePath = imagePath;
+        VideoPath = videoPath;
         Visibility = visibility;
         EditedAt = now;
     }

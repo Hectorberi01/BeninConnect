@@ -17,7 +17,8 @@ public interface IFeedDb
 
 public sealed record PostDto(
     Guid Id, Guid AuthorId, Guid? CommunityId, string Content, string? ImagePath, DateTimeOffset CreatedAt,
-    PostVisibility Visibility, IReadOnlyList<Guid> LikedBy, int CommentCount, int ShareCount, DateTimeOffset? EditedAt = null);
+    PostVisibility Visibility, IReadOnlyList<Guid> LikedBy, int CommentCount, int ShareCount, DateTimeOffset? EditedAt = null,
+    string? VideoPath = null);
 
 public sealed record CommentDto(Guid Id, Guid PostId, Guid AuthorId, string Content, DateTimeOffset CreatedAt, IReadOnlyList<ReactionDto> Reactions);
 
@@ -26,7 +27,10 @@ public static class FeedMapping
     /// <summary>Nécessite l'inclusion de Likes.</summary>
     public static PostDto ToDto(this Post p) => new(
         p.Id, p.AuthorId, p.CommunityId, p.Content, p.ImagePath, p.CreatedAt, p.Visibility,
-        p.Likes.Select(l => l.UserId).ToList(), p.CommentCount, p.ShareCount, p.EditedAt);
+        p.Likes.Select(l => l.UserId).ToList(), p.CommentCount, p.ShareCount, p.EditedAt, p.VideoPath);
+
+    /// <summary>Fichiers envoyés par le membre (photo ou miniature, vidéo), à effacer avec la publication.</summary>
+    public static List<string> Files(this Post p) => new[] { p.ImagePath, p.VideoPath }.OfType<string>().ToList();
 
     /// <summary>Nécessite l'inclusion de Reactions.</summary>
     public static CommentDto ToDto(this Comment c) => new(c.Id, c.PostId, c.AuthorId, c.Content, c.CreatedAt, c.Reactions.ToDto());
@@ -38,12 +42,13 @@ public sealed record GetPostQuery(Guid Id) : IQuery<PostDto>;
 
 public sealed record GetPostsQuery(Guid? AuthorId, Guid? CommunityId, string? Search) : IQuery<IReadOnlyList<PostDto>>;
 
-public sealed record CreatePostCommand(Guid? CommunityId, string Content, string? ImagePath, PostVisibility Visibility)
+public sealed record CreatePostCommand(Guid? CommunityId, string Content, string? ImagePath, PostVisibility Visibility, string? VideoPath = null)
     : ICommand<PostDto>, IValidatable
 {
     public IEnumerable<(string, string)> Validate() =>
         Rules.Length(nameof(Content), Content, "La publication", 3, Post.MaxLength)
-            .Concat(Rules.ImagePath(nameof(ImagePath), ImagePath));
+            .Concat(Rules.ImagePath(nameof(ImagePath), ImagePath))
+            .Concat(Rules.VideoPath(nameof(VideoPath), VideoPath));
 }
 
 public sealed record ToggleLikeCommand(Guid PostId) : ICommand<PostDto>;
@@ -150,7 +155,8 @@ public sealed class PostCommandHandlers(IFeedDb db, PostAccess access, ICommunit
             }
         }
 
-        var post = Post.Create(Guid.NewGuid(), me.Id, request.CommunityId, request.Content, request.ImagePath, request.Visibility, clock.GetUtcNow());
+        var post = Post.Create(Guid.NewGuid(), me.Id, request.CommunityId, request.Content, request.ImagePath, request.Visibility, clock.GetUtcNow(),
+            string.IsNullOrWhiteSpace(request.VideoPath) ? null : request.VideoPath);
         db.Posts.Add(post);
         await db.SaveChangesAsync(ct);
         return post.ToDto();

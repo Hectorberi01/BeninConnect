@@ -112,6 +112,9 @@ namespace BeninConnect.Api.Modules.Feed.Infrastructure.Persistence.Migrations
                     b.Property<int>("ShareCount")
                         .HasColumnType("integer");
 
+                    b.Property<string>("VideoPath")
+                        .HasColumnType("text");
+
                     b.Property<string>("Visibility")
                         .IsRequired()
                         .HasMaxLength(32)
