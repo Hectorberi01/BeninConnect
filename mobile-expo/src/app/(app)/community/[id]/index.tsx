@@ -9,6 +9,7 @@ import { useColors } from '@/core/theme';
 import type { Community } from '@/data/types';
 import { location } from '@/data/types';
 import { useCommunity, useCommunityEvents, useMembers, usePosts } from '@/features/queries';
+import { reportContent } from '@/features/report';
 import { roleLabel } from '@/features/rules';
 
 type Section = 'posts' | 'members' | 'events';
@@ -40,6 +41,11 @@ function Details({ community }: { community: Community }) {
         <View style={[styles.back, { top: insets.top + 4 }]}>
           <IconButton name="arrow-left" label="Retour" color="#FFFFFF" onPress={() => router.back()} />
         </View>
+        {status !== 'Owner' && (
+          <View style={[styles.back, { top: insets.top + 4, left: undefined, right: 8 }]}>
+            <IconButton name="flag-outline" label="Signaler la communauté" color="#FFFFFF" onPress={() => reportContent('Community', community.id)} />
+          </View>
+        )}
       </Cover>
 
       <View style={styles.body}>

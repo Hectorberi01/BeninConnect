@@ -1,7 +1,7 @@
 import type {
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, MembershipStatus, Message,
-  NotificationCategory, Paged, Post, RegisterRequest, UpdateProfileRequest, User, LocalPhoto } from './types';
+  NotificationCategory, Paged, Post, ReportReason, ReportTarget, RegisterRequest, UpdateProfileRequest, User, LocalPhoto } from './types';
 
 /**
  * Contrat unique de la couche données : implémenté par le mock hors ligne et par le client HTTP de l'API.
@@ -41,6 +41,8 @@ export interface DataSource {
   sharePost(postId: string): Promise<Post>;
   /** Réservé à l'auteur. */
   deletePost(postId: string): Promise<void>;
+  /** Signalement à la modération (publication, commentaire, membre ou communauté). */
+  report(target: ReportTarget, targetId: string, reason: ReportReason, details?: string): Promise<void>;
   getComments(postId: string): Promise<Comment[]>;
   addComment(postId: string, content: string): Promise<Comment>;
   /** Envoie une photo de l'appareil ; retourne le chemin à enregistrer (profil, couverture, publication). */

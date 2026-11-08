@@ -10,6 +10,7 @@ import { useMe } from '@/core/session';
 import { depth, font, useColors } from '@/core/theme';
 import type { Comment, Post } from '@/data/types';
 import { displayName, errorMessage, initials } from '@/data/types';
+import { reportContent } from '@/features/report';
 import { useAddComment, useComments, usePost, useReactToComment, useUsersMap } from '@/features/queries';
 
 export default function PostDetails() {
@@ -65,6 +66,9 @@ function Details({ post, focus }: { post: Post; focus: boolean }) {
               {mine ? `${mine} Réagi` : 'Réagir'}
             </T>
             <View style={{ flex: 1 }}><ReactionBar reactions={item.reactions} me={me.id} onToggle={toggle} /></View>
+            {item.authorId !== me.id && (
+              <T v="label" color={c.textSecondary} style={{ fontSize: 12 }} onPress={() => reportContent('Comment', item.id)}>Signaler</T>
+            )}
           </View>
         </View>
       </View>

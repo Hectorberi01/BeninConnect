@@ -7,6 +7,7 @@ import { Avatar, Button, Chip, Cover, EmptyState, Icon, IconButton, Muted, Query
 import { confirm } from '@/core/dialog';
 import * as fmt from '@/core/format';
 import { askPhotoSource, pickPhoto } from '@/core/photos';
+import { reportContent } from './report';
 import { queryClient } from '@/core/queryClient';
 import { useMe, useSession } from '@/core/session';
 import { depth, radius, useColors } from '@/core/theme';
@@ -102,7 +103,9 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
       <Cover path={shownUser.coverImage} height={150 + insets.top}>
         <View style={[styles.coverBar, { top: insets.top + 4 }]}>
           {showBack ? <RoundButton icon="arrow-left" label="Retour" onPress={() => router.back()} /> : <View />}
-          {isMe && <RoundButton icon="cog-outline" label="Paramètres" onPress={() => router.push('/settings')} />}
+          {isMe
+            ? <RoundButton icon="cog-outline" label="Paramètres" onPress={() => router.push('/settings')} />
+            : <RoundButton icon="flag-outline" label="Signaler ce membre" onPress={() => reportContent('User', user.id)} />}
         </View>
         {isMe && (
           <Pressable accessibilityRole="button" accessibilityLabel="Changer la photo de couverture" onPress={() => changeImage('cover')}
@@ -192,7 +195,7 @@ function Stat({ value, label }: { value: number; label: string }) {
   );
 }
 
-function RoundButton({ icon, label, onPress }: { icon: 'arrow-left' | 'cog-outline'; label: string; onPress: () => void }) {
+function RoundButton({ icon, label, onPress }: { icon: 'arrow-left' | 'cog-outline' | 'flag-outline'; label: string; onPress: () => void }) {
   return (
     <View style={styles.round}><IconButton name={icon} label={label} color="#FFFFFF" onPress={onPress} /></View>
   );

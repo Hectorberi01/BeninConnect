@@ -3,7 +3,7 @@ import type { DataSource } from '../repositories';
 import { INTERESTS, REACTIONS } from '../repositories';
 import type {
   AppNotification, Comment, Community, CommunityEvent, CommunityMember, Conversation, CreateEventRequest, EventFilter,
-  MembershipStatus, Message, Paged, Post, User, LocalPhoto,
+  MembershipStatus, Message, Paged, Post, User, LocalPhoto, ReportReason, ReportTarget,
 } from '../types';
 import { AppError, displayName, isEventFull, membershipStatus, toggleReaction } from '../types';
 import { COMMUNITY_CATEGORIES, EVENT_CATEGORIES } from './seed/seed';
@@ -245,6 +245,21 @@ export class MockDataSource implements DataSource {
     if (post.authorId !== this.userId) throw new AppError('Vous ne pouvez supprimer que vos propres publications.', 403);
     this.store.posts = this.store.posts.filter((p) => p.id !== postId);
     this.store.comments = this.store.comments.filter((c) => c.postId !== postId);
+  }
+
+  private readonly reports = new Set<string>();
+
+  async report(target: ReportTarget, targetId: string, _reason: ReportReason) {
+    await this.net();
+    const owner = target === 'Post' ? this.store.posts.find((p) => p.id === targetId)?.authorId
+      : target === 'Comment' ? this.store.comments.find((c) => c.id === targetId)?.authorId
+      : target === 'User' ? this.store.users.find((u) => u.id === targetId)?.id
+      : this.store.communities.find((c) => c.id === targetId)?.ownerId;
+    if (!owner) throw new AppError('Contenu introuvable.', 404);
+    if (owner === this.userId) throw new AppError('Vous ne pouvez pas signaler votre propre contenu.', 400);
+    const key = `${this.userId}:${target}:${targetId}`;
+    if (this.reports.has(key)) throw new AppError('Vous avez déjà signalé ce contenu ; il est en cours d\'examen.', 409);
+    this.reports.add(key);
   }
 
   async deleteAccount(password: string) {

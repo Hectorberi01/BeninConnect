@@ -3,7 +3,7 @@ import type { DataSource } from '../repositories';
 import type {
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, MembershipStatus, Message, NotificationCategory,
-  LocalPhoto, Paged, Post, RegisterRequest, UpdateProfileRequest, User,
+  LocalPhoto, Paged, Post, ReportReason, ReportTarget, RegisterRequest, UpdateProfileRequest, User,
 } from '../types';
 import { Platform } from 'react-native';
 import { AppError } from '../types';
@@ -119,6 +119,9 @@ export class ApiDataSource implements DataSource {
   toggleLike = (id: string) => this.post<Post>(`api/posts/${id}/like`);
   sharePost = (id: string) => this.post<Post>(`api/posts/${id}/share`);
   deletePost = async (id: string) => { await this.request<void>('DELETE', `api/posts/${id}`); };
+  report = async (targetType: ReportTarget, targetId: string, reason: ReportReason, details?: string) => {
+    await this.post<{ id: string }>('api/reports', { targetType, targetId, reason, details: details ?? null });
+  };
   deleteAccount = async (password: string) => { await this.post<void>('api/users/me/delete', { password }); };
   getComments = (id: string) => this.get<Comment[]>(`api/posts/${id}/comments`);
   async uploadImage(photo: LocalPhoto) {

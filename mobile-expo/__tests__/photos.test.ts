@@ -71,3 +71,28 @@ describe('suppression', () => {
     expect([calls[1].init.method, calls[1].url, calls[1].init.body]).toEqual(['POST', 'http://x/api/users/me/delete', JSON.stringify({ password: 'Secret123!' })]);
   });
 });
+
+describe('signalement', () => {
+  it('démo : signaler un contenu une seule fois, jamais le sien', async () => {
+    const source = new MockDataSource({ latencyMs: 0, simulateErrors: () => false });
+    const { token, user } = await source.login(DEMO_EMAIL, DEMO_PASSWORD);
+    source.setToken(token);
+    const posts = (await source.getFeed(0, 50)).items;
+    const other = posts.find((p) => p.authorId !== user.id)!;
+    const mine = posts.find((p) => p.authorId === user.id)!;
+    await source.report('Post', other.id, 'Spam');
+    await expect(source.report('Post', other.id, 'Spam')).rejects.toMatchObject({ status: 409 });
+    await expect(source.report('Post', mine.id, 'Spam')).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('API : POST /api/reports', async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const fetchImpl = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return { ok: true, status: 200, json: async () => ({ id: 'r1' }) } as Response;
+    }) as unknown as typeof fetch;
+    await new ApiDataSource('http://x', fetchImpl).report('Comment', 'c1', 'Harassment');
+    expect(calls[0].url).toBe('http://x/api/reports');
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({ targetType: 'Comment', targetId: 'c1', reason: 'Harassment', details: null });
+  });
+});

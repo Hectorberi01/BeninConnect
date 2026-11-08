@@ -13,6 +13,7 @@ import { displayName, initials, isEventFull, location, membershipStatus } from '
 import {
   useCommunitiesMap, useDeletePost, useJoinRequests, useMembership, useSharePost, useToggleLike, useToggleParticipation, useUsersMap,
 } from '@/features/queries';
+import { reportContent } from '@/features/report';
 import { ReactionBar } from './reactions';
 import { Avatar, Button, Card, Cover, Icon, type IconName, Muted, T, Tag } from './ui';
 
@@ -44,7 +45,9 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
     remove.mutate(post.id, { onSuccess: () => { if (detailed && router.canGoBack()) router.back(); } });
   };
   const openMenu = () => Alert.alert('Publication', undefined, [
-    { text: 'Supprimer la publication', style: 'destructive', onPress: askDelete },
+    mine
+      ? { text: 'Supprimer la publication', style: 'destructive', onPress: askDelete }
+      : { text: 'Signaler la publication', style: 'destructive', onPress: () => reportContent('Post', post.id) },
     { text: 'Annuler', style: 'cancel' },
   ]);
 
@@ -71,12 +74,10 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
             {post.visibility === 'OnlyMe' && <Icon name="lock-outline" size={14} color={c.textSecondary} />}
           </View>
         </View>
-        {mine && (
-          <Pressable accessibilityRole="button" accessibilityLabel="Options de la publication" hitSlop={12} onPress={openMenu}
-            disabled={remove.isPending} style={({ pressed }) => [styles.menu, pressed && { opacity: 0.6 }]}>
-            <Icon name="dots-horizontal" size={22} color={c.textSecondary} />
-          </Pressable>
-        )}
+        <Pressable accessibilityRole="button" accessibilityLabel="Options de la publication" hitSlop={12} onPress={openMenu}
+          disabled={remove.isPending} style={({ pressed }) => [styles.menu, pressed && { opacity: 0.6 }]}>
+          <Icon name="dots-horizontal" size={22} color={c.textSecondary} />
+        </Pressable>
       </View>
 
       <T style={styles.postContent} lines={detailed ? undefined : 6}>{post.content}</T>

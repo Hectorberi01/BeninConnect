@@ -7,6 +7,9 @@ export type MembershipStatus = 'None' | 'Pending' | 'Member' | 'Owner';
 export type CommunityRole = 'Member' | 'Moderator' | 'Owner';
 export type EventPeriod = 'All' | 'ThisWeek' | 'ThisMonth' | 'Later';
 export type NotificationCategory = 'Social' | 'Communities' | 'Messages' | 'Events' | 'System';
+/** Contenu signalable à la modération. */
+export type ReportTarget = 'Post' | 'Comment' | 'User' | 'Community';
+export type ReportReason = 'Spam' | 'Harassment' | 'Inappropriate' | 'FalseInformation' | 'Other';
 export type NotificationTarget = 'None' | 'Post' | 'Community' | 'Conversation' | 'Event' | 'Profile';
 
 export interface User {
