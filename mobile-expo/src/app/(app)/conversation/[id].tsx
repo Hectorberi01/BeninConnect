@@ -4,14 +4,13 @@ import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextIn
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MessageBubble } from '@/components/cards';
 import { useReactionPicker } from '@/components/reactions';
-import { Avatar, Button, EmptyState, Icon, IconButton, Muted, QueryView, Screen, T } from '@/components/ui';
+import { Avatar, EmptyState, Icon, IconButton, Muted, QueryView, Screen, T } from '@/components/ui';
 import * as fmt from '@/core/format';
 import { useMe } from '@/core/session';
 import { font, useColors } from '@/core/theme';
 import type { ConversationSummary, Message } from '@/data/types';
 import { displayName, initials, location } from '@/data/types';
 import { useConversation, useMarkConversationRead, useMessages, useReactToMessage, useSendMessage } from '@/features/queries';
-import { DEMO_REPLIES } from '@/features/rules';
 
 export default function Conversation() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -33,7 +32,6 @@ function Chat({ summary }: { summary: ConversationSummary }) {
   const react = useReactToMessage(id);
   const picker = useReactionPicker();
   const [draft, setDraft] = useState('');
-  const replyIndex = useRef(0);
   const list = useRef<FlatList<Row>>(null);
 
   // Lu à l'ouverture et à chaque nouveau message reçu.
@@ -65,11 +63,6 @@ function Chat({ summary }: { summary: ConversationSummary }) {
     const content = draft.trim();
     if (!content || send.isPending) return;
     send.mutate({ content }, { onSuccess: () => setDraft('') });
-  };
-
-  const simulate = () => {
-    const content = DEMO_REPLIES[replyIndex.current++ % DEMO_REPLIES.length];
-    send.mutate({ content, simulated: true });
   };
 
   return (
@@ -108,10 +101,7 @@ function Chat({ summary }: { summary: ConversationSummary }) {
       )}
 
       <View style={[styles.composer, { backgroundColor: c.surface, borderColor: c.border, paddingBottom: insets.bottom + 8 }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-          <Button small kind="ghost" icon="robot-outline" title="Simuler une réponse" onPress={simulate} disabled={send.isPending} />
-          <Muted style={{ marginLeft: 'auto', fontSize: 12 }}>Appui long pour réagir</Muted>
-        </View>
+        <Muted style={{ textAlign: 'right', fontSize: 12, marginBottom: 6 }}>Appui long sur un message pour réagir</Muted>
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
           <TextInput value={draft} onChangeText={setDraft} placeholder="Votre message…" placeholderTextColor={c.textSecondary}
             multiline maxLength={2000} accessibilityLabel="Votre message"

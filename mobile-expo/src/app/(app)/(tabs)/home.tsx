@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CommunityTile, EventTile, PostCard, usePostContext } from '@/components/cards';
-import { Avatar, Card, EmptyState, ErrorState, Icon, IconButton, Loading, Muted, Screen, SectionTitle, T } from '@/components/ui';
+import { Avatar, EmptyState, ErrorState, Icon, IconButton, Loading, Muted, Screen, SectionTitle, T } from '@/components/ui';
 import { useTabBarSpace } from '@/components/glass';
 import { useMe } from '@/core/session';
 import { depth, useColors } from '@/core/theme';
@@ -38,17 +38,6 @@ export default function Home() {
 
   const header = (
     <View>
-      <Card style={styles.composer} onPress={() => router.push('/post/new')}>
-        <View style={styles.composerRow}>
-          <Avatar initials={initials(me)} color={me.avatarColor} image={me.avatarImage} size={40} />
-          <View style={[styles.composerInput, { backgroundColor: c.surfaceVariant }]}>
-            <Muted style={{ fontSize: 15 }}>{`Quoi de neuf, ${me.firstName} ?`}</Muted>
-          </View>
-          <IconButton name="image-outline" label="Publier une photo" color={c.primary}
-            onPress={() => router.push({ pathname: '/post/new', params: { image: '1' } })} />
-        </View>
-      </Card>
-
       {suggestions.length > 0 && (
         <>
           <SectionTitle title="Communautés suggérées" action="Voir tout" onAction={() => router.navigate('/communities')} />
@@ -114,9 +103,6 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 10, borderBottomWidth: 1, zIndex: 2 },
-  composer: { margin: 16, marginBottom: 0, padding: 12 },
-  composerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  composerInput: { flex: 1, height: 42, borderRadius: 21, justifyContent: 'center', paddingHorizontal: 14 },
   hList: { paddingHorizontal: 16 },
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 20 },
 });
