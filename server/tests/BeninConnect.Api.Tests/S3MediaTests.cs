@@ -67,7 +67,8 @@ public sealed class S3MediaTests(S3ApiFactory factory) : IClassFixture<S3ApiFact
 
         Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync($"uploads/{Guid.NewGuid():N}.png")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync("uploads/..%2Fappsettings.json")).StatusCode);
-    
+    }
+
     [Fact]
     public async Task Videos_are_relayed_with_byte_ranges_and_attachments_stay_in_the_private_prefix()
     {
