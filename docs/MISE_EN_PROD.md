@@ -150,6 +150,12 @@ DNS : un enregistrement A `api.monbenin.com` vers l'IP du serveur, ports 80 et 4
 
 ## Sauvegardes depuis la console
 
+La base est sauvegardée **par l'API** (plus de conteneur `backup` séparé) : chaque jour à `BACKUP_DAILY_AT_UTC` (01:00 UTC par défaut),
+avec la même connexion que l'application, dans `backups/daily/<base>-AAAAMMJJ.sql.gz`, copiée dans `weekly/` (semaine ISO) et
+`monthly/`. Conservation : 7 jours, 4 semaines, 6 mois. Si l'API redémarre après l'heure prévue sans sauvegarde du jour, elle la fait
+aussitôt ; en cas d'échec, nouvel essai toutes les heures et message dans la page Sauvegardes. `pg_dump` 18 : compatible avec un
+serveur PostgreSQL 9.2 à 18.
+
 Page **Sauvegardes** de la console (permission `BackupsManage` : Super administrateur et Développeur) :
 - liste des sauvegardes du dossier `server/backups` (quotidiennes, hebdomadaires, mensuelles, photos, manuelles), monté dans l'API sur `/backups` ;
 - **Sauvegarder maintenant** : `pg_dump` 17 (installé dans l'image de l'API) écrit `backups/manual/<base>-<date>.sql.gz` ;

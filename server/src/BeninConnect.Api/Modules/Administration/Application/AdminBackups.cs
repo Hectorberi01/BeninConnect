@@ -17,7 +17,18 @@ public sealed record OffsiteStatusDto(
 /// <summary>État des sauvegardes : dossier monté, pg_dump présent, dernière sauvegarde, espace libre, copie distante.</summary>
 public sealed record BackupOverviewDto(
     bool DirectoryAvailable, bool CanCreate, string? PgDumpVersion, DateTimeOffset? LastDatabaseBackupAt, long TotalBytes, long? FreeBytes,
-    IReadOnlyList<BackupFileDto> Files, OffsiteStatusDto? Offsite = null);
+    IReadOnlyList<BackupFileDto> Files, OffsiteStatusDto? Offsite = null, BackupScheduleDto? Schedule = null);
+
+/// <summary>Sauvegarde automatique de la base par l'API : heure (UTC), conservation, dernier passage.</summary>
+public sealed record BackupScheduleDto(
+    bool Enabled, string DailyAtUtc, int KeepDays, int KeepWeeks, int KeepMonths, DateTimeOffset? LastRunAt, string? LastError);
+
+/// <summary>État partagé de la sauvegarde automatique (affiché dans la console).</summary>
+public sealed class BackupScheduleState
+{
+    public DateTimeOffset? LastRunAt { get; set; }
+    public string? LastError { get; set; }
+}
 
 public sealed record MirrorResultDto(int Uploaded, int Deleted, int Remote, DateTimeOffset At);
 
@@ -61,6 +72,11 @@ public interface IBackupStore
 
     /// <summary>Seules les sauvegardes manuelles sont supprimables (la rotation automatique gère les autres).</summary>
     bool DeleteManual(string name);
+
+    /// <summary>Sauvegarde quotidienne de la base : daily/, copie dans weekly/ et monthly/, puis rotation.</summary>
+    Task<BackupFileDto> CreateScheduledAsync(CancellationToken ct);
+
+    bool HasDailyBackup(DateOnly day);
 }
 
 public sealed record GetBackupsQuery : IQuery<BackupOverviewDto>;
@@ -75,7 +91,7 @@ public sealed record SyncOffsiteCommand : ICommand<MirrorResultDto>;
 
 public sealed record DownloadOffsiteQuery(string Kind, string Name) : IQuery<BackupDownload>;
 
-public sealed class BackupHandlers(IBackupStore store, IBackupMirror mirror, AdminSession admin) :
+public sealed class BackupHandlers(IBackupStore store, IBackupMirror mirror, BackupSettings settings, BackupScheduleState schedule, AdminSession admin) :
     IRequestHandler<GetBackupsQuery, BackupOverviewDto>,
     IRequestHandler<CreateBackupCommand, BackupFileDto>,
     IRequestHandler<DownloadBackupQuery, BackupDownload>,
@@ -85,7 +101,11 @@ public sealed class BackupHandlers(IBackupStore store, IBackupMirror mirror, Adm
 {
     public async Task<BackupOverviewDto> Handle(GetBackupsQuery request, CancellationToken ct)
     {
-        var overview = await store.GetOverviewAsync(ct);
+        var overview = await store.GetOverviewAsync(ct) with
+        {
+            Schedule = new BackupScheduleDto(settings.Automatic, settings.DailyAtUtc.ToString("HH:mm"), settings.KeepDays, settings.KeepWeeks,
+                settings.KeepMonths, schedule.LastRunAt, schedule.LastError)
+        };
         if (!mirror.Enabled)
         {
             return overview;
@@ -172,6 +192,16 @@ public sealed class BackupSettings
     public string PgDump { get; set; } = "pg_dump";
 
     public int TimeoutMinutes { get; set; } = 15;
+
+    /// <summary>Sauvegarde quotidienne de la base faite par l'API (pg_dump), même connexion que l'application.</summary>
+    public bool Automatic { get; set; } = true;
+
+    /// <summary>Heure UTC de la sauvegarde quotidienne (rattrapée au démarrage si elle a été manquée).</summary>
+    public TimeOnly DailyAtUtc { get; set; } = new(1, 0);
+
+    public int KeepDays { get; set; } = 7;
+    public int KeepWeeks { get; set; } = 4;
+    public int KeepMonths { get; set; } = 6;
 
     public OffsiteSettings Offsite { get; set; } = new();
 }

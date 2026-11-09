@@ -100,6 +100,11 @@ export function BackupsPage() {
 
       {q.isPending ? <Loading /> : q.error || !o ? <ErrorBox message={errorMessage(q.error)} onRetry={() => q.refetch()} /> : (
         <div className="space-y-6">
+          {o.schedule?.lastError && (
+            <Warning title="La dernière sauvegarde automatique a échoué">
+              {o.schedule.lastError}{o.schedule.lastRunAt ? ` (${fmtDateTime(o.schedule.lastRunAt)})` : ''}. Nouvel essai automatique dans l'heure.
+            </Warning>
+          )}
           {!o.directoryAvailable && (
             <Warning title="Dossier des sauvegardes absent">
               L'API ne voit pas le dossier <code>/backups</code>. En production, il est monté par <code>docker-compose.prod.yml</code> (volume <code>./backups</code>).
@@ -182,7 +187,9 @@ export function BackupsPage() {
               <Card className="p-5">
                 <h2 className="mb-3 flex items-center gap-2 font-semibold"><CalendarClock className="size-4 text-brand" />Planification</h2>
                 <ul className="space-y-3 text-sm">
-                  <Plan title="Base de données" text="Chaque nuit, conservée 7 jours, 4 semaines et 6 mois (conteneur backup)." />
+                  <Plan title="Base de données" text={o.schedule?.enabled
+                    ? `Chaque jour à ${utcToParis(o.schedule.dailyAtUtc)} (heure de Paris), par l'API ; conservée ${o.schedule.keepDays} jours, ${o.schedule.keepWeeks} semaines et ${o.schedule.keepMonths} mois. Rattrapée au redémarrage si elle a été manquée.`
+                    : 'Sauvegarde automatique désactivée (Backups:Automatic).'} />
                   <Plan title="Photos" text="Chaque nuit à 3 h, conservées 7 jours (volume local ; les médias sur R2 ne sont pas copiés ici)." />
                   <Plan title="Hors du serveur" text="Si un bucket est configuré : copie automatique de chaque nouvelle sauvegarde, et dès la création d'une sauvegarde manuelle." />
                   <Plan title="Manuelles" text="Créées depuis cette page, conservées jusqu'à leur suppression." />
@@ -343,4 +350,12 @@ function OffsiteCard({ offsite, syncing, onSync }: { offsite: OffsiteStatus | nu
       <Button className="relative mt-4 w-full" loading={syncing} icon={<CloudUpload className="size-4" />} onClick={onSync}>Copier maintenant</Button>
     </Card>
   )
+}
+
+/** « 01:00 » UTC → heure de Paris du jour. */
+function utcToParis(hhmm: string) {
+  const [h, m] = hhmm.split(':').map(Number)
+  const d = new Date()
+  d.setUTCHours(h, m, 0, 0)
+  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })
 }

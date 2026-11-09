@@ -1,4 +1,4 @@
-# Production : API + sauvegardes. HTTPS assuré par Caddy installé sur le VPS (voir server/Caddyfile).
+# Production : API (qui sauvegarde aussi la base) + sauvegarde des photos. HTTPS assuré par Caddy installé sur le VPS (voir server/Caddyfile).
 # La base PostgreSQL est hébergée ailleurs : voir DB_* dans .env.
 #   cp .env.example .env   # puis remplir les secrets
 #   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
@@ -50,8 +50,10 @@ services:
       Media__S3__PublicBaseUrl: ${S3_PUBLIC_BASE_URL:-}
       Media__S3__CreateBucket: ${S3_CREATE_BUCKET:-false}
       Media__S3__PrivateBucket: ${S3_PRIVATE_BUCKET:-}
-      # Sauvegardes : liste, téléchargement et sauvegarde immédiate depuis la console (pg_dump dans l'image)
+      # Sauvegardes de la base faites par l'API (pg_dump dans l'image) : chaque jour à 01:00 UTC dans backups/daily,
+      # copies weekly/monthly, conservation 7 jours / 4 semaines / 6 mois ; liste et sauvegarde immédiate dans la console
       Backups__Directory: /backups
+      Backups__DailyAtUtc: ${BACKUP_DAILY_AT_UTC:-01:00}
       # Copie hors du serveur (S3 / R2) : activée si S3_BACKUP_BUCKET est défini ; mêmes identifiants que les médias
       Backups__Offsite__Bucket: ${S3_BACKUP_BUCKET:-}
       Backups__Offsite__ServiceUrl: ${S3_SERVICE_URL:-}
@@ -61,27 +63,6 @@ services:
       Backups__Offsite__RetentionDays: ${BACKUP_OFFSITE_RETENTION_DAYS:-90}
     volumes:
       - media:/app/media
-      - ./backups:/backups
-
-  # Copie quotidienne de la base, indépendante de celle du fournisseur (7 jours, 4 semaines, 6 mois).
-  backup:
-    image: prodrigestivill/postgres-backup-local:17
-    restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    environment:
-      POSTGRES_HOST: ${DB_HOST}
-      POSTGRES_PORT: ${DB_PORT:-5432}
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      PGSSLMODE: ${DB_BACKUP_SSLMODE:-require} # disable pour une base sans SSL
-      POSTGRES_EXTRA_OPTS: "-Z6 --no-owner --no-privileges"
-      SCHEDULE: "@daily"
-      BACKUP_KEEP_DAYS: 7
-      BACKUP_KEEP_WEEKS: 4
-      BACKUP_KEEP_MONTHS: 6
-    volumes:
       - ./backups:/backups
 
   # Copie quotidienne des photos (volume media) dans ./backups/media, 7 jours conservés.

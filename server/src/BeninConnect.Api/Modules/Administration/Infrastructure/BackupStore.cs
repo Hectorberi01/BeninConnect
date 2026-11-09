@@ -45,6 +45,59 @@ public sealed class BackupStore(BackupSettings settings, IConfiguration configur
 
     public async Task<BackupFileDto> CreateAsync(CancellationToken ct)
     {
+        var db = Database;
+        var info = await DumpAsync("manual", $"{db.Database}-{clock.GetUtcNow():yyyyMMdd-HHmmss}.sql.gz", wait: false, ct);
+        return new BackupFileDto("Manual", info.Name, info.Length, info.LastWriteTimeUtc, true);
+    }
+
+    public bool HasDailyBackup(DateOnly day) =>
+        File.Exists(Path.Combine(Root, "daily", $"{Database.Database}-{day:yyyyMMdd}.sql.gz"));
+
+    public async Task<BackupFileDto> CreateScheduledAsync(CancellationToken ct)
+    {
+        var now = clock.GetUtcNow();
+        var db = Database.Database;
+        var daily = await DumpAsync("daily", $"{db}-{now:yyyyMMdd}.sql.gz", wait: true, ct);
+
+        // Semaine (ISO) et mois en cours : copie de la dernière sauvegarde du jour, remplacée jusqu'à la fin de la période
+        var week = $"{db}-{System.Globalization.ISOWeek.GetYear(now.UtcDateTime)}{System.Globalization.ISOWeek.GetWeekOfYear(now.UtcDateTime):00}.sql.gz";
+        CopyInto("weekly", week, daily.FullName);
+        CopyInto("monthly", $"{db}-{now:yyyyMM}.sql.gz", daily.FullName);
+
+        Rotate("daily", now.AddDays(-settings.KeepDays));
+        Rotate("weekly", now.AddDays(-7 * settings.KeepWeeks - 1));
+        Rotate("monthly", now.AddMonths(-settings.KeepMonths).AddDays(-1));
+        return new BackupFileDto("Daily", daily.Name, daily.Length, daily.LastWriteTimeUtc, false);
+    }
+
+    private NpgsqlConnectionStringBuilder Database => new(configuration.GetConnectionString("Database"));
+
+    private void CopyInto(string folder, string name, string source)
+    {
+        var dir = Path.Combine(Root, folder);
+        Directory.CreateDirectory(dir);
+        File.Copy(source, Path.Combine(dir, name), overwrite: true);
+    }
+
+    /// <summary>Supprime les sauvegardes plus anciennes que la limite (date du fichier).</summary>
+    private void Rotate(string folder, DateTimeOffset limit)
+    {
+        var dir = Path.Combine(Root, folder);
+        if (!Directory.Exists(dir))
+        {
+            return;
+        }
+
+        foreach (var file in new DirectoryInfo(dir).EnumerateFiles("*.sql.gz").Where(f => f.LastWriteTimeUtc < limit.UtcDateTime))
+        {
+            file.Delete();
+            logger.LogInformation("Sauvegarde expirée supprimée : {Folder}/{Name}", folder, file.Name);
+        }
+    }
+
+    /// <summary>pg_dump vers dossier/nom (fichier .partial puis renommé). wait : attendre une sauvegarde en cours plutôt que refuser.</summary>
+    private async Task<FileInfo> DumpAsync(string folderName, string name, bool wait, CancellationToken ct)
+    {
         if (!Directory.Exists(Root))
         {
             throw new DomainException("Dossier des sauvegardes introuvable sur le serveur.");
@@ -52,20 +105,23 @@ public sealed class BackupStore(BackupSettings settings, IConfiguration configur
 
         if (await PgDumpVersionAsync(ct) is null)
         {
-            throw new DomainException("pg_dump n'est pas installé dans l'API : sauvegarde manuelle impossible.");
+            throw new DomainException("pg_dump n'est pas installé dans l'API : sauvegarde impossible.");
         }
 
-        if (!await Running.WaitAsync(0, ct))
+        if (wait)
+        {
+            await Running.WaitAsync(ct);
+        }
+        else if (!await Running.WaitAsync(0, ct))
         {
             throw new DomainException("Une sauvegarde est déjà en cours.");
         }
 
         try
         {
-            var db = new NpgsqlConnectionStringBuilder(configuration.GetConnectionString("Database"));
-            var folder = Path.Combine(Root, "manual");
+            var db = Database;
+            var folder = Path.Combine(Root, folderName);
             Directory.CreateDirectory(folder);
-            var name = $"{db.Database}-{clock.GetUtcNow():yyyyMMdd-HHmmss}.sql.gz";
             var target = Path.Combine(folder, name);
             var partial = target + ".partial";
 
@@ -109,12 +165,14 @@ public sealed class BackupStore(BackupSettings settings, IConfiguration configur
                 File.Delete(partial);
                 var message = (await errors).Trim();
                 logger.LogError("pg_dump a échoué ({Code}) : {Message}", process.ExitCode, message);
-                throw new DomainException($"La sauvegarde a échoué : {message.Split('\n')[0]}");
+                var first = message.Split('\n')[0];
+                throw new DomainException(first.Contains("server version mismatch", StringComparison.OrdinalIgnoreCase)
+                    ? $"Version de PostgreSQL plus récente que pg_dump : {first}"
+                    : $"La sauvegarde a échoué : {first}");
             }
 
-            File.Move(partial, target);
-            var info = new FileInfo(target);
-            return new BackupFileDto("Manual", name, info.Length, info.LastWriteTimeUtc, true);
+            File.Move(partial, target, overwrite: true);
+            return new FileInfo(target);
         }
         finally
         {

@@ -172,6 +172,17 @@ export interface BackupOverview {
   freeBytes: number | null
   files: BackupFile[]
   offsite: OffsiteStatus | null
+  schedule: BackupSchedule | null
+}
+
+export interface BackupSchedule {
+  enabled: boolean
+  dailyAtUtc: string
+  keepDays: number
+  keepWeeks: number
+  keepMonths: number
+  lastRunAt: string | null
+  lastError: string | null
 }
 
 export interface AdminComment {

@@ -6,7 +6,7 @@ COPY server/src/ server/src/
 RUN dotnet publish server/src/BeninConnect.Api/BeninConnect.Api.csproj -c Release -o /app /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
-# pg_dump 17 (dépôt officiel PostgreSQL) : sauvegardes manuelles depuis la console d'administration
+# pg_dump 18 (dépôt officiel PostgreSQL) : sauvegardes automatiques et manuelles ; sauvegarde aussi les serveurs 9.2 à 18
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl \
  && install -d /usr/share/postgresql-common/pgdg \
@@ -14,7 +14,7 @@ RUN apt-get update \
  && . /etc/os-release \
  && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
  && apt-get update \
- && apt-get install -y --no-install-recommends postgresql-client-17 \
+ && apt-get install -y --no-install-recommends postgresql-client-18 \
  && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app .

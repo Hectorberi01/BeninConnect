@@ -63,7 +63,9 @@ public sealed class AdministrationModule : IModule
         }
 
         services.AddSingleton<IBackupMirror, BackupMirror>();
+        services.AddSingleton<BackupScheduleState>();
         services.AddHostedService<BackupMirrorWorker>();
+        services.AddHostedService<AutomaticBackupWorker>();
 
         var jwt = builder.Configuration.GetSection(JwtOptions.Section).Get<JwtOptions>() ?? new JwtOptions();
         services.AddAuthentication().AddJwtBearer(AdminPolicies.Scheme, o =>
