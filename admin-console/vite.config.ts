@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, loadEnv } from 'vite'
 
-// En développement, /api et /uploads sont relayés vers l'API (pas de CORS à gérer).
+// En développement, /api, /uploads et /health sont relayés vers l'API (pas de CORS à gérer).
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const target = env.API_PROXY_TARGET || 'http://localhost:5080'
@@ -12,8 +12,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-    server: { port: 5173, proxy: { '/api': proxy, '/uploads': proxy } },
-    preview: { proxy: { '/api': proxy, '/uploads': proxy } },
+    server: { port: 5173, proxy: { '/api': proxy, '/uploads': proxy, '/health': proxy } },
+    preview: { proxy: { '/api': proxy, '/uploads': proxy, '/health': proxy } },
     test: { environment: 'node' },
   }
 })

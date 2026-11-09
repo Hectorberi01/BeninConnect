@@ -1,7 +1,9 @@
 import { Loader2, X } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
 import { type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, useEffect, useState } from 'react'
 import { apiUrl } from '@/lib/api'
 import { initials } from '@/lib/format'
+import { AnimatedNumber, revealItem, Sparkline, Tilt } from './motion'
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ')
 export { cx }
@@ -11,7 +13,7 @@ type Variant = 'primary' | 'secondary' | 'danger' | 'dangerSoft' | 'ghost'
 export function Button({ variant = 'secondary', loading, icon, children, className, ...rest }:
   ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; loading?: boolean; icon?: ReactNode }) {
   const styles: Record<Variant, string> = {
-    primary: 'bg-brand text-white hover:bg-brand-strong shadow-sm',
+    primary: 'bg-gradient-to-b from-brand to-brand-strong text-white shadow-[0_6px_16px_-6px_var(--brand)] hover:brightness-110',
     secondary: 'bg-surface text-fg border border-line hover:bg-surface-2',
     danger: 'bg-danger text-white hover:opacity-90 shadow-sm',
     dangerSoft: 'bg-danger-soft text-danger hover:bg-danger hover:text-white',
@@ -19,7 +21,7 @@ export function Button({ variant = 'secondary', loading, icon, children, classNa
   }
   return (
     <button {...rest} disabled={rest.disabled || loading}
-      className={cx('inline-flex h-9 items-center justify-center gap-2 rounded-lg px-3.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50',
+      className={cx('inline-flex h-9 items-center justify-center gap-2 rounded-lg px-3.5 text-sm font-medium transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50',
         styles[variant], className)}>
       {loading ? <Loader2 className="size-4 animate-spin" /> : icon}
       {children}
@@ -71,19 +73,26 @@ export function Badge({ tone = 'neutral', children }: { tone?: Tone; children: R
   return <span className={cx('inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium', tones[tone])}>{children}</span>
 }
 
+/** Carte : apparaît en décalé dans un conteneur <Stagger>. */
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cx('rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgba(16,24,40,0.04)]', className)}>{children}</div>
+  return (
+    <motion.div variants={revealItem}
+      className={cx('rounded-xl border border-line bg-surface/90 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_-12px_rgba(16,24,40,0.12)] backdrop-blur-sm', className)}>
+      {children}
+    </motion.div>
+  )
 }
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <motion.div className="mb-6 flex flex-wrap items-end justify-between gap-4"
+      initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         {description && <p className="mt-1 text-sm text-muted">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
-    </div>
+    </motion.div>
   )
 }
 
@@ -158,19 +167,25 @@ export function Modal({ open, title, onClose, children, footer, wide }: {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
-  if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onMouseDown={onClose}>
-      <div role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => e.stopPropagation()}
-        className={cx('max-h-[90vh] w-full overflow-hidden rounded-t-2xl bg-surface shadow-xl sm:rounded-2xl', wide ? 'sm:max-w-3xl' : 'sm:max-w-lg')}>
+    <AnimatePresence>
+    {open && (
+    <motion.div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={onClose}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
+      <motion.div role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => e.stopPropagation()}
+        initial={{ opacity: 0, y: 24, scale: 0.96, rotateX: 8 }} animate={{ opacity: 1, y: 0, scale: 1, rotateX: 0 }} exit={{ opacity: 0, y: 16, scale: 0.97 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 28 }} style={{ transformPerspective: 900 }}
+        className={cx('max-h-[90vh] w-full overflow-hidden rounded-t-2xl bg-surface shadow-2xl sm:rounded-2xl', wide ? 'sm:max-w-3xl' : 'sm:max-w-lg')}>
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="font-semibold">{title}</h2>
           <button aria-label="Fermer" onClick={onClose} className="rounded-md p-1 text-muted hover:bg-surface-2 hover:text-fg"><X className="size-5" /></button>
         </div>
         <div className="max-h-[65vh] overflow-y-auto px-5 py-4">{children}</div>
         {footer && <div className="flex justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+    )}
+    </AnimatePresence>
   )
 }
 
@@ -201,12 +216,45 @@ export function ConfirmDialog({ open, title, message, confirmLabel, danger, reas
   )
 }
 
-export function Stat({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: ReactNode; tone?: 'danger' | 'warning' }) {
+export type Accent = 'brand' | 'info' | 'warning' | 'danger' | 'violet'
+
+const ACCENTS: Record<Accent, { chip: string; glow: string; text: string }> = {
+  brand: { chip: 'bg-brand-soft text-brand', glow: 'bg-brand/25', text: 'text-brand' },
+  info: { chip: 'bg-info-soft text-info', glow: 'bg-info/25', text: 'text-info' },
+  warning: { chip: 'bg-warning-soft text-warning', glow: 'bg-warning/25', text: 'text-warning' },
+  danger: { chip: 'bg-danger-soft text-danger', glow: 'bg-danger/25', text: 'text-danger' },
+  violet: { chip: 'bg-violet-500/15 text-violet-500', glow: 'bg-violet-500/25', text: 'text-violet-500' },
+}
+
+/**
+ * Indicateur en carte 3D (inclinaison au survol).
+ * count : nombre animé ; value : contenu libre ; spark : courbe miniature.
+ */
+export function Stat({ label, value, count, suffix, hint, tone, icon, accent = 'brand', spark, aside }: {
+  label: string; value?: ReactNode; count?: number; suffix?: string; hint?: ReactNode; tone?: 'danger' | 'warning'
+  icon?: ReactNode; accent?: Accent; spark?: number[]; aside?: ReactNode
+}) {
+  const a = ACCENTS[accent]
   return (
-    <Card className="p-4">
-      <p className="text-sm text-muted">{label}</p>
-      <p className={cx('mt-1 text-2xl font-semibold tracking-tight', tone === 'danger' && 'text-danger', tone === 'warning' && 'text-warning')}>{value}</p>
-      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
-    </Card>
+    <Tilt className="h-full">
+      <div className="relative h-full overflow-hidden rounded-xl border border-line bg-surface p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_28px_-16px_rgba(16,24,40,0.25)]">
+        <div aria-hidden className={cx('pointer-events-none absolute -right-8 -top-10 size-28 rounded-full blur-2xl', a.glow)} />
+        <div className="relative flex items-start justify-between gap-3">
+          <p className="text-sm text-muted">{label}</p>
+          {icon && <span className={cx('grid size-9 shrink-0 place-items-center rounded-lg shadow-sm [&>svg]:size-4.5', a.chip)}
+            style={{ transform: 'translateZ(30px)' }}>{icon}</span>}
+        </div>
+        <div className="relative mt-1 flex items-end justify-between gap-3" style={{ transform: 'translateZ(20px)' }}>
+          <div className="min-w-0">
+            <p className={cx('text-2xl font-semibold tracking-tight', tone === 'danger' && 'text-danger', tone === 'warning' && 'text-warning')}>
+              {count !== undefined ? <AnimatedNumber value={count} suffix={suffix} /> : value}
+            </p>
+            {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+          </div>
+          {aside}
+        </div>
+        {spark && <Sparkline data={spark} className={cx('relative mt-3 h-9 w-full', a.text)} />}
+      </div>
+    </Tilt>
   )
 }

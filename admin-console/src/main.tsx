@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MotionConfig } from 'motion/react'
 import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
@@ -27,6 +28,7 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false,
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <MotionConfig reducedMotion="user">
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <AuthProvider>
@@ -56,5 +58,6 @@ createRoot(document.getElementById('root')!).render(
         </AuthProvider>
       </ToastProvider>
     </QueryClientProvider>
+    </MotionConfig>
   </StrictMode>,
 )

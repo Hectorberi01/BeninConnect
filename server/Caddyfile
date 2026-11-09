@@ -64,7 +64,7 @@ monbenin.com {
 }
 
 # Console d'administration : admin-console/dist copié dans /var/www/admin.
-# /api et /uploads relayés vers l'API : même origine, pas de CORS.
+# /api, /uploads et /health relayés vers l'API : même origine, pas de CORS.
 admin.monbenin.com {
 	encode zstd gzip
 
@@ -82,6 +82,10 @@ admin.monbenin.com {
 	}
 
 	handle /uploads/* {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	handle /health {
 		reverse_proxy 127.0.0.1:8080
 	}
 
