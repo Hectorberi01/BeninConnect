@@ -25,6 +25,12 @@ public sealed class CommunitiesModuleService(CommunitiesDbContext db, IEventBus 
     public async Task<IReadOnlyList<string>> GetCommunityNamesOfMemberAsync(Guid userId, CancellationToken ct) =>
         await db.Communities.AsNoTracking().Where(c => c.Members.Any(m => m.UserId == userId)).OrderBy(c => c.Name).Select(c => c.Name).ToListAsync(ct);
 
+    public async Task<IReadOnlyList<MemberCommunity>> GetMembershipsAsync(Guid userId, CancellationToken ct) =>
+        (await db.Communities.AsNoTracking().Include(c => c.Members).Where(c => c.Members.Any(m => m.UserId == userId)).ToListAsync(ct))
+        .Select(c => (c, m: c.Members.First(m => m.UserId == userId)))
+        .Select(x => new MemberCommunity(x.c.Id, x.c.Name, x.m.Role.ToString(), x.c.IsPrivate, x.m.JoinedAt))
+        .OrderByDescending(m => m.JoinedAt).ToList();
+
     public async Task<IReadOnlyDictionary<Guid, int>> CountMembershipsByUserAsync(CancellationToken ct) =>
         await db.Communities.AsNoTracking().SelectMany(c => c.Members).GroupBy(m => m.UserId)
             .Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);

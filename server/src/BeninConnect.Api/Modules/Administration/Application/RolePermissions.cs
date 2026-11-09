@@ -19,7 +19,7 @@ public static class RolePermissions
             Permission.DashboardView, Permission.MembersView, Permission.MembersSuspend, Permission.ContentModerate, Permission.ReportsManage
         ],
         [AdminRole.Accountant] = [Permission.DashboardView, Permission.ExportsDownload],
-        [AdminRole.Developer] = [Permission.DashboardView, Permission.AuditView, Permission.SystemView, Permission.SystemReset]
+        [AdminRole.Developer] = [Permission.DashboardView, Permission.AuditView, Permission.SystemView, Permission.SystemReset, Permission.BackupsManage]
     };
 
     public static IReadOnlyList<Permission> For(AdminRole role) => Matrix[role];

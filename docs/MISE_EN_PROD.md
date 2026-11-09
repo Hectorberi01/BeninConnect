@@ -147,3 +147,28 @@ DNS : un enregistrement A `api.monbenin.com` vers l'IP du serveur, ports 80 et 4
 - Photos : suppression des fichiers orphelins (photo envoyée puis jamais utilisée, ou remplacée).
 - Paquets signalés vulnérables à la compilation (`Microsoft.OpenApi`, `System.Security.Cryptography.Pkcs`) : monter les versions.
 - Mentions légales, politique de confidentialité et suppression de compte (RGPD, exigence Apple / Google).
+
+## Sauvegardes depuis la console
+
+Page **Sauvegardes** de la console (permission `BackupsManage` : Super administrateur et Développeur) :
+- liste des sauvegardes du dossier `server/backups` (quotidiennes, hebdomadaires, mensuelles, photos, manuelles), monté dans l'API sur `/backups` ;
+- **Sauvegarder maintenant** : `pg_dump` 17 (installé dans l'image de l'API) écrit `backups/manual/<base>-<date>.sql.gz` ;
+- téléchargement de chaque fichier, suppression des sauvegardes manuelles (la rotation gère les autres) ;
+- restauration : procédure guidée à exécuter en SSH (volontairement pas de bouton, l'opération écrase la base).
+
+Droits : Ansible crée `backups/*` avec le groupe 1654 (utilisateur `app` des images .NET) et le bit setgid, pour que l'API lise
+les fichiers des conteneurs de sauvegarde et gère `manual/`. Chaque action est inscrite au journal d'audit.
+
+### Copie hors du serveur (S3 / Cloudflare R2)
+
+Si `S3_BACKUP_BUCKET` est défini dans le `.env`, l'API copie les sauvegardes dans ce bucket (préfixe `backups/`, puis
+`daily/`, `weekly/`, `monthly/`, `manual/`, `media/`) :
+- au démarrage + 5 min, puis toutes les 60 min, et aussitôt après une sauvegarde manuelle ;
+- un fichier n'est renvoyé que s'il est nouveau ou modifié (même nom, autre taille) ;
+- une copie distante est supprimée `BACKUP_OFFSITE_RETENTION_DAYS` jours (90 par défaut) après avoir disparu du serveur ;
+- la page Sauvegardes affiche l'état (dernière copie, erreurs), « Copier maintenant », et permet de télécharger les copies distantes.
+
+Mise en place : créer le bucket privé `beninconnect-backups` (R2 > Create bucket, sans accès public), autoriser le jeton
+R2 existant sur ce bucket (Manage R2 API Tokens > le jeton > Object Read & Write), ajouter `S3_BACKUP_BUCKET=beninconnect-backups`
+au `.env`, puis `docker compose -f docker-compose.prod.yml up -d api`.
+

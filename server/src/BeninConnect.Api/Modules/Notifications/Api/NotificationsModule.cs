@@ -1,4 +1,5 @@
 using BeninConnect.Modules.Notifications.Application;
+using BeninConnect.Modules.Notifications.Contracts;
 using BeninConnect.Modules.Notifications.Domain;
 using BeninConnect.Modules.Notifications.Infrastructure;
 using BeninConnect.Modules.Notifications.Infrastructure.Persistence;
@@ -18,6 +19,7 @@ public sealed class NotificationsModule : IModule
         services.AddModuleDbContext<NotificationsDbContext>(builder.Configuration, Name, NotificationsDbContext.SchemaName);
         services.AddScoped<INotificationsDb>(sp => sp.GetRequiredService<NotificationsDbContext>());
         services.AddScoped<IModuleStatistics>(sp => sp.GetRequiredService<NotificationsDbContext>());
+        services.AddScoped<INotificationsModule, NotificationsModuleService>();
         services.AddModuleHandlers("BeninConnect.Modules.Notifications");
 
         // Notifications push : file en mémoire + envoi en arrière-plan via Expo (APNs / FCM)

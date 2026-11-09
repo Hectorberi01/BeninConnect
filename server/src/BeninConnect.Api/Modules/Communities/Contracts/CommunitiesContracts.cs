@@ -4,6 +4,9 @@ namespace BeninConnect.Modules.Communities.Contracts;
 
 public sealed record CommunityInfo(Guid Id, string Name, Guid OwnerId);
 
+/// <summary>Adhésion d'un membre (console). Role : Member, Moderator, Owner.</summary>
+public sealed record MemberCommunity(Guid Id, string Name, string Role, bool IsPrivate, DateTimeOffset JoinedAt);
+
 public sealed record CommunityStats(int Total, int Private, IReadOnlyList<LabelCount> TopByMembers);
 
 public sealed record CommunityExportRow(
@@ -18,6 +21,9 @@ public interface ICommunitiesModule
     Task<IReadOnlyDictionary<Guid, CommunityInfo>> GetInfosAsync(IEnumerable<Guid> ids, CancellationToken ct);
 
     Task<IReadOnlyList<string>> GetCommunityNamesOfMemberAsync(Guid userId, CancellationToken ct);
+
+    /// <summary>Communautés d'un membre avec son rôle, de la plus récente à la plus ancienne.</summary>
+    Task<IReadOnlyList<MemberCommunity>> GetMembershipsAsync(Guid userId, CancellationToken ct);
 
     Task<IReadOnlyDictionary<Guid, int>> CountMembershipsByUserAsync(CancellationToken ct);
 

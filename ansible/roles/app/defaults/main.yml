@@ -3,6 +3,8 @@ app_dir: /opt/beninconnect
 # Racine du dépôt sur la machine qui lance Ansible
 repo_root: "{{ playbook_dir }}/.."
 api_port: 8080
+# Utilisateur « app » des images .NET (APP_UID) : accès au dossier des sauvegardes
+api_container_gid: "1654"
 # Délai d'attente de l'API après démarrage (migrations incluses)
 health_retries: 30
 

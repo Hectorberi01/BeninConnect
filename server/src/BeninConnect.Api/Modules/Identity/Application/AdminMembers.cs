@@ -1,8 +1,11 @@
 using BeninConnect.Modules.Administration.Contracts;
 using BeninConnect.Modules.Communities.Contracts;
+using BeninConnect.Modules.Events.Contracts;
 using BeninConnect.Modules.Feed.Contracts;
 using BeninConnect.Modules.Identity.Domain;
+using BeninConnect.Modules.Messaging.Contracts;
 using BeninConnect.Modules.Moderation.Contracts;
+using BeninConnect.Modules.Notifications.Contracts;
 using BeninConnect.Shared.Application;
 using BeninConnect.Shared.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -13,8 +16,16 @@ public sealed record AdminMemberDto(
     Guid Id, string FirstName, string LastName, string Email, string Country, string City, string AvatarColor, string? AvatarImage,
     DateTimeOffset JoinedAt, bool IsEmailVerified, bool IsSuspended, string? SuspensionReason, int PostCount, int CommentCount, int ReportCount);
 
+/// <summary>Signalement visant le membre, avec le nom de son auteur.</summary>
+public sealed record AdminMemberReportDto(Guid Id, string ReporterName, string Reason, string Status, string Details, DateTimeOffset CreatedAt);
+
+/// <summary>Fiche complète d'un membre pour la console (profil, activité, modération, appareils).</summary>
 public sealed record AdminMemberDetailDto(
-    AdminMemberDto Member, string Profession, string Bio, IReadOnlyList<string> Communities, IReadOnlyList<AdminPostDto> RecentPosts);
+    AdminMemberDto Member, string Profession, string Bio, IReadOnlyList<string> Communities, IReadOnlyList<AdminPostDto> RecentPosts,
+    string OriginCity = "", IReadOnlyList<string>? Interests = null, string? CoverImage = null, DateTimeOffset? SuspendedAt = null,
+    IReadOnlyList<MemberCommunity>? Memberships = null, IReadOnlyList<MemberEvent>? Events = null, MemberMessagingStats? Messaging = null,
+    IReadOnlyList<AdminMemberReportDto>? ReportsAbout = null, int ReportsFiled = 0, int BlockedCount = 0, int BlockedByCount = 0,
+    IReadOnlyList<MemberDevice>? Devices = null);
 
 /// <summary>Status : all, active, suspended, unverified.</summary>
 public sealed record GetAdminMembersQuery(string? Search, string? Status, int Skip = 0, int Take = 25) : IQuery<PagedResult<AdminMemberDto>>;
@@ -30,7 +41,7 @@ public sealed record ReactivateMemberCommand(Guid Id) : ICommand<AdminMemberDto>
 
 /// <summary>Console : membres ; compteurs fournis par Feed et Moderation via leurs contrats.</summary>
 public sealed class AdminMemberHandlers(IIdentityDb db, IFeedModule feed, IModerationModule moderation, ICommunitiesModule communities,
-    IAdminSession admin, TimeProvider clock) :
+    IEventsModule events, IMessagingModule messaging, INotificationsModule notifications, IAdminSession admin, TimeProvider clock) :
     IRequestHandler<GetAdminMembersQuery, PagedResult<AdminMemberDto>>,
     IRequestHandler<GetAdminMemberQuery, AdminMemberDetailDto>,
     IRequestHandler<SuspendMemberCommand, AdminMemberDto>,
@@ -62,9 +73,24 @@ public sealed class AdminMemberHandlers(IIdentityDb db, IFeedModule feed, IModer
     {
         var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.Id, ct) ?? throw new NotFoundException("Membre");
         var member = (await DescribeAsync([user], ct))[0];
-        var names = await communities.GetCommunityNamesOfMemberAsync(user.Id, ct);
+        var memberships = await communities.GetMembershipsAsync(user.Id, ct);
         var posts = await feed.GetRecentPostsForAdminAsync(user.Id, 10, ct);
-        return new AdminMemberDetailDto(member, user.Profession, user.Bio, names, posts);
+        var reports = await moderation.GetReportsAboutMemberAsync(user.Id, 20, ct);
+        var reporterIds = reports.Select(r => r.ReporterId).Distinct().ToList();
+        var reporters = await db.Users.AsNoTracking().Where(u => reporterIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.FirstName + " " + u.LastName, ct);
+
+        return new AdminMemberDetailDto(
+            member, user.Profession, user.Bio, memberships.Select(m => m.Name).ToList(), posts,
+            user.OriginCity, user.Interests.ToList(), user.CoverImage, user.SuspendedAt,
+            memberships,
+            await events.GetMemberEventsAsync(user.Id, 20, ct),
+            await messaging.GetMemberStatsAsync(user.Id, ct),
+            reports.Select(r => new AdminMemberReportDto(r.Id, reporters.GetValueOrDefault(r.ReporterId, "Compte supprimé"), r.Reason, r.Status, r.Details, r.CreatedAt)).ToList(),
+            await moderation.CountReportsFiledByAsync(user.Id, ct),
+            await db.Blocks.CountAsync(b => b.BlockerId == user.Id, ct),
+            await db.Blocks.CountAsync(b => b.BlockedId == user.Id, ct),
+            await notifications.GetDevicesAsync(user.Id, ct));
     }
 
     public async Task<AdminMemberDto> Handle(SuspendMemberCommand request, CancellationToken ct)

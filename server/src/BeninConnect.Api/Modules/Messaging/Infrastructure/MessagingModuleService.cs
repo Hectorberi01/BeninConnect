@@ -9,6 +9,15 @@ public sealed class MessagingModuleService(MessagingDbContext db) : IMessagingMo
 {
     public Task<int> CountMessagesAsync(CancellationToken ct) => db.Messages.CountAsync(ct);
 
+    public async Task<MemberMessagingStats> GetMemberStatsAsync(Guid userId, CancellationToken ct)
+    {
+        var sent = db.Messages.AsNoTracking().Where(m => m.SenderId == userId);
+        return new MemberMessagingStats(
+            await db.Conversations.CountAsync(c => c.Participants.Any(p => p.UserId == userId), ct),
+            await sent.CountAsync(ct),
+            await sent.MaxAsync(m => (DateTimeOffset?)m.SentAt, ct));
+    }
+
     public async Task<IReadOnlyList<DateTimeOffset>> GetMessageDatesAsync(DateTimeOffset since, CancellationToken ct) =>
         await db.Messages.AsNoTracking().Where(m => m.SentAt >= since).Select(m => m.SentAt).ToListAsync(ct);
 

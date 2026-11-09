@@ -26,7 +26,8 @@ public sealed record ResetAdminPasswordCommand(Guid Id, string Password) : IComm
     public IEnumerable<(string, string)> Validate() => AdminRules.Password(nameof(Password), Password);
 }
 
-public sealed record GetAuditQuery(string? Search, int Skip = 0, int Take = 50) : IQuery<PagedResult<AuditEntryDto>>;
+/// <summary>TargetId : actions sur un élément précis (ex. un membre).</summary>
+public sealed record GetAuditQuery(string? Search, int Skip = 0, int Take = 50, Guid? TargetId = null) : IQuery<PagedResult<AuditEntryDto>>;
 
 public sealed class AdminAccountHandlers(IAdministrationDb db, AdminSession admin, IPasswordHasher hasher, TimeProvider clock) :
     IRequestHandler<GetAdminAccountsQuery, IReadOnlyList<AdminAccountDto>>,
@@ -91,6 +92,11 @@ public sealed class AdminAccountHandlers(IAdministrationDb db, AdminSession admi
     {
         var (skip, take) = Text.Page(request.Skip, request.Take);
         var entries = db.AuditEntries.AsNoTracking();
+        if (request.TargetId is { } target)
+        {
+            entries = entries.Where(e => e.TargetId == target);
+        }
+
         if (Text.Like(request.Search) is { } q)
         {
             entries = entries.Where(e => e.Action.ToLower().Contains(q) || e.AdminName.ToLower().Contains(q) || e.Details.ToLower().Contains(q));

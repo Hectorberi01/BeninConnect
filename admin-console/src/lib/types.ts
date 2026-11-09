@@ -4,7 +4,7 @@ export type AdminRole = 'SuperAdmin' | 'Admin' | 'Moderator' | 'Accountant' | 'D
 
 export type Permission =
   | 'DashboardView' | 'MembersView' | 'MembersSuspend' | 'ContentModerate' | 'ReportsManage' | 'CommunitiesManage'
-  | 'EventsManage' | 'ExportsDownload' | 'AdminsManage' | 'AuditView' | 'SystemView' | 'SystemReset'
+  | 'EventsManage' | 'ExportsDownload' | 'AdminsManage' | 'AuditView' | 'SystemView' | 'SystemReset' | 'BackupsManage'
 
 export interface AdminMe {
   id: string
@@ -81,12 +81,97 @@ export interface AdminPost {
   reportCount: number
 }
 
+export interface MemberCommunity {
+  id: string
+  name: string
+  role: 'Member' | 'Moderator' | 'Owner'
+  isPrivate: boolean
+  joinedAt: string
+}
+
+export interface MemberEvent {
+  id: string
+  title: string
+  city: string
+  startsAt: string
+  isOrganizer: boolean
+  participants: number
+}
+
+export interface MemberReport {
+  id: string
+  reporterName: string
+  reason: ReportReason
+  status: ReportStatus
+  details: string
+  createdAt: string
+}
+
+export interface MemberDevice {
+  platform: string
+  registeredAt: string
+  lastSeenAt: string
+}
+
 export interface AdminMemberDetail {
   member: AdminMember
   profession: string
   bio: string
   communities: string[]
   recentPosts: AdminPost[]
+  originCity: string
+  interests: string[] | null
+  coverImage: string | null
+  suspendedAt: string | null
+  memberships: MemberCommunity[] | null
+  events: MemberEvent[] | null
+  messaging: { conversations: number; messagesSent: number; lastMessageAt: string | null } | null
+  reportsAbout: MemberReport[] | null
+  reportsFiled: number
+  blockedCount: number
+  blockedByCount: number
+  devices: MemberDevice[] | null
+}
+
+export type BackupKind = 'Manual' | 'Daily' | 'Weekly' | 'Monthly' | 'Media'
+
+export interface BackupFile {
+  kind: BackupKind
+  name: string
+  size: number
+  createdAt: string
+  canDelete: boolean
+  offsite: boolean
+}
+
+export interface RemoteBackup {
+  kind: BackupKind
+  name: string
+  size: number
+  uploadedAt: string
+  isLocal: boolean
+}
+
+export interface OffsiteStatus {
+  enabled: boolean
+  bucket: string | null
+  retentionDays: number
+  intervalMinutes: number
+  lastSyncAt: string | null
+  lastError: string | null
+  remoteBytes: number
+  remote: RemoteBackup[]
+}
+
+export interface BackupOverview {
+  directoryAvailable: boolean
+  canCreate: boolean
+  pgDumpVersion: string | null
+  lastDatabaseBackupAt: string | null
+  totalBytes: number
+  freeBytes: number | null
+  files: BackupFile[]
+  offsite: OffsiteStatus | null
 }
 
 export interface AdminComment {

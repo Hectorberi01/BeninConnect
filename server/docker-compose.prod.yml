@@ -50,8 +50,18 @@ services:
       Media__S3__PublicBaseUrl: ${S3_PUBLIC_BASE_URL:-}
       Media__S3__CreateBucket: ${S3_CREATE_BUCKET:-false}
       Media__S3__PrivateBucket: ${S3_PRIVATE_BUCKET:-}
+      # Sauvegardes : liste, téléchargement et sauvegarde immédiate depuis la console (pg_dump dans l'image)
+      Backups__Directory: /backups
+      # Copie hors du serveur (S3 / R2) : activée si S3_BACKUP_BUCKET est défini ; mêmes identifiants que les médias
+      Backups__Offsite__Bucket: ${S3_BACKUP_BUCKET:-}
+      Backups__Offsite__ServiceUrl: ${S3_SERVICE_URL:-}
+      Backups__Offsite__Region: ${S3_REGION:-auto}
+      Backups__Offsite__AccessKey: ${S3_ACCESS_KEY:-}
+      Backups__Offsite__SecretKey: ${S3_SECRET_KEY:-}
+      Backups__Offsite__RetentionDays: ${BACKUP_OFFSITE_RETENTION_DAYS:-90}
     volumes:
       - media:/app/media
+      - ./backups:/backups
 
   # Copie quotidienne de la base, indépendante de celle du fournisseur (7 jours, 4 semaines, 6 mois).
   backup:

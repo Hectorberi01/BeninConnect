@@ -2,8 +2,13 @@ using BeninConnect.Shared.Application;
 
 namespace BeninConnect.Modules.Messaging.Contracts;
 
+/// <summary>Activité de messagerie d'un membre (console) : compteurs seulement, jamais le contenu.</summary>
+public sealed record MemberMessagingStats(int Conversations, int MessagesSent, DateTimeOffset? LastMessageAt);
+
 public interface IMessagingModule
 {
+    Task<MemberMessagingStats> GetMemberStatsAsync(Guid userId, CancellationToken ct);
+
     Task<int> CountMessagesAsync(CancellationToken ct);
 
     Task<IReadOnlyList<DateTimeOffset>> GetMessageDatesAsync(DateTimeOffset since, CancellationToken ct);

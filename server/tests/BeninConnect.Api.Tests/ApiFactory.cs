@@ -23,6 +23,9 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     private readonly string _externalDatabase = $"bc_tests_{Guid.NewGuid():N}";
 
+    /// <summary>Dossier des sauvegardes propre à cette fabrique.</summary>
+    public string BackupDirectory { get; } = Path.Combine(Path.GetTempPath(), $"bc-backups-{Guid.NewGuid():N}");
+
     private string ConnectionString => _db?.GetConnectionString() ?? $"{ExternalServer};Database={_externalDatabase}";
 
     public async Task InitializeAsync()
@@ -43,6 +46,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Media:Root", Path.Combine(Path.GetTempPath(), "beninconnect-tests-media"));
         builder.UseSetting("RateLimiting:Enabled", "false");
         builder.UseSetting("Push:Provider", "log"); // jamais de vrai push depuis les tests
+        builder.UseSetting("Backups:Directory", BackupDirectory);
         Configure(builder);
     }
 

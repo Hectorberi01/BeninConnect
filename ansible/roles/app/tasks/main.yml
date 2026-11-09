@@ -7,8 +7,24 @@
     mode: "0750"
   loop:
     - "{{ app_dir }}"
+
+# Sauvegardes : écrites par les conteneurs backup (root) et par l'API (utilisateur app, uid/gid 1654).
+# Groupe 1654 + setgid : l'API lit tout et gère manual/ ; les autres comptes n'y ont pas accès.
+- name: Dossiers des sauvegardes
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ api_container_gid }}"
+    mode: "2770"
+  loop:
+    - "{{ app_dir }}/server/backups"
     - "{{ app_dir }}/server/backups/daily"
+    - "{{ app_dir }}/server/backups/weekly"
+    - "{{ app_dir }}/server/backups/monthly"
+    - "{{ app_dir }}/server/backups/last"
     - "{{ app_dir }}/server/backups/media"
+    - "{{ app_dir }}/server/backups/manual"
 
 - name: Mode de déploiement
   ansible.builtin.set_fact:
@@ -52,11 +68,11 @@
       - "--exclude=Directory.Build.targets"
   notify: Reconstruire
 
+# Propriétaire seulement : le groupe des sauvegardes (api_container_gid) est conservé.
 - name: Propriétaire des fichiers copiés
   ansible.builtin.file:
     path: "{{ app_dir }}"
     owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
     recurse: true
 
 # Le .env (secrets) est déposé à la main sur le serveur avant le premier déploiement : Ansible ne le crée jamais.

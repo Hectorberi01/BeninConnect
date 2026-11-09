@@ -11,6 +11,8 @@ import './index.css'
 // Pages chargées à la demande : premier affichage plus léger (graphiques du tableau de bord à part).
 const AccountPage = lazy(() => import('@/pages/Account').then((m) => ({ default: m.AccountPage })))
 const AdminsPage = lazy(() => import('@/pages/Admins').then((m) => ({ default: m.AdminsPage })))
+const BackupsPage = lazy(() => import('@/pages/Backups').then((m) => ({ default: m.BackupsPage })))
+const MemberDetailPage = lazy(() => import('@/pages/MemberDetail').then((m) => ({ default: m.MemberDetailPage })))
 const AuditPage = lazy(() => import('@/pages/Audit').then((m) => ({ default: m.AuditPage })))
 const CommunitiesPage = lazy(() => import('@/pages/Communities').then((m) => ({ default: m.CommunitiesPage })))
 const DashboardPage = lazy(() => import('@/pages/Dashboard').then((m) => ({ default: m.DashboardPage })))
@@ -40,6 +42,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route index element={<Guard permission="DashboardView"><DashboardPage /></Guard>} />
                 <Route path="reports" element={<Guard permission="ReportsManage"><ReportsPage /></Guard>} />
                 <Route path="members" element={<Guard permission="MembersView"><MembersPage /></Guard>} />
+                <Route path="members/:id" element={<Guard permission="MembersView"><MemberDetailPage /></Guard>} />
                 <Route path="posts" element={<Guard permission="ContentModerate"><PostsPage /></Guard>} />
                 <Route path="communities" element={<Guard permission="CommunitiesManage"><CommunitiesPage /></Guard>} />
                 <Route path="events" element={<Guard permission="EventsManage"><EventsPage /></Guard>} />
@@ -47,6 +50,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="admins" element={<Guard permission="AdminsManage"><AdminsPage /></Guard>} />
                 <Route path="audit" element={<Guard permission="AuditView"><AuditPage /></Guard>} />
                 <Route path="system" element={<Guard permission="SystemView"><SystemPage /></Guard>} />
+                <Route path="backups" element={<Guard permission="BackupsManage"><BackupsPage /></Guard>} />
                 <Route path="account" element={<AccountPage />} />
                 <Route path="forbidden" element={<ForbiddenPage />} />
                 <Route path="*" element={<NotFoundPage />} />

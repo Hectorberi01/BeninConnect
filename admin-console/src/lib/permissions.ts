@@ -13,7 +13,7 @@ export const ROLE_DESCRIPTIONS: Record<AdminRole, string> = {
   Admin: 'Membres, contenus, signalements, communautés, événements, exports et journal.',
   Moderator: 'Signalements, contenus (masquer, supprimer) et suspension des membres.',
   Accountant: 'Tableau de bord et exports CSV, en lecture seule.',
-  Developer: "État de l'API, journal d'audit et outils de développement.",
+  Developer: "État de l'API, sauvegardes de la base, journal d'audit et outils de développement.",
 }
 
 export const ROLES = Object.keys(ROLE_LABELS) as AdminRole[]
@@ -49,4 +49,16 @@ export function decisionsFor(target: ReportTarget, canManageCommunities: boolean
     default:
       return canManageCommunities ? [dismiss, { value: 'delete', label: 'Supprimer la communauté', danger: true }] : [dismiss]
   }
+}
+
+export const REPORT_STATUS_LABELS: Record<'Open' | 'Resolved' | 'Dismissed', string> = {
+  Open: 'À traiter',
+  Resolved: 'Traité',
+  Dismissed: 'Classé',
+}
+
+export const COMMUNITY_ROLE_LABELS: Record<'Member' | 'Moderator' | 'Owner', string> = {
+  Member: 'Membre',
+  Moderator: 'Modérateur',
+  Owner: 'Propriétaire',
 }

@@ -49,6 +49,21 @@ public sealed class AdministrationModule : IModule
         services.AddScoped<IAdminSession>(sp => sp.GetRequiredService<AdminSession>());
         services.AddScoped<ICurrentAdmin, HttpCurrentAdmin>();
         services.AddSingleton<IAdminTokenService, AdminTokenService>();
+        var backups = builder.Configuration.GetSection(BackupSettings.Section).Get<BackupSettings>() ?? new BackupSettings();
+        services.AddSingleton(backups);
+        services.AddScoped<IBackupStore, BackupStore>();
+        // Copie des sauvegardes hors du serveur (S3 / R2) si Backups:Offsite:Bucket est défini
+        if (backups.Offsite.Enabled)
+        {
+            services.AddSingleton<IOffsiteBackupStore>(_ => new S3OffsiteBackupStore(backups.Offsite));
+        }
+        else
+        {
+            services.AddSingleton<IOffsiteBackupStore, DisabledOffsiteStore>();
+        }
+
+        services.AddSingleton<IBackupMirror, BackupMirror>();
+        services.AddHostedService<BackupMirrorWorker>();
 
         var jwt = builder.Configuration.GetSection(JwtOptions.Section).Get<JwtOptions>() ?? new JwtOptions();
         services.AddAuthentication().AddJwtBearer(AdminPolicies.Scheme, o =>
@@ -124,8 +139,29 @@ public sealed class AdministrationModule : IModule
         admin.MapPost("/admins/{id:guid}/password", (Guid id, PasswordRequest r, ISender s, CancellationToken ct) =>
             s.Send(new ResetAdminPasswordCommand(id, r.Password), ct)).RequirePermission(Permission.AdminsManage);
 
-        admin.MapGet("/audit", (string? search, int? skip, int? take, ISender s, CancellationToken ct) =>
-            s.Send(new GetAuditQuery(search, skip ?? 0, take ?? 50), ct)).RequirePermission(Permission.AuditView);
+        // Sauvegardes de la base : liste, création immédiate, téléchargement, suppression des manuelles
+        var backups = admin.MapGroup("/backups").RequirePermission(Permission.BackupsManage);
+        backups.MapGet("", (ISender s, CancellationToken ct) => s.Send(new GetBackupsQuery(), ct));
+        backups.MapPost("", (ISender s, CancellationToken ct) => s.Send(new CreateBackupCommand(), ct));
+        backups.MapGet("/{kind}/{name}", async (string kind, string name, ISender s, CancellationToken ct) =>
+        {
+            var file = await s.Send(new DownloadBackupQuery(kind, name), ct);
+            return Results.File(file.Content, file.ContentType, file.FileName, enableRangeProcessing: true);
+        });
+        backups.MapPost("/offsite/sync", (ISender s, CancellationToken ct) => s.Send(new SyncOffsiteCommand(), ct));
+        backups.MapGet("/offsite/{kind}/{name}", async (string kind, string name, ISender s, CancellationToken ct) =>
+        {
+            var file = await s.Send(new DownloadOffsiteQuery(kind, name), ct);
+            return Results.File(file.Content, file.ContentType, file.FileName);
+        });
+        backups.MapDelete("/Manual/{name}", async (string name, ISender s, CancellationToken ct) =>
+        {
+            await s.Send(new DeleteBackupCommand(name), ct);
+            return Results.NoContent();
+        });
+
+        admin.MapGet("/audit", (string? search, int? skip, int? take, Guid? targetId, ISender s, CancellationToken ct) =>
+            s.Send(new GetAuditQuery(search, skip ?? 0, take ?? 50, targetId), ct)).RequirePermission(Permission.AuditView);
 
         admin.MapGet("/system", async (AdministrationDbContext db, ISender s, IMediaModule media, IWebHostEnvironment env, CancellationToken ct) =>
         {
