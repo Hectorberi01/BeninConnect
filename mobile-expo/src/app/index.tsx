@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { usePreferences } from '@/core/preferences';
 import { useSession } from '@/core/session';
+import { data } from '@/data';
 import { benin, font } from '@/core/theme';
 
 /** Écran de démarrage : onboarding, session mémorisée ou connexion. */
@@ -32,7 +33,7 @@ export default function Splash() {
         <View style={[styles.band, { backgroundColor: benin.yellow }]} />
         <View style={[styles.band, { backgroundColor: benin.red }]} />
       </View>
-      <Text style={styles.version}>Version 1.0 · démonstration</Text>
+      <Text style={styles.version}>{data().kind === 'api' ? 'Version 1.0' : 'Version 1.0 · démonstration'}</Text>
     </View>
   );
 }

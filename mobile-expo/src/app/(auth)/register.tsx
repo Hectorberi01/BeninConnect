@@ -1,8 +1,11 @@
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { FormError, FormScroll } from '@/components/Form';
-import { Button, Checkbox, Header, Muted, PasswordField, Screen, TextField } from '@/components/ui';
+import { Button, Checkbox, Header, Muted, PasswordField, Screen, T, TextField } from '@/components/ui';
+import { SITE_URL } from '@/core/config';
+import { useColors } from '@/core/theme';
 import * as v from '@/core/validation';
 import { data } from '@/data';
 import { errorMessage } from '@/data/types';
@@ -10,6 +13,8 @@ import { errorMessage } from '@/data/types';
 type Field = 'firstName' | 'lastName' | 'email' | 'country' | 'city' | 'password' | 'confirm' | 'terms';
 
 export default function Register() {
+  const c = useColors();
+  const demo = data().kind !== 'api';
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', country: '', city: '', password: '', confirm: '' });
   const [terms, setTerms] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
@@ -61,7 +66,15 @@ export default function Register() {
           hint="8 caractères minimum, lettres et chiffres" textContentType="newPassword" />
         <PasswordField label="Confirmer le mot de passe" value={form.confirm} onChangeText={set('confirm')} error={errors.confirm} />
         <Checkbox checked={terms} onChange={setTerms} error={errors.terms}
-          label="J'accepte les conditions d'utilisation de cette démonstration (aucune donnée réelle n'est collectée)." />
+          label={demo
+            ? "J'accepte les conditions d'utilisation de cette démonstration (aucune donnée réelle n'est collectée)."
+            : "J'accepte les conditions d'utilisation (aucune tolérance pour les contenus abusifs) et la politique de confidentialité."} />
+        {!demo && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 14 }}>
+            <T v="label" color={c.primary} onPress={() => WebBrowser.openBrowserAsync(`${SITE_URL}/conditions/`)}>Conditions d'utilisation</T>
+            <T v="label" color={c.primary} onPress={() => WebBrowser.openBrowserAsync(`${SITE_URL}/confidentialite/`)}>Confidentialité</T>
+          </View>
+        )}
         <Button title="Créer mon compte" onPress={submit} loading={busy} />
         <Muted style={{ textAlign: 'center', marginTop: 16 }}>Un code de vérification vous sera demandé à l'étape suivante.</Muted>
       </FormScroll>

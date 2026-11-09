@@ -94,7 +94,7 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
   };
 
   const logout = async () => {
-    if (await confirm('Se déconnecter ?', 'Vous pourrez vous reconnecter avec le compte de démonstration.', 'Se déconnecter', true)) await signOut();
+    if (await confirm('Se déconnecter ?', data().kind === 'api' ? 'Vous pourrez vous reconnecter avec votre adresse email et votre mot de passe.' : 'Vous pourrez vous reconnecter avec le compte de démonstration.', 'Se déconnecter', true)) await signOut();
   };
 
   return (
