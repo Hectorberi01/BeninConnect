@@ -10,6 +10,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     public const string SchemaName = "identity";
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserBlock> Blocks => Set<UserBlock>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -30,6 +31,12 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             e.Property(x => x.PasswordResetCode).HasMaxLength(6);
             e.Property(x => x.SuspensionReason).HasMaxLength(300);
             e.Ignore(x => x.DisplayName);
+        });
+        b.Entity<UserBlock>(e =>
+        {
+            e.ToTable("user_blocks");
+            e.HasKey(x => new { x.BlockerId, x.BlockedId });
+            e.HasIndex(x => x.BlockedId);
         });
     }
 }

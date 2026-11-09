@@ -31,6 +31,10 @@ export interface DataSource {
   updateProfile(request: UpdateProfileRequest): Promise<User>;
   /** Suppression définitive du compte connecté (mot de passe de confirmation). */
   deleteAccount(password: string): Promise<void>;
+  /** Blocage : plus de contenus ni de messages entre les deux membres. */
+  blockUser(userId: string): Promise<void>;
+  unblockUser(userId: string): Promise<void>;
+  getBlockedUsers(): Promise<User[]>;
 
   // Publications
   getFeed(skip: number, take: number): Promise<Paged<Post>>;

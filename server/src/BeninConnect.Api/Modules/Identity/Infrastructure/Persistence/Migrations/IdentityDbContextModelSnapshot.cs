@@ -124,6 +124,24 @@ namespace BeninConnect.Api.Modules.Identity.Infrastructure.Persistence.Migration
 
                     b.ToTable("users", "identity");
                 });
+
+            modelBuilder.Entity("BeninConnect.Modules.Identity.Domain.UserBlock", b =>
+                {
+                    b.Property<Guid>("BlockerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BlockedId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("BlockerId", "BlockedId");
+
+                    b.HasIndex("BlockedId");
+
+                    b.ToTable("user_blocks", "identity");
+                });
 #pragma warning restore 612, 618
         }
     }

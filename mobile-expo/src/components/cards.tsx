@@ -13,6 +13,7 @@ import { displayName, initials, isEventFull, location, membershipStatus } from '
 import {
   useCommunitiesMap, useDeletePost, useJoinRequests, useMembership, useSharePost, useToggleLike, useToggleParticipation, useUsersMap,
 } from '@/features/queries';
+import { blockUser } from '@/features/block';
 import { reportContent } from '@/features/report';
 import { AttachmentView } from './attachments';
 import { ReactionBar } from './reactions';
@@ -52,7 +53,13 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
         { text: 'Modifier la publication', onPress: () => router.push({ pathname: '/post/new', params: { edit: post.id } }) },
         { text: 'Supprimer la publication', style: 'destructive' as const, onPress: askDelete },
       ]
-      : [{ text: 'Signaler la publication', style: 'destructive' as const, onPress: () => reportContent('Post', post.id) }]),
+      : [
+        { text: 'Signaler la publication', style: 'destructive' as const, onPress: () => reportContent('Post', post.id) },
+        ...(author ? [{
+          text: `Bloquer ${displayName(author)}`, style: 'destructive' as const,
+          onPress: () => blockUser(author, () => { if (detailed && router.canGoBack()) router.back(); }),
+        }] : []),
+      ]),
     { text: 'Annuler', style: 'cancel' as const },
   ]);
 

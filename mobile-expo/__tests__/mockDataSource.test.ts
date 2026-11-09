@@ -82,6 +82,21 @@ describe('MockDataSource', () => {
     expect((await source.getConversation(summary.conversation.id)).unreadCount).toBe(0);
   });
 
+  it('blocage : contenus masqués, messages refusés, déblocage', async () => {
+    const { source, me } = await signedIn();
+    const post = (await source.getFeed(0, 50)).items.find((p) => p.authorId !== me.id)!;
+    const conversation = await source.startConversation(post.authorId);
+    await expect(source.blockUser(me.id)).rejects.toBeInstanceOf(AppError);
+    await source.blockUser(post.authorId);
+    expect((await source.getBlockedUsers()).map((u) => u.id)).toEqual([post.authorId]);
+    expect((await source.getFeed(0, 500)).items.some((p) => p.authorId === post.authorId)).toBe(false);
+    expect((await source.getConversation(conversation.id)).isBlocked).toBe(true);
+    await expect(source.sendMessage(conversation.id, 'Salut')).rejects.toThrow(/plus échanger/);
+    await source.unblockUser(post.authorId);
+    expect(await source.getBlockedUsers()).toEqual([]);
+    await expect(source.sendMessage(conversation.id, 'Salut')).resolves.toMatchObject({ content: 'Salut' });
+  });
+
   it('participation à un événement', async () => {
     const { source, me } = await signedIn();
     const event = (await source.getEvents({})).find((e) => !e.participantIds.includes(me.id) && (e.capacity == null || e.participantIds.length < e.capacity))!;

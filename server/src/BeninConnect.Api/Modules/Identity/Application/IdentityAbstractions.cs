@@ -7,6 +7,7 @@ namespace BeninConnect.Modules.Identity.Application;
 public interface IIdentityDb
 {
     DbSet<User> Users { get; }
+    DbSet<UserBlock> Blocks { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -56,5 +56,14 @@ public sealed class IdentityModuleService(IdentityDbContext db, TimeProvider clo
             .Select(u => new MemberExportRow(u.Id, u.FirstName, u.LastName, u.Email, u.Country, u.City, u.JoinedAt, u.IsEmailVerified, u.IsSuspended))
             .ToListAsync(ct);
 
+    public async Task<IReadOnlySet<Guid>> GetBlockedRelationsAsync(Guid userId, CancellationToken ct)
+    {
+        var ids = await db.Blocks.AsNoTracking()
+            .Where(b => b.BlockerId == userId || b.BlockedId == userId)
+            .Select(b => b.BlockerId == userId ? b.BlockedId : b.BlockerId)
+            .ToListAsync(ct);
+        return ids.ToHashSet();
+    }
+
     public async Task<IReadOnlyList<LabelCount>> CountTablesAsync(CancellationToken ct) => [new("Membres", await db.Users.CountAsync(ct))];
 }

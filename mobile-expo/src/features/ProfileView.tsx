@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CommunityTile, PostCard, usePostContext } from '@/components/cards';
 import { Avatar, Button, Chip, Cover, EmptyState, Icon, IconButton, Muted, QueryView, SectionTitle, T } from '@/components/ui';
 import { confirm } from '@/core/dialog';
 import * as fmt from '@/core/format';
 import { askPhotoSource, pickPhoto } from '@/core/photos';
+import { blockUser, unblockUser, useIsBlocked } from './block';
 import { reportContent } from './report';
 import { queryClient } from '@/core/queryClient';
 import { useMe, useSession } from '@/core/session';
@@ -38,6 +39,7 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
   const insets = useSafeAreaInsets();
   const me = useMe();
   const isMe = user.id === me.id;
+  const blocked = useIsBlocked(isMe ? undefined : user.id);
   const shownUser = isMe ? me : user;
   const posts = usePosts({ authorId: user.id });
   const communities = useMemberCommunities(user.id);
@@ -105,7 +107,13 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
           {showBack ? <RoundButton icon="arrow-left" label="Retour" onPress={() => router.back()} /> : <View />}
           {isMe
             ? <RoundButton icon="cog-outline" label="Paramètres" onPress={() => router.push('/settings')} />
-            : <RoundButton icon="flag-outline" label="Signaler ce membre" onPress={() => reportContent('User', user.id)} />}
+            : <RoundButton icon="dots-horizontal" label="Options du membre" onPress={() => Alert.alert(displayName(user), undefined, [
+              { text: 'Signaler ce membre', style: 'destructive', onPress: () => reportContent('User', user.id) },
+              blocked
+                ? { text: `Débloquer ${displayName(user)}`, onPress: () => unblockUser(user) }
+                : { text: `Bloquer ${displayName(user)}`, style: 'destructive', onPress: () => blockUser(user) },
+              { text: 'Annuler', style: 'cancel' },
+            ])} />}
         </View>
         {isMe && (
           <Pressable accessibilityRole="button" accessibilityLabel="Changer la photo de couverture" onPress={() => changeImage('cover')}
@@ -195,7 +203,7 @@ function Stat({ value, label }: { value: number; label: string }) {
   );
 }
 
-function RoundButton({ icon, label, onPress }: { icon: 'arrow-left' | 'cog-outline' | 'flag-outline'; label: string; onPress: () => void }) {
+function RoundButton({ icon, label, onPress }: { icon: 'arrow-left' | 'cog-outline' | 'dots-horizontal'; label: string; onPress: () => void }) {
   return (
     <View style={styles.round}><IconButton name={icon} label={label} color="#FFFFFF" onPress={onPress} /></View>
   );

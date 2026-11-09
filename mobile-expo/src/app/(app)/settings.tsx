@@ -75,6 +75,7 @@ export default function Settings() {
           <SwitchRow icon="map-marker-outline" label="Afficher ma ville" value={prefs.showCity} onChange={(showCity) => prefs.set({ showCity })} />
           <SwitchRow icon="message-outline" label="Autoriser les messages" description="Les membres peuvent vous écrire"
             value={prefs.allowMessages} onChange={(allowMessages) => prefs.set({ allowMessages })} />
+          <ListRow icon="account-cancel-outline" label="Utilisateurs bloqués" onPress={() => router.push('/account/blocked')} />
           <ListRow icon="shield-account-outline" label="Vos données" onPress={() => info('Vos données',
             data().kind === 'api'
               ? 'Vos réglages sont enregistrés sur cet appareil. Les contenus publiés sont envoyés au serveur BéninConnect configuré.'

@@ -25,6 +25,7 @@ public sealed class DeleteAccountHandler(IIdentityDb db, IPasswordHasher hasher,
 
         var images = new[] { user.AvatarImage, user.CoverImage }.OfType<string>().ToList();
         db.Users.Remove(user);
+        db.Blocks.RemoveRange(await db.Blocks.Where(b => b.BlockerId == user.Id || b.BlockedId == user.Id).ToListAsync(ct));
         await db.SaveChangesAsync(ct);
 
         // Les autres modules effacent publications, messages, adhésions, notifications...

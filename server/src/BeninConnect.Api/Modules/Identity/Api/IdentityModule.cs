@@ -122,6 +122,17 @@ public sealed class IdentityModule : IModule
         users.MapPost("/batch", (IdsRequest r, ISender s, CancellationToken ct) => s.Send(new GetUsersByIdsQuery(r.Ids), ct));
         users.MapGet("/{id:guid}", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetUserQuery(id), ct));
         users.MapPut("/me", (UpdateProfileCommand c, ISender s, CancellationToken ct) => s.Send(c, ct));
+        users.MapGet("/me/blocked", (ISender s, CancellationToken ct) => s.Send(new GetBlockedUsersQuery(), ct));
+        users.MapPost("/{id:guid}/block", async (Guid id, ISender s, CancellationToken ct) =>
+        {
+            await s.Send(new BlockUserCommand(id), ct);
+            return Results.NoContent();
+        });
+        users.MapDelete("/{id:guid}/block", async (Guid id, ISender s, CancellationToken ct) =>
+        {
+            await s.Send(new UnblockUserCommand(id), ct);
+            return Results.NoContent();
+        });
         // POST : le mot de passe de confirmation voyage dans le corps
         users.MapPost("/me/delete", async (DeleteAccountCommand c, ISender s, CancellationToken ct) =>
         {

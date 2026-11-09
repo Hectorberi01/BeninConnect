@@ -144,6 +144,8 @@ export interface ConversationSummary {
   otherParticipant: User;
   lastMessage: Message | null;
   unreadCount: number;
+  /** L'un des deux a bloqué l'autre : plus aucun message possible. */
+  isBlocked?: boolean;
 }
 
 export interface CommunityEvent {

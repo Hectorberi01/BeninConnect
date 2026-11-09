@@ -38,7 +38,8 @@ public interface IChatNotifier
     Task ConversationReadAsync(IReadOnlyCollection<Guid> userIds, Guid conversationId, Guid readerId, CancellationToken ct);
 }
 
-public sealed record ConversationSummaryDto(ConversationDto Conversation, UserDto OtherParticipant, MessageDto? LastMessage, int UnreadCount);
+/// <summary>IsBlocked : l'un des deux a bloqué l'autre, plus aucun message possible.</summary>
+public sealed record ConversationSummaryDto(ConversationDto Conversation, UserDto OtherParticipant, MessageDto? LastMessage, int UnreadCount, bool IsBlocked = false);
 
 public static class MessagingMapping
 {
@@ -148,6 +149,7 @@ public sealed class ConversationHandlers(
     public async Task<MessageDto> Handle(SendMessageCommand request, CancellationToken ct)
     {
         var conversation = await LoadMineAsync(request.ConversationId, ct);
+        await EnsureNotBlockedAsync(conversation.Participants.Select(p => p.UserId), ct);
         var message = conversation.Post(Guid.NewGuid(), me.Id, request.Content, clock.GetUtcNow());
         db.Messages.Add(message);
         await db.SaveChangesAsync(ct);
@@ -158,6 +160,7 @@ public sealed class ConversationHandlers(
     public async Task<MessageDto> Handle(SendAttachmentCommand request, CancellationToken ct)
     {
         var conversation = await LoadMineAsync(request.ConversationId, ct);
+        await EnsureNotBlockedAsync(conversation.Participants.Select(p => p.UserId), ct);
         var stored = await media.SaveAttachmentAsync(request.Content, request.Length, ct);
         var kind = Enum.Parse<AttachmentKind>(stored.Kind);
         var fallback = kind switch { AttachmentKind.Audio => "Message vocal", AttachmentKind.Image => "Photo", _ => "Document" };
@@ -276,6 +279,8 @@ public sealed class ConversationHandlers(
             throw new NotFoundException("Membre");
         }
 
+        await EnsureNotBlockedAsync([request.OtherUserId], ct);
+
         var existing = await db.Conversations.AsNoTracking().Include(c => c.Participants)
             .Where(c => c.Participants.Count == 2
                         && c.Participants.Any(p => p.UserId == me.Id)
@@ -299,6 +304,15 @@ public sealed class ConversationHandlers(
         return new CountDto(await db.Messages.CountAsync(m => mine.Contains(m.ConversationId) && m.SenderId != me.Id && !m.IsRead, ct));
     }
 
+    private async Task EnsureNotBlockedAsync(IEnumerable<Guid> participants, CancellationToken ct)
+    {
+        var blocked = await identity.GetBlockedRelationsAsync(me.Id, ct);
+        if (participants.Any(blocked.Contains))
+        {
+            throw new DomainException("Vous ne pouvez plus échanger de messages avec ce membre.");
+        }
+    }
+
     private async Task<Conversation> LoadMineAsync(Guid id, CancellationToken ct)
     {
         var conversation = await db.Conversations.Include(c => c.Participants).FirstOrDefaultAsync(c => c.Id == id, ct)
@@ -311,6 +325,7 @@ public sealed class ConversationHandlers(
         var ids = conversations.Select(c => c.Id).ToList();
         var otherIds = conversations.SelectMany(c => c.Participants).Select(p => p.UserId).Where(id => id != me.Id).Distinct().ToList();
         var users = await identity.GetUsersAsync(otherIds, ct);
+        var blocked = await identity.GetBlockedRelationsAsync(me.Id, ct);
 
         var messages = await db.Messages.AsNoTracking().Where(m => ids.Contains(m.ConversationId)).ToListAsync(ct);
         var byConversation = messages.GroupBy(m => m.ConversationId).ToDictionary(g => g.Key, g => g.ToList());
@@ -329,7 +344,8 @@ public sealed class ConversationHandlers(
                 c.ToDto(),
                 other,
                 list.MaxBy(m => m.SentAt)?.ToDto(),
-                list.Count(m => m.SenderId != me.Id && !m.IsRead)));
+                list.Count(m => m.SenderId != me.Id && !m.IsRead),
+                blocked.Contains(otherId)));
         }
 
         return result;

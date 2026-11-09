@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PostCard, usePostContext } from '@/components/cards';
 import { ReactionBar, useReactionPicker } from '@/components/reactions';
@@ -10,6 +10,7 @@ import { useMe } from '@/core/session';
 import { depth, font, useColors } from '@/core/theme';
 import type { Comment, Post } from '@/data/types';
 import { displayName, errorMessage, initials } from '@/data/types';
+import { blockUser } from '@/features/block';
 import { reportContent } from '@/features/report';
 import { useAddComment, useComments, usePost, useReactToComment, useUsersMap } from '@/features/queries';
 
@@ -67,7 +68,11 @@ function Details({ post, focus }: { post: Post; focus: boolean }) {
             </T>
             <View style={{ flex: 1 }}><ReactionBar reactions={item.reactions} me={me.id} onToggle={toggle} /></View>
             {item.authorId !== me.id && (
-              <T v="label" color={c.textSecondary} style={{ fontSize: 12 }} onPress={() => reportContent('Comment', item.id)}>Signaler</T>
+              <T v="label" color={c.textSecondary} style={{ fontSize: 12 }} onPress={() => Alert.alert('Commentaire', undefined, [
+                { text: 'Signaler le commentaire', style: 'destructive', onPress: () => reportContent('Comment', item.id) },
+                { text: `Bloquer ${displayName(author)}`, style: 'destructive', onPress: () => blockUser(author) },
+                { text: 'Annuler', style: 'cancel' },
+              ])}>Signaler · Bloquer</T>
             )}
           </View>
         </View>

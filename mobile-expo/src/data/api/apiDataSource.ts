@@ -133,6 +133,9 @@ export class ApiDataSource implements DataSource {
     await this.post<{ id: string }>('api/reports', { targetType, targetId, reason, details: details ?? null });
   };
   deleteAccount = async (password: string) => { await this.post<void>('api/users/me/delete', { password }); };
+  blockUser = async (id: string) => { await this.post<void>(`api/users/${id}/block`); };
+  unblockUser = async (id: string) => { await this.request<void>('DELETE', `api/users/${id}/block`); };
+  getBlockedUsers = () => this.get<User[]>('api/users/me/blocked');
   getComments = (id: string) => this.get<Comment[]>(`api/posts/${id}/comments`);
   async uploadImage(photo: LocalPhoto) {
     const type = photo.mimeType || 'image/jpeg';

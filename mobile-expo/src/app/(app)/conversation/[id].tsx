@@ -18,6 +18,8 @@ import { toast } from '@/core/toast';
 import {
   useConversation, useDeleteMessage, useEditMessage, useMarkConversationRead, useMessages, useReactToMessage, useSendAttachment, useSendMessage,
 } from '@/features/queries';
+import { blockUser, unblockUser, useIsBlocked } from '@/features/block';
+import { reportContent } from '@/features/report';
 import { useVoiceRecorder } from '@/features/voice';
 
 export default function Conversation() {
@@ -39,6 +41,8 @@ function Chat({ summary }: { summary: ConversationSummary }) {
   const id = summary.conversation.id;
   useOpenConversation(id);
   const other = summary.otherParticipant;
+  const blockedByMe = useIsBlocked(other.id);
+  const locked = !!summary.isBlocked || blockedByMe;
   const messages = useMessages(id);
   const send = useSendMessage(id);
   const markRead = useMarkConversationRead();
@@ -130,6 +134,15 @@ function Chat({ summary }: { summary: ConversationSummary }) {
     }
   };
 
+  const openMenu = () => Alert.alert(displayName(other), undefined, [
+    { text: 'Voir le profil', onPress: () => router.push(`/user/${other.id}`) },
+    { text: 'Signaler ce membre', style: 'destructive', onPress: () => reportContent('User', other.id) },
+    blockedByMe
+      ? { text: `Débloquer ${displayName(other)}`, onPress: () => unblockUser(other) }
+      : { text: `Bloquer ${displayName(other)}`, style: 'destructive', onPress: () => blockUser(other) },
+    { text: 'Annuler', style: 'cancel' },
+  ]);
+
   // Appui long : réactions, et pour ses messages Modifier (15 min) / Supprimer.
   const actionsFor = (message: Message): PickerAction[] => {
     if (message.senderId !== me.id) return [];
@@ -152,6 +165,7 @@ function Chat({ summary }: { summary: ConversationSummary }) {
             <Muted lines={1}>{location(other)}</Muted>
           </View>
         </Pressable>
+        <IconButton name="dots-vertical" label="Options de la discussion" onPress={openMenu} />
       </View>
 
       {messages.isPending ? <View style={{ flex: 1 }} /> : (
@@ -175,6 +189,15 @@ function Chat({ summary }: { summary: ConversationSummary }) {
         />
       )}
 
+      {locked ? (
+        <View style={[styles.composer, styles.locked, { backgroundColor: c.surface, borderColor: c.border, paddingBottom: insets.bottom + 12 }]}>
+          <Icon name="account-cancel-outline" size={22} color={c.textSecondary} />
+          <Muted style={{ flex: 1 }}>
+            {blockedByMe ? `Vous avez bloqué ${displayName(other)}. Débloquez ce membre pour lui écrire.` : 'Vous ne pouvez plus répondre à cette discussion.'}
+          </Muted>
+          {blockedByMe && <T v="label" color={c.primary} onPress={() => unblockUser(other)}>Débloquer</T>}
+        </View>
+      ) : (
       <View style={[styles.composer, { backgroundColor: c.surface, borderColor: c.border, paddingBottom: insets.bottom + 8 }]}>
         {editing ? (
           <View style={[styles.editing, { borderColor: c.primary }]}>
@@ -230,6 +253,7 @@ function Chat({ summary }: { summary: ConversationSummary }) {
           </View>
         )}
       </View>
+      )}
       {picker.element}
     </KeyboardAvoidingView>
   );
@@ -246,5 +270,6 @@ const styles = StyleSheet.create({
   tool: { width: 34, height: 42, alignItems: 'center', justifyContent: 'center' },
   recording: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dot: { width: 10, height: 10, borderRadius: 5 },
+  locked: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 12 },
   editing: { flexDirection: 'row', alignItems: 'center', gap: 10, borderLeftWidth: 3, paddingLeft: 10, marginBottom: 8 },
 });

@@ -31,6 +31,9 @@ public interface IIdentityModule
     Task<IReadOnlyList<DateTimeOffset>> GetJoinDatesAsync(DateTimeOffset since, CancellationToken ct);
 
     Task<IReadOnlyList<MemberExportRow>> GetExportRowsAsync(CancellationToken ct);
+
+    /// <summary>Membres que userId a bloqués ou qui l'ont bloqué : contenus et messages masqués dans les deux sens.</summary>
+    Task<IReadOnlySet<Guid>> GetBlockedRelationsAsync(Guid userId, CancellationToken ct);
 }
 
 /// <summary>Email vérifié pour la première fois (message de bienvenue).</summary>

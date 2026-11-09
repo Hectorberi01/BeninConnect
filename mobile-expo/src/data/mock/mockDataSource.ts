@@ -70,10 +70,40 @@ export class MockDataSource implements DataSource {
     return new Set(this.store.communities.filter((c) => c.memberIds.includes(userId)).map((c) => c.id));
   }
 
+  /** Paires « bloqueur:bloqué ». */
+  private readonly blocks = new Set<string>();
+
+  private isBlocked(a: string, b: string) {
+    return this.blocks.has(`${a}:${b}`) || this.blocks.has(`${b}:${a}`);
+  }
+
   private visiblePosts(userId: string) {
     const memberOf = this.memberOf(userId);
-    return this.store.posts.filter((p) => p.authorId === userId || p.visibility === 'Public'
-      || (p.visibility === 'CommunityMembers' && p.communityId != null && memberOf.has(p.communityId)));
+    return this.store.posts.filter((p) => !this.isBlocked(userId, p.authorId) && (p.authorId === userId || p.visibility === 'Public'
+      || (p.visibility === 'CommunityMembers' && p.communityId != null && memberOf.has(p.communityId))));
+  }
+
+  async blockUser(userId: string) {
+    await this.net();
+    if (userId === this.userId) throw new AppError('Vous ne pouvez pas vous bloquer vous-même.', 400);
+    this.find(this.store.users, userId, 'Membre');
+    this.blocks.add(`${this.userId}:${userId}`);
+  }
+
+  async unblockUser(userId: string) {
+    await this.net();
+    this.blocks.delete(`${this.userId}:${userId}`);
+  }
+
+  async getBlockedUsers() {
+    await this.net();
+    return this.store.users.filter((u) => this.blocks.has(`${this.userId}:${u.id}`));
+  }
+
+  private ensureNotBlocked(c: Conversation) {
+    if (c.participantIds.some((p) => p !== this.userId && this.isBlocked(this.userId, p))) {
+      throw new AppError('Vous ne pouvez plus échanger de messages avec ce membre.', 400);
+    }
   }
 
   private validate(errors: Record<string, string | null>) {
@@ -291,7 +321,7 @@ export class MockDataSource implements DataSource {
 
   async getComments(postId: string) {
     await this.getPost(postId);
-    return this.store.comments.filter((c) => c.postId === postId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    return this.store.comments.filter((c) => c.postId === postId && !this.isBlocked(this.userId, c.authorId)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
   async addComment(postId: string, content: string) {
@@ -421,6 +451,7 @@ export class MockDataSource implements DataSource {
       otherParticipant: this.find(this.store.users, otherId, 'Membre'),
       lastMessage: msgs.reduce<Message | null>((last, m) => (!last || m.sentAt > last.sentAt ? m : last), null),
       unreadCount: msgs.filter((m) => m.senderId !== this.userId && !m.isRead).length,
+      isBlocked: this.isBlocked(this.userId, otherId),
     };
   }
 
@@ -450,6 +481,7 @@ export class MockDataSource implements DataSource {
   async sendMessage(conversationId: string, content: string) {
     await this.net();
     const c = this.mine(conversationId);
+    this.ensureNotBlocked(c);
     const message = this.post(conversationId, this.userId, content, false);
     const me = this.find(this.store.users, this.userId, 'Compte');
     for (const other of c.participantIds.filter((p) => p !== this.userId)) {
@@ -501,7 +533,7 @@ export class MockDataSource implements DataSource {
 
   async sendAttachment(conversationId: string, file: OutgoingFile, caption?: string) {
     await this.net();
-    this.mine(conversationId);
+    this.ensureNotBlocked(this.mine(conversationId));
     const kind = file.mimeType.startsWith('image/') ? 'Image' : file.mimeType.startsWith('audio/') ? 'Audio' : 'File';
     if (kind === 'File' && file.mimeType !== 'application/pdf') throw new AppError('Format non pris en charge : envoyez une photo, un PDF ou un fichier audio.', 400);
     const m: Message = {

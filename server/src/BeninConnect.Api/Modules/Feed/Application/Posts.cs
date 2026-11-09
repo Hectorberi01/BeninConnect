@@ -1,6 +1,7 @@
 using BeninConnect.Modules.Communities.Contracts;
 using BeninConnect.Modules.Feed.Contracts;
 using BeninConnect.Modules.Feed.Domain;
+using BeninConnect.Modules.Identity.Contracts;
 using BeninConnect.Shared.Application;
 using BeninConnect.Shared.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -64,14 +65,18 @@ public sealed record AddCommentCommand(Guid PostId, string Content) : ICommand<C
     public IEnumerable<(string, string)> Validate() => Rules.Length(nameof(Content), Content, "Le commentaire", 1, Comment.MaxLength);
 }
 
-/// <summary>Publications visibles : publiques, celles des communautés dont on est membre, et les siennes.</summary>
-public sealed class PostAccess(IFeedDb db, ICommunitiesModule communities, ICurrentUser me)
+/// <summary>Publications visibles : publiques, celles des communautés dont on est membre, et les siennes ; jamais celles d'un membre bloqué.</summary>
+public sealed class PostAccess(IFeedDb db, ICommunitiesModule communities, IIdentityModule identity, ICurrentUser me)
 {
+    /// <summary>Auteurs masqués pour le membre connecté (blocage dans un sens ou dans l'autre).</summary>
+    public async Task<List<Guid>> BlockedAuthorsAsync(CancellationToken ct) => [.. await identity.GetBlockedRelationsAsync(me.Id, ct)];
+
     public async Task<IQueryable<Post>> VisibleAsync(IQueryable<Post> posts, CancellationToken ct)
     {
         var memberOf = await communities.GetCommunityIdsOfMemberAsync(me.Id, ct);
+        var blocked = await BlockedAuthorsAsync(ct);
         var id = me.Id;
-        return posts.Where(p => !p.IsHidden && (
+        return posts.Where(p => !p.IsHidden && !blocked.Contains(p.AuthorId) && (
             p.AuthorId == id
             || p.Visibility == PostVisibility.Public
             || (p.Visibility == PostVisibility.CommunityMembers && p.CommunityId != null && memberOf.Contains(p.CommunityId.Value))));
@@ -132,8 +137,9 @@ public sealed class PostQueryHandlers(IFeedDb db, PostAccess access) :
     public async Task<IReadOnlyList<CommentDto>> Handle(GetCommentsQuery request, CancellationToken ct)
     {
         await access.GetVisibleAsync(request.PostId, ct);
+        var blocked = await access.BlockedAuthorsAsync(ct);
         return (await db.Comments.AsNoTracking().Include(c => c.Reactions)
-                .Where(c => c.PostId == request.PostId).OrderBy(c => c.CreatedAt).ToListAsync(ct))
+                .Where(c => c.PostId == request.PostId && !blocked.Contains(c.AuthorId)).OrderBy(c => c.CreatedAt).ToListAsync(ct))
             .Select(c => c.ToDto()).ToList();
     }
 }
