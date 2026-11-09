@@ -1,3 +1,6 @@
 # Site public servi par Caddy (installé sur le VPS)
 web_root: /var/www/monbenin
 caddy_site_file: /etc/caddy/sites/beninconnect.caddy
+# Console d'administration : build Vite fait par la CI (npm run build) avant Ansible
+admin_root: /var/www/admin
+admin_dist: "{{ repo_root }}/admin-console/dist"

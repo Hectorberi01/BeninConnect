@@ -1,4 +1,5 @@
-# Déploiement en production avec Ansible : le serveur télécharge les images de la CI (aucun build sur le VPS).
+# Déploiement en production avec Ansible : le serveur télécharge les images de la CI (aucun build sur le VPS),
+# puis reçoit la configuration Caddy, le site public et la console d'administration (build fait ici).
 # Automatique après une CI verte sur main, ou manuel (Actions > Deploy > Run workflow) avec un tag d'image.
 name: Deploy
 
@@ -41,6 +42,22 @@ jobs:
           else
             echo "value=sha-$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
           fi
+
+      # Console d'administration : build statique publié par Ansible (rôle web) dans /var/www/admin
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: admin-console/package-lock.json
+
+      - name: Build de la console d'administration
+        working-directory: admin-console
+        env:
+          VITE_API_URL: "" # même origine : Caddy relaie /api vers l'API
+        run: |
+          npm ci
+          npm run build
+          test -f dist/index.html
 
       - uses: actions/setup-python@v5
         with:

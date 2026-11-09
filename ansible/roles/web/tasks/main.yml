@@ -15,6 +15,7 @@
     - { path: /etc/caddy/sites, owner: root }
     - { path: /var/log/caddy, owner: caddy }
     - { path: "{{ web_root }}", owner: root }
+    - { path: "{{ admin_root }}", owner: root }
 
 - name: Import des sites dans le Caddyfile principal
   ansible.builtin.lineinfile:
@@ -41,6 +42,29 @@
     group: false
     rsync_opts:
       - "--chmod=D755,F644"
+
+- name: Build de la console d'administration présent
+  ansible.builtin.stat:
+    path: "{{ admin_dist }}/index.html"
+  delegate_to: localhost
+  become: false
+  register: admin_build
+
+- name: Fichiers de la console d'administration
+  ansible.posix.synchronize:
+    src: "{{ admin_dist }}/"
+    dest: "{{ admin_root }}/"
+    delete: true
+    owner: false
+    group: false
+    rsync_opts:
+      - "--chmod=D755,F644"
+  when: admin_build.stat.exists
+
+- name: Console d'administration non construite
+  ansible.builtin.debug:
+    msg: "admin-console/dist absent : lancer « npm ci && npm run build » dans admin-console avant le déploiement. Console non mise à jour."
+  when: not admin_build.stat.exists
 
 - name: Caddy actif
   ansible.builtin.systemd_service:

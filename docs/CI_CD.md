@@ -3,7 +3,7 @@
 | Workflow | Déclenchement | Rôle |
 |---|---|---|
 | `CI` (`.github/workflows/ci.yml`) | push sur `main`, pull request, manuel | tests de chaque partie ; sur `main`, images Docker publiées sur GHCR |
-| `Deploy` (`.github/workflows/deploy.yml`) | après une CI verte sur `main`, ou manuel avec un tag | Ansible `deploy.yml` : le serveur télécharge les images (pas de build sur le VPS), puis installe la configuration Caddy et le site public |
+| `Deploy` (`.github/workflows/deploy.yml`) | après une CI verte sur `main`, ou manuel avec un tag | build de la console d'administration, puis Ansible `deploy.yml` : le serveur télécharge les images (pas de build sur le VPS), installe la configuration Caddy, le site public et la console |
 
 ## Jobs de la CI
 
@@ -27,6 +27,17 @@ Le dossier `site/` (accueil, support, confidentialité, conditions, mentions lé
 - `site/` synchronisé dans `/var/www/monbenin` (les fichiers retirés du dépôt sont supprimés du serveur).
 
 Modifier une page : éditer le HTML dans `site/`, commit, push sur `main`. Prérequis : DNS `monbenin.com` et `www` vers le VPS.
+
+## Console d'administration (admin.monbenin.com)
+
+À chaque déploiement :
+- le workflow `Deploy` construit `admin-console/` (`npm ci && npm run build`, `VITE_API_URL` vide) ;
+- le rôle Ansible `web` synchronise `admin-console/dist` dans `/var/www/admin` ;
+- Caddy sert la console sur `admin.monbenin.com` (retour sur `index.html` pour les routes React) et relaie `/api` et `/uploads` vers l'API : même origine, aucun réglage CORS.
+
+Prérequis (une fois) : enregistrement DNS `A admin.monbenin.com → 51.255.40.214` chez OVH, puis un compte administrateur
+(premier SuperAdmin créé au démarrage de l'API depuis `ADMIN_BOOTSTRAP_EMAIL` et `ADMIN_BOOTSTRAP_PASSWORD` du `.env`, voir `docs/MISE_EN_PROD.md`).
+Depuis le Mac : `cd admin-console && npm ci && npm run build`, puis `ansible-playbook deploy.yml`.
 
 ## À configurer une fois sur GitHub
 
