@@ -16,7 +16,10 @@
         "NSLocalNetworkUsageDescription": "BéninConnect se connecte à l'API de développement sur votre réseau local.",
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleDisplayName": "BéninConnect"
-      }
+      },
+      "associatedDomains": [
+        "applinks:monbenin.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +28,24 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.hbatech.beninconnect.rn",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "monbenin.com",
+              "pathPrefix": "/post/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

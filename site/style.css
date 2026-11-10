@@ -61,3 +61,16 @@ footer{border-top:1px solid var(--line);padding:28px 0 20px;margin-top:24px}
 .footlinks a:hover{color:var(--link)}
 .notfound{padding-top:96px}
 .notfound img{border-radius:22px}
+
+/* Boutons de téléchargement (App Store, Google Play) */
+.stores{display:flex;flex-wrap:wrap;gap:12px}
+.center-row{justify-content:center}
+.store{display:inline-flex;align-items:center;gap:10px;background:#000;color:#fff;text-decoration:none;padding:9px 18px 9px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.25);min-width:170px;transition:transform .15s ease,box-shadow .15s ease}
+.store:hover{transform:translateY(-2px);box-shadow:0 10px 24px -10px rgba(0,0,0,.5)}
+.store svg{width:26px;height:26px;fill:#fff;flex-shrink:0}
+.store span{display:flex;flex-direction:column;font-size:18px;font-weight:600;line-height:1.1}
+.store small{font-size:11px;font-weight:500;opacity:.85}
+.free{margin:12px 0 0;opacity:.85;font-size:15px}
+.download{background:linear-gradient(160deg,var(--green),var(--dark));color:#fff;border-radius:24px;padding:40px 24px;margin:48px 0}
+.download h2{margin-top:0;color:#fff}
+.download p{opacity:.9;margin-bottom:22px}

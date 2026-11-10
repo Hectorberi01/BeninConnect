@@ -3,7 +3,7 @@ using BeninConnect.Modules.Media.Contracts;
 
 namespace BeninConnect.Modules.Media.Infrastructure;
 
-public sealed class MediaModuleService(IMediaStorage storage, AttachmentStore attachments) : IMediaModule
+public sealed class MediaModuleService(IMediaStorage storage, AttachmentStore attachments, MediaSettings settings) : IMediaModule
 {
     public async Task<MediaUsage> UsageAsync(CancellationToken ct)
     {
@@ -15,4 +15,9 @@ public sealed class MediaModuleService(IMediaStorage storage, AttachmentStore at
         attachments.SaveAsync(content, length, ct);
 
     public Task<AttachmentContent?> OpenAttachmentAsync(string name, CancellationToken ct) => attachments.OpenAsync(name, ct);
+
+    public string? PublicUrl(string path) =>
+        settings.IsS3 && !string.IsNullOrWhiteSpace(settings.S3.PublicBaseUrl) && path.StartsWith("uploads/", StringComparison.Ordinal)
+            ? $"{settings.S3.PublicBaseUrl.TrimEnd('/')}/{path}"
+            : null;
 }

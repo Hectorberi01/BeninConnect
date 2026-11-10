@@ -24,6 +24,7 @@ public sealed class FeedModule : IModule
         services.AddScoped<IFeedDb>(sp => sp.GetRequiredService<FeedDbContext>());
         services.AddModuleHandlers("BeninConnect.Modules.Feed");
         services.AddScoped<PostAccess>();
+        services.AddSingleton(builder.Configuration.GetSection(ShareSettings.Section).Get<ShareSettings>() ?? new ShareSettings());
         services.AddScoped<AdminPostReader>();
         services.AddScoped<FeedModuleService>();
         services.AddScoped<IFeedModule>(sp => sp.GetRequiredService<FeedModuleService>());
@@ -32,6 +33,8 @@ public sealed class FeedModule : IModule
 
     public void MapEndpoints(IEndpointRouteBuilder app)
     {
+        SharePage.Map(app); // page publique d'une publication partagée
+
         var feed = app.MapGroup("/api").WithTags("Publications").RequireAuthorization();
         feed.MapGet("/feed", (int? skip, int? take, ISender s, CancellationToken ct) => s.Send(new GetFeedQuery(skip ?? 0, take ?? 10), ct));
         feed.MapGet("/posts", (Guid? authorId, Guid? communityId, string? search, ISender s, CancellationToken ct) =>

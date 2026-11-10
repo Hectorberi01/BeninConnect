@@ -96,7 +96,7 @@ export function useSharePost() {
     mutationFn: async ({ post, authorName }: { post: Post; authorName: string }) => {
       const excerpt = post.content.length > 200 ? `${post.content.slice(0, 200).trimEnd()}…` : post.content;
       const result = await Share.share({
-        message: `${authorName} sur BéninConnect :\n\n« ${excerpt} »\n\nRejoignez la communauté : ${SITE_URL}`,
+        message: `${authorName} sur BéninConnect :\n\n« ${excerpt} »\n\n${SITE_URL}/post/${post.id}`,
       });
       return result.action === Share.sharedAction ? data().sharePost(post.id) : null;
     },

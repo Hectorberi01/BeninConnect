@@ -22,6 +22,9 @@ public interface IMediaModule
 
     /// <summary>null : fichier absent. L'appelant vérifie au préalable le droit d'accès.</summary>
     Task<AttachmentContent?> OpenAttachmentAsync(string name, CancellationToken ct);
+
+    /// <summary>URL publique directe d'une photo (domaine du bucket) ; null si les fichiers passent par l'API.</summary>
+    string? PublicUrl(string path);
 }
 
 /// <summary>Photos qui ne sont plus utilisées (publication ou compte supprimé) : effacées du stockage.</summary>

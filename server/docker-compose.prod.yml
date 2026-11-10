@@ -52,6 +52,9 @@ services:
       Media__S3__PrivateBucket: ${S3_PRIVATE_BUCKET:-}
       # Sauvegardes de la base faites par l'API (pg_dump dans l'image) : chaque jour à 01:00 UTC dans backups/daily,
       # copies weekly/monthly, conservation 7 jours / 4 semaines / 6 mois ; liste et sauvegarde immédiate dans la console
+      # Ouverture des liens https://monbenin.com/post/… dans l'app installée (fichiers /.well-known) ; vide = page web seulement
+      AppLinks__AppleTeamId: ${APPLE_TEAM_ID:-}
+      AppLinks__AndroidCertSha256: ${ANDROID_CERT_SHA256:-}
       Backups__Directory: /backups
       Backups__DailyAtUtc: ${BACKUP_DAILY_AT_UTC:-01:00}
       # Copie hors du serveur (S3 / R2) : activée si S3_BACKUP_BUCKET est défini ; mêmes identifiants que les médias
