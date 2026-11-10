@@ -176,5 +176,15 @@ Si `S3_BACKUP_BUCKET` est défini dans le `.env`, l'API copie les sauvegardes da
 
 Mise en place : créer le bucket privé `beninconnect-backups` (R2 > Create bucket, sans accès public), autoriser le jeton
 R2 existant sur ce bucket (Manage R2 API Tokens > le jeton > Object Read & Write), ajouter `S3_BACKUP_BUCKET=beninconnect-backups`
-au `.env`, puis `docker compose -f docker-compose.prod.yml up -d api`.
+au `.env`, puis `docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.deploy up -d api`.
+
+### Redémarrer l'API à la main
+
+Toujours avec les deux fichiers : `.env.deploy` (écrit par le déploiement) contient `API_IMAGE`, l'image de la CI.
+Sans lui, Docker démarre l'ancienne image locale `beninconnect-api:local`.
+
+```
+cd /opt/beninconnect/server
+docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.deploy up -d api
+```
 
