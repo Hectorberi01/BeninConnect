@@ -173,7 +173,13 @@
 
 - name: Dernière version de l'historique
   when: app_from_registry
-  ansible.builtin.shell: "tail -n 1 {{ app_dir }}/server/deploy-history.log 2>/dev/null | cut -f2"
+  ansible.builtin.shell: |
+    set -o pipefail
+    if [ -f "$HISTORY" ]; then tail -n 1 "$HISTORY" | cut -f2; fi
+  args:
+    executable: /bin/bash
+  environment:
+    HISTORY: "{{ app_dir }}/server/deploy-history.log"
   register: last_deployed
   changed_when: false
 
@@ -201,8 +207,11 @@
 - name: Garder les dernières images de l'API
   when: app_from_registry
   ansible.builtin.shell: |
+    set -o pipefail
     {% raw %}docker images "$REPO" --format '{{.Repository}}:{{.Tag}}'{% endraw %} \
       | grep -v -e ':<none>$' -e ':latest$' | tail -n +$(( KEEP + 1 )) | xargs -r docker rmi > /dev/null 2>&1 || true
+  args:
+    executable: /bin/bash
   environment:
     REPO: "{{ app_image_registry | lower }}/beninconnect-api"
     KEEP: "{{ keep_images }}"
