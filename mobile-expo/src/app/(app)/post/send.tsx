@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, StyleSheet, TextInput, View } from 'react-native';
 import { SharedPostCard } from '@/components/social';
 import { Avatar, Button, EmptyState, Header, Icon, Muted, QueryView, Screen, SearchBar, T } from '@/components/ui';
 import { useMe } from '@/core/session';
@@ -66,7 +66,7 @@ export default function SendPost() {
             renderItem={({ item }) => {
               const done = sent.has(item.id);
               return (
-                <Pressable accessibilityRole="button" onPress={() => sendTo(item)} style={[styles.row, { borderColor: c.border }]}>
+                <View style={[styles.row, { borderColor: c.border }]}>
                   <Avatar initials={initials(item)} color={item.avatarColor} image={item.avatarImage} />
                   <View style={{ flex: 1 }}>
                     <T v="label" lines={1} style={{ fontSize: 15 }}>{displayName(item)}</T>
@@ -75,7 +75,7 @@ export default function SendPost() {
                   {done
                     ? <View style={styles.done}><Icon name="check" size={18} color={c.primary} /><Muted color={c.primary}>Envoyé</Muted></View>
                     : <Button small title="Envoyer" loading={busy === item.id} onPress={() => sendTo(item)} />}
-                </Pressable>
+                </View>
               );
             }}
             ListEmptyComponent={<EmptyState icon="account-search-outline" title="Aucun membre trouvé" />} />

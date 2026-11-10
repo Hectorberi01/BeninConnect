@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Security.Claims;
 using System.Text;
 using BeninConnect.Modules.Administration.Application;
@@ -171,7 +170,7 @@ public sealed class AdministrationModule : IModule
             var usage = await media.UsageAsync(ct);
             var uptime = DateTimeOffset.UtcNow - StartedAt;
             return new SystemInfoDto(
-                Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0",
+                AppVersion.Current,
                 env.EnvironmentName,
                 System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
                 StartedAt,

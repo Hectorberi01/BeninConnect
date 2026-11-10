@@ -180,8 +180,8 @@ au `.env`, puis `docker compose -f docker-compose.prod.yml --env-file .env --env
 
 ### Redémarrer l'API à la main
 
-Toujours avec les deux fichiers : `.env.deploy` (écrit par le déploiement) contient `API_IMAGE`, l'image de la CI.
-Sans lui, Docker démarre l'ancienne image locale `beninconnect-api:local`.
+Toujours avec les deux fichiers : `.env.deploy` (écrit par le déploiement et par `rollback.sh`) contient `APP_VERSION`, la version de l'API (image GHCR).
+Sans lui, Docker cherche l'image `…/beninconnect-api:local` (construite sur le serveur) au lieu de la version en production.
 
 ```
 cd /opt/beninconnect/server

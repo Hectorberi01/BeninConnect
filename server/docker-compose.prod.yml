@@ -6,11 +6,13 @@ name: beninconnect-prod
 
 services:
   api:
-    # Image de la CI (GHCR) si API_IMAGE est défini, sinon construite sur le serveur.
-    image: ${API_IMAGE:-beninconnect-api:local}
+    # Version de l'API (GHCR) : APP_VERSION=1.1.0 ou sha-1a2b3c4 dans .env.deploy. Absente : image construite sur le serveur.
+    image: ${API_REGISTRY:-ghcr.io/hectorberi01}/beninconnect-api:${APP_VERSION:-local}
     build:
       context: ..
       dockerfile: server/src/BeninConnect.Api/Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
     restart: unless-stopped
     # Joignable seulement depuis le VPS : Caddy fait le reverse proxy vers 127.0.0.1:8080.
     ports:

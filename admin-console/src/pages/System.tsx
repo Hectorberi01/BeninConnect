@@ -50,7 +50,7 @@ export function SystemPage() {
         <div className="space-y-6">
           <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Stat label="API" icon={<Activity />} accent={health.data === false ? 'danger' : 'brand'} tone={health.data === false ? 'danger' : undefined}
-              value={<Status online={health.data} labels={['En ligne', 'Hors ligne']} />} hint={`v${s.version} · ${s.environment}`} />
+              value={<Status online={health.data} labels={['En ligne', 'Hors ligne']} />} hint={`${/^\d/.test(s.version) ? 'v' : ''}${s.version} · ${s.environment}`} />
             <Stat label="Base de données" icon={<Database />} accent={s.databaseOnline ? 'info' : 'danger'} tone={s.databaseOnline ? undefined : 'danger'}
               value={<Status online={s.databaseOnline} labels={['Connectée', 'Injoignable']} />} hint={s.database} />
             <Stat label="Démarrée" icon={<Clock />} accent="violet" value={s.uptime} hint={fmtDateTime(s.startedAt)} />

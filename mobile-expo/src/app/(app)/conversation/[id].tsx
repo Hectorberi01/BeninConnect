@@ -16,7 +16,7 @@ import { pickPhoto } from '@/core/photos';
 import { useOpenConversation } from '@/core/push';
 import { toast } from '@/core/toast';
 import {
-  useConversation, useDeleteMessage, useEditMessage, useMarkConversationRead, useMessages, useReactToMessage, useSendAttachment, useSendMessage,
+  useConversation, useDeleteConversation, useDeleteMessage, useEditMessage, useMarkConversationRead, useMessages, useReactToMessage, useSendAttachment, useSendMessage,
 } from '@/features/queries';
 import { blockUser, unblockUser, useIsBlocked } from '@/features/block';
 import { reportContent } from '@/features/report';
@@ -50,6 +50,13 @@ function Chat({ summary }: { summary: ConversationSummary }) {
   const react = useReactToMessage(id);
   const edit = useEditMessage(id);
   const remove = useDeleteMessage(id);
+  const removeConversation = useDeleteConversation();
+  const askDeleteConversation = async () => {
+    if (await confirm('Supprimer la discussion ?',
+      `Elle disparaît de votre liste avec ses messages. ${other.firstName} garde son historique.`, 'Supprimer', true)) {
+      removeConversation.mutate(id, { onSuccess: () => router.back() });
+    }
+  };
   const [editing, setEditing] = useState<Message | null>(null);
   const attach = useSendAttachment(id);
   const sendFile = (file: OutgoingFile) => attach.mutate({ file });
@@ -145,6 +152,7 @@ function Chat({ summary }: { summary: ConversationSummary }) {
 
   const openMenu = () => Alert.alert(displayName(other), undefined, [
     { text: 'Voir le profil', onPress: () => router.push(`/user/${other.id}`) },
+    { text: 'Supprimer la discussion', style: 'destructive', onPress: askDeleteConversation },
     { text: 'Signaler ce membre', style: 'destructive', onPress: () => reportContent('User', other.id) },
     blockedByMe
       ? { text: `Débloquer ${displayName(other)}`, onPress: () => unblockUser(other) }

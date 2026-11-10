@@ -9,7 +9,8 @@ import { font, useColors } from '@/core/theme';
 import { matches } from '@/core/validation';
 import type { ConversationSummary } from '@/data/types';
 import { displayName, initials, messagePreview } from '@/data/types';
-import { useConversations } from '@/features/queries';
+import { confirm } from '@/core/dialog';
+import { useConversations, useDeleteConversation } from '@/features/queries';
 
 export default function Messages() {
   const c = useColors();
@@ -17,6 +18,12 @@ export default function Messages() {
   const query = useConversations();
   const [search, setSearch] = useState('');
   const bottom = useTabBarSpace();
+  const remove = useDeleteConversation();
+  const askDelete = async (s: ConversationSummary) => {
+    if (await confirm('Supprimer la discussion ?',
+      `Elle disparaît de votre liste avec ses messages. ${s.otherParticipant.firstName} garde son historique ; un nouveau message la fera réapparaître.`,
+      'Supprimer', true)) remove.mutate(s.conversation.id);
+  };
   const preview = (s: ConversationSummary) =>
     !s.lastMessage ? 'Nouvelle conversation'
       : s.lastMessage.senderId === me.id && !s.lastMessage.isDeleted ? `Vous : ${messagePreview(s.lastMessage)}` : messagePreview(s.lastMessage);
@@ -41,6 +48,7 @@ export default function Messages() {
             keyExtractor={(s) => s.conversation.id}
             renderItem={({ item: s }) => (
               <Pressable accessibilityRole="button" onPress={() => router.push(`/conversation/${s.conversation.id}`)}
+                onLongPress={() => askDelete(s)} delayLongPress={350} accessibilityHint="Appui long pour supprimer la discussion"
                 style={({ pressed }) => [styles.row, { borderColor: c.border }, pressed && { opacity: 0.7 }]}>
                 <Avatar initials={initials(s.otherParticipant)} color={s.otherParticipant.avatarColor} image={s.otherParticipant.avatarImage} size={50} />
                 <View style={{ flex: 1, gap: 2 }}>

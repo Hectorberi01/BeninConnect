@@ -82,8 +82,8 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
             {author ? displayName(author) : 'Membre'}
           </T>
           <View style={styles.meta}>
-            <Muted>{fmt.relative(post.createdAt)}</Muted>
-            {post.editedAt && <Muted>· modifié</Muted>}
+            <Muted lines={1} style={{ flexShrink: 0 }}>{fmt.relative(post.createdAt)}</Muted>
+            {post.editedAt && <Muted lines={1} style={{ flexShrink: 0 }}>· modifié</Muted>}
             {post.pinnedAt && <Icon name="pin" size={14} color={c.primary} />}
             {community && (
               <>
@@ -299,10 +299,11 @@ const NOTIFICATION_ICONS: Record<AppNotification['category'], IconName> = {
   Social: 'heart-outline', Communities: 'account-group-outline', Messages: 'message-outline', Events: 'calendar-outline', System: 'information-outline',
 };
 
-export function NotificationItem({ item, onPress }: { item: AppNotification; onPress: () => void }) {
+export function NotificationItem({ item, onPress, onDelete }: { item: AppNotification; onPress: () => void; onDelete?: () => void }) {
   const c = useColors();
   return (
-    <Pressable accessibilityRole="button" onPress={onPress}
+    <Pressable accessibilityRole="button" onPress={onPress} onLongPress={onDelete} delayLongPress={350}
+      accessibilityHint={onDelete ? 'Appui long pour supprimer' : undefined}
       style={({ pressed }) => [styles.notification, { backgroundColor: item.isRead ? c.glassStrong : c.primaryLight, borderColor: c.glassBorder }, depth(c, 1), pressed && { opacity: 0.8 }]}>
       <View style={[styles.notificationIcon, { backgroundColor: c.surface }, depth(c, 1)]}>
         <Icon name={NOTIFICATION_ICONS[item.category]} size={20} color={c.primary} />
@@ -313,6 +314,11 @@ export function NotificationItem({ item, onPress }: { item: AppNotification; onP
         <Muted>{fmt.relative(item.createdAt)}</Muted>
       </View>
       {!item.isRead && <View style={[styles.dot, { backgroundColor: c.primary }]} />}
+      {onDelete && (
+        <Pressable accessibilityLabel="Supprimer la notification" hitSlop={10} onPress={onDelete}>
+          <Icon name="close" size={18} color={c.textSecondary} />
+        </Pressable>
+      )}
     </Pressable>
   );
 }

@@ -1,6 +1,8 @@
 # Déploiement en production avec Ansible : le serveur télécharge les images de la CI (aucun build sur le VPS),
 # puis reçoit la configuration Caddy, le site public et la console d'administration (build fait ici).
-# Automatique après une CI verte sur main, ou manuel (Actions > Deploy > Run workflow) avec un tag d'image.
+# Automatique après une CI verte sur main, ou manuel (Actions > Deploy > Run workflow) :
+#   1.2.0 / sha-1a2b3c4 : cette version ; previous : retour à la version déployée avant l'actuelle.
+# Console, site, Caddy et compose : pris dans le commit de la version (dossier release/) ; Ansible : celui du workflow.
 name: Deploy
 
 on:
@@ -11,9 +13,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag d'image à déployer (ex. sha-1a2b3c4, latest)"
+        description: "Version : 1.2.0, sha-1a2b3c4, latest, ou previous (retour à la version précédente)"
         required: true
-        default: latest
+        default: previous
 
 concurrency:
   group: production
@@ -30,28 +32,71 @@ jobs:
     # Protection possible dans Settings > Environments > production (validation manuelle, branche main).
     environment: production
     steps:
+      # Historique complet : le commit de la version demandée est extrait dans release/
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
 
-      - name: Tag à déployer
-        id: tag
+      - name: Accès SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "value=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # Diagnostic : empreintes connues, à comparer avec celles du serveur (ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub)
+          # Structure du secret (hôte et type de clé seulement) pour comprendre une erreur de format
+          echo "SSH_KNOWN_HOSTS : $(grep -c . ~/.ssh/known_hosts) ligne(s)"
+          awk 'NF { printf "  ligne %d : %d champ(s), type=%s\n", NR, NF, $2 }' ~/.ssh/known_hosts
+          ssh-keygen -lf ~/.ssh/known_hosts || { echo "::error::Secret SSH_KNOWN_HOSTS invalide : attendu la sortie de ssh-keyscan (« ip type clé »)"; exit 1; }
+          HOST=$(grep -m1 'ansible_host:' ansible/inventory/production.yml | awk '{print $2}')
+          PORT=$(grep -m1 'ansible_port:' ansible/inventory/production.yml | awk '{print $2}')
+          USER_NAME=$(grep -m1 'ansible_user:' ansible/inventory/production.yml | awk '{print $2}')
+          ENTRY=$([ "${PORT:-22}" = "22" ] && echo "$HOST" || echo "[$HOST]:$PORT")
+          ssh-keygen -F "$ENTRY" -f ~/.ssh/known_hosts > /dev/null \
+            || { echo "::error::SSH_KNOWN_HOSTS ne contient pas $ENTRY : relancer ssh-keyscan -p ${PORT:-22} $HOST"; exit 1; }
+          echo "SSH_TARGET=${USER_NAME:-deploy}@$HOST" >> "$GITHUB_ENV"
+          echo "SSH_PORT=${PORT:-22}" >> "$GITHUB_ENV"
+
+      # Version à déployer, et son commit dans release/ (console, site, Caddy, compose cohérents avec l'image)
+      - name: Version à déployer
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }} # variable : jamais insérée telle quelle dans le script
+        run: |
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            tag="sha-$(git rev-parse --short=7 HEAD)"
+          elif [ "$INPUT_TAG" = "previous" ]; then
+            # Avant-dernière ligne de l'historique des déploiements du serveur
+            tag=$(ssh -p "$SSH_PORT" "$SSH_TARGET" 'sudo -n tail -n 2 /opt/beninconnect/server/deploy-history.log 2>/dev/null | head -n 1 | cut -f2')
+            [ -n "$tag" ] || { echo "::error::Aucune version précédente dans deploy-history.log"; exit 1; }
           else
-            echo "value=sha-$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+            tag="$INPUT_TAG"
           fi
+          [[ "$tag" =~ ^(sha-[0-9a-f]{7,40}|latest|[0-9]+\.[0-9]+\.[0-9]+)$ ]] \
+            || { echo "::error::Version invalide : $tag (attendu 1.2.0, sha-1a2b3c4, latest ou previous)"; exit 1; }
+          case "$tag" in
+            sha-*) ref="${tag#sha-}" ;;
+            latest) ref="origin/main" ;;
+            *) ref="v$tag" ;;
+          esac
+          git rev-parse --verify --quiet "$ref^{commit}" > /dev/null \
+            || { echo "::error::Commit introuvable pour $tag ($ref)"; exit 1; }
+          git worktree add --quiet --detach release "$ref"
+          echo "value=$tag" >> "$GITHUB_OUTPUT"
+          echo "### Déploiement de \`$tag\` (commit $(git -C release rev-parse --short=7 HEAD))" >> "$GITHUB_STEP_SUMMARY"
 
       # Console d'administration : build statique publié par Ansible (rôle web) dans /var/www/admin
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: admin-console/package-lock.json
+          cache-dependency-path: release/admin-console/package-lock.json
 
       - name: Build de la console d'administration
-        working-directory: admin-console
+        working-directory: release/admin-console
         env:
           VITE_API_URL: "" # même origine : Caddy relaie /api vers l'API
         run: |
@@ -69,31 +114,13 @@ jobs:
           pip install ansible-core
           ansible-galaxy collection install -r requirements.yml -p collections
 
-      - name: Accès SSH
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
-        run: |
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          # Diagnostic : empreintes connues, à comparer avec celles du serveur (ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub)
-          # Structure du secret (hôte et type de clé seulement) pour comprendre une erreur de format
-          echo "SSH_KNOWN_HOSTS : $(grep -c . ~/.ssh/known_hosts) ligne(s)"
-          awk 'NF { printf "  ligne %d : %d champ(s), type=%s\n", NR, NF, $2 }' ~/.ssh/known_hosts
-          ssh-keygen -lf ~/.ssh/known_hosts || { echo "::error::Secret SSH_KNOWN_HOSTS invalide : attendu la sortie de ssh-keyscan (« ip type clé »)"; exit 1; }
-          HOST=$(grep -m1 'ansible_host:' ansible/inventory/production.yml | awk '{print $2}')
-          PORT=$(grep -m1 'ansible_port:' ansible/inventory/production.yml | awk '{print $2}')
-          ENTRY=$([ "${PORT:-22}" = "22" ] && echo "$HOST" || echo "[$HOST]:$PORT")
-          ssh-keygen -F "$ENTRY" -f ~/.ssh/known_hosts > /dev/null \
-            || { echo "::error::SSH_KNOWN_HOSTS ne contient pas $ENTRY : relancer ssh-keyscan -p ${PORT:-22} $HOST"; exit 1; }
-
       - name: Déploiement
         working-directory: ansible
         env:
           REGISTRY_TOKEN: ${{ secrets.GHR_TOKEN }}
         run: >-
           ansible-playbook deploy.yml
+          -e repo_root="$GITHUB_WORKSPACE/release"
           -e app_image_tag=${{ steps.tag.outputs.value }}
           -e app_image_registry=ghcr.io/${{ github.repository_owner }}
           -e registry_user=${{ github.actor }}

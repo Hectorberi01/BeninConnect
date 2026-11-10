@@ -45,6 +45,7 @@ public sealed class MessagingModule : IModule
         conversations.MapGet("/unread-count", (ISender s, CancellationToken ct) => s.Send(new GetUnreadMessageCountQuery(), ct));
         conversations.MapPost("/direct", (StartConversationRequest r, ISender s, CancellationToken ct) => s.Send(new StartDirectConversationCommand(r.OtherUserId), ct));
         conversations.MapGet("/{id:guid}", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetConversationQuery(id), ct));
+        conversations.MapDelete("/{id:guid}", (Guid id, ISender s, CancellationToken ct) => s.Send(new DeleteConversationCommand(id), ct));
         conversations.MapGet("/{id:guid}/messages", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetMessagesQuery(id), ct));
         conversations.MapPost("/{id:guid}/messages", async (Guid id, SendMessageRequest r, ISender s, CancellationToken ct) =>
         {

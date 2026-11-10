@@ -1,11 +1,16 @@
 # Contexte de build : racine du dépôt (Directory.*.props partagés).
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# Version de l'image (1.2.0 ou sha-1a2b3c4), donnée par la CI
+ARG APP_VERSION=dev
 WORKDIR /repo
 COPY global.json Directory.Build.props Directory.Packages.props ./
 COPY server/src/ server/src/
-RUN dotnet publish server/src/BeninConnect.Api/BeninConnect.Api.csproj -c Release -o /app /p:UseAppHost=false
+RUN dotnet publish server/src/BeninConnect.Api/BeninConnect.Api.csproj -c Release -o /app /p:UseAppHost=false \
+    /p:InformationalVersion=${APP_VERSION} /p:IncludeSourceRevisionInInformationalVersion=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
+ARG APP_VERSION=dev
+LABEL org.opencontainers.image.version=${APP_VERSION}
 # pg_dump 18 (dépôt officiel PostgreSQL) : sauvegardes automatiques et manuelles ; sauvegarde aussi les serveurs 9.2 à 18
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl \
@@ -21,7 +26,8 @@ COPY --from=build /app .
 # Dossier des photos (volume) : appartient à l'utilisateur non root de l'image.
 RUN mkdir -p /app/media/uploads && chown -R $APP_UID /app/media
 USER $APP_UID
-ENV ASPNETCORE_URLS=http://+:8080 \
+ENV APP_VERSION=${APP_VERSION} \
+    ASPNETCORE_URLS=http://+:8080 \
     ASPNETCORE_ENVIRONMENT=Production \
     DOTNET_gcServer=0
 EXPOSE 8080

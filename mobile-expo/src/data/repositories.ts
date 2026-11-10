@@ -9,6 +9,8 @@ import type {
  */
 export interface DataSource {
   readonly kind: 'demo' | 'api';
+  /** Adresse de l'API (source « api » seulement). */
+  readonly apiUrl?: string;
   /** Code de vérification fixe (démo, API de développement) ; null en production : le code arrive par email. */
   readonly demoVerificationCode: string | null;
   /** Le compte demo@beninconnect.test existe (absent en production). */
@@ -93,6 +95,8 @@ export interface DataSource {
   editMessage(conversationId: string, messageId: string, content: string): Promise<Message>;
   /** Par l'expéditeur : le message reste affiché « Message supprimé ». */
   deleteMessage(conversationId: string, messageId: string): Promise<Message>;
+  /** Retire la discussion de ma liste (pour moi seulement) ; elle revient au prochain message. */
+  deleteConversation(conversationId: string): Promise<void>;
   /** Photo, PDF ou message vocal (20 Mo), avec une légende facultative. */
   sendAttachment(conversationId: string, file: OutgoingFile, caption?: string): Promise<Message>;
   /** Adresse de la pièce jointe, utilisable par l'image, le lecteur audio ou le navigateur (accès vérifié par le serveur). */
@@ -118,6 +122,9 @@ export interface DataSource {
   registerPushDevice(token: string, platform: 'ios' | 'android', mutedCategories: NotificationCategory[]): Promise<void>;
   unregisterPushDevice(token: string): Promise<void>;
   markAllNotificationsRead(): Promise<number>;
+  deleteNotification(id: string): Promise<void>;
+  /** Supprime toutes mes notifications (ou celles d'une catégorie) ; renvoie le nombre supprimé. */
+  clearNotifications(category?: NotificationCategory): Promise<number>;
 }
 
 export const INTERESTS = [

@@ -53,7 +53,66 @@ Depuis le Mac : `cd admin-console && npm ci && npm run build`, puis `ansible-pla
 3. Déposer le `.env` sur le serveur avant le premier déploiement (voir `ansible/README.md`) : le workflow s'arrête s'il manque.
 4. Recommandé : Settings > Environments > `production` > *Required reviewers* pour valider chaque mise en production.
 
-## Déployer une version précise / revenir en arrière
+## Versions et retour arrière
 
-Actions > Deploy > Run workflow > tag `sha-1a2b3c4` (liste des tags : onglet Packages du dépôt).
-Les migrations de la base s'appliquent au démarrage de la nouvelle API ; un retour arrière ne les annule pas.
+### Les versions
+
+Chaque image de l'API porte une version, visible sur `https://api.monbenin.com/` (champ `version`)
+et dans la console (page Système) :
+
+| Événement | Tags de l'image |
+|---|---|
+| push sur `main` | `sha-1a2b3c4`, `latest` (déployée automatiquement) |
+| tag Git `v1.2.0` | `1.2.0`, `1.2`, `sha-1a2b3c4` (pas de déploiement automatique) |
+
+Nommer une version (après l'avoir testée en production, ou avant de la déployer) :
+
+```bash
+git tag v1.2.0 && git push origin v1.2.0
+```
+
+### Déployer une version
+
+Actions > Deploy > Run workflow, champ **Version** : `1.2.0`, `sha-1a2b3c4` ou `latest`.
+La console, le site, Caddy et le compose sont pris dans le **même commit** que l'image : tout revient ensemble.
+
+### Revenir à une version précédente
+
+Les images restent sur **GHCR** (jamais supprimées par la CI) ; le serveur les télécharge à chaque retour arrière,
+même après un nettoyage de son cache. La version en production est `APP_VERSION` dans `server/.env.deploy`
+(écrit par le déploiement, à côté du `.env` qui ne contient que les secrets et n'est jamais réécrit).
+
+- **GitHub** (API, console, site et Caddy ensemble) : Actions > Deploy > Run workflow > `previous` ou une version.
+- **Sur le serveur** (API seulement), menu des 5 dernières versions :
+
+  ```
+  $ cd /opt/beninconnect/server && sudo -u deploy ./rollback.sh
+  Version en production : sha-c3d4e5f
+
+    1) sha-c3d4e5f      déployée le 2026-11-12 à 09:41 UTC  ← en cours
+    2) 1.1.0            déployée le 2026-11-10 à 18:02 UTC
+    3) 1.0.0            déployée le 2026-11-02 à 20:15 UTC
+    4) 1.0.2            publiée sur GHCR
+
+  Version à redéployer (1-4, ou un tag, Entrée pour annuler) : 2
+  ```
+
+  Autres usages : `./rollback.sh --list`, `./rollback.sh 1.1.0` (confirmation), `./rollback.sh 1.1.0 -y` (sans confirmation).
+  Si la version choisie ne répond pas sur `/health`, le script revient tout seul à la version précédente.
+
+Connexion à GHCR du compte `deploy`, une fois (inutile si le paquet est public) : jeton GitHub *classic* avec
+le seul droit `read:packages`, puis
+
+```bash
+sudo -u deploy docker login ghcr.io -u <utilisateur GitHub>   # coller le jeton comme mot de passe
+```
+
+Sans cette connexion, le script se rabat sur les images encore présentes sur le serveur (les 5 dernières, `keep_images`).
+`previous` (GitHub) lit l'avant-dernière ligne de `deploy-history.log` : deux `previous` de suite reviennent à la version de départ.
+
+### Base de données
+
+Les migrations s'appliquent au démarrage de la nouvelle API ; **un retour arrière ne les annule pas**.
+L'ancienne API fonctionne tant que les migrations ne font qu'ajouter (colonnes facultatives ou avec valeur par défaut, tables).
+Avant une migration qui supprime ou renomme : sauvegarde manuelle (console > Sauvegardes), et migration en deux versions
+(d'abord ne plus utiliser la colonne, puis la supprimer dans la version suivante).

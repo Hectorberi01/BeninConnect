@@ -122,6 +122,9 @@ public sealed record StartDirectConversationCommand(Guid OtherUserId) : ICommand
 
 public sealed record GetUnreadMessageCountQuery : IQuery<CountDto>;
 
+/// <summary>Retire la discussion de ma liste (pour moi seulement) ; elle revient si un nouveau message arrive.</summary>
+public sealed record DeleteConversationCommand(Guid ConversationId) : ICommand<CountDto>;
+
 public sealed class ConversationHandlers(
     IMessagingDb db, IIdentityModule identity, IMediaModule media, IFeedModule feed, IPresence presence, IEventBus bus, IChatNotifier live,
     ICurrentUser me, TimeProvider clock) :
@@ -137,7 +140,8 @@ public sealed class ConversationHandlers(
     IRequestHandler<EditMessageCommand, MessageDto>,
     IRequestHandler<DeleteMessageCommand, MessageDto>,
     IRequestHandler<SendAttachmentCommand, MessageDto>,
-    IRequestHandler<GetAttachmentQuery, AttachmentDownload>
+    IRequestHandler<GetAttachmentQuery, AttachmentDownload>,
+    IRequestHandler<DeleteConversationCommand, CountDto>
 {
     public async Task<IReadOnlyList<ConversationSummaryDto>> Handle(GetConversationsQuery request, CancellationToken ct)
     {
@@ -146,7 +150,10 @@ public sealed class ConversationHandlers(
             .ToListAsync(ct);
 
         var summaries = await BuildSummariesAsync(conversations, ct);
-        return summaries.OrderByDescending(s => s.LastMessage?.SentAt ?? s.Conversation.CreatedAt).ToList();
+        // Discussion supprimée : masquée tant qu'aucun nouveau message n'est arrivé
+        return summaries
+            .Where(s => s.LastMessage is not null || conversations.First(c => c.Id == s.Conversation.Id).ClearedAtFor(me.Id) is null)
+            .OrderByDescending(s => s.LastMessage?.SentAt ?? s.Conversation.CreatedAt).ToList();
     }
 
     public async Task<ConversationSummaryDto> Handle(GetConversationQuery request, CancellationToken ct)
@@ -157,8 +164,10 @@ public sealed class ConversationHandlers(
 
     public async Task<IReadOnlyList<MessageDto>> Handle(GetMessagesQuery request, CancellationToken ct)
     {
-        await LoadMineAsync(request.ConversationId, ct);
-        return (await db.Messages.AsNoTracking().Include(m => m.Reactions).Where(m => m.ConversationId == request.ConversationId)
+        var conversation = await LoadMineAsync(request.ConversationId, ct);
+        var since = conversation.ClearedAtFor(me.Id) ?? DateTimeOffset.MinValue;
+        return (await db.Messages.AsNoTracking().Include(m => m.Reactions)
+                .Where(m => m.ConversationId == request.ConversationId && m.SentAt > since)
                 .OrderBy(m => m.SentAt).ToListAsync(ct))
             .Select(m => m.ToDto()).ToList();
     }
@@ -322,8 +331,17 @@ public sealed class ConversationHandlers(
 
     public async Task<CountDto> Handle(GetUnreadMessageCountQuery request, CancellationToken ct)
     {
-        var mine = db.Conversations.Where(c => c.Participants.Any(p => p.UserId == me.Id)).Select(c => c.Id);
-        return new CountDto(await db.Messages.CountAsync(m => mine.Contains(m.ConversationId) && m.SenderId != me.Id && !m.IsRead, ct));
+        var mine = db.Conversations.SelectMany(c => c.Participants).Where(p => p.UserId == me.Id);
+        return new CountDto(await db.Messages.CountAsync(m => m.SenderId != me.Id && !m.IsRead
+            && mine.Any(p => p.ConversationId == m.ConversationId && (p.ClearedAt == null || m.SentAt > p.ClearedAt)), ct));
+    }
+
+    public async Task<CountDto> Handle(DeleteConversationCommand request, CancellationToken ct)
+    {
+        var conversation = await LoadMineAsync(request.ConversationId, ct);
+        conversation.ClearFor(me.Id, clock.GetUtcNow());
+        await db.SaveChangesAsync(ct);
+        return new CountDto(1);
     }
 
     private async Task EnsureNotBlockedAsync(IEnumerable<Guid> participants, CancellationToken ct)
@@ -361,7 +379,8 @@ public sealed class ConversationHandlers(
                 continue;
             }
 
-            var list = byConversation.GetValueOrDefault(c.Id) ?? [];
+            var since = c.ClearedAtFor(me.Id) ?? DateTimeOffset.MinValue;
+            var list = (byConversation.GetValueOrDefault(c.Id) ?? []).Where(m => m.SentAt > since).ToList();
             result.Add(new ConversationSummaryDto(
                 c.ToDto(),
                 other,

@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FormError, FormScroll, InfoBox } from '@/components/Form';
 import { Button, Checkbox, Muted, PasswordField, Screen, T, TextField } from '@/components/ui';
+import { DEV_TOOLS, PRODUCTION_API_URL } from '@/core/config';
 import { usePreferences } from '@/core/preferences';
 import { useSession } from '@/core/session';
 import { font, useColors } from '@/core/theme';
@@ -84,6 +85,14 @@ export default function Login() {
           <Muted style={{ fontSize: 15 }}>Pas encore de compte ? </Muted>
           <T v="label" color={c.primary} style={{ fontSize: 15 }} onPress={() => router.push('/register')}>Créer un compte</T>
         </View>
+
+        {/* Développement seulement : source et adresse réellement utilisées */}
+        {DEV_TOOLS && (
+          <Muted style={{ textAlign: 'center', marginTop: 16, fontSize: 12 }}
+            color={data().apiUrl === PRODUCTION_API_URL ? c.error : undefined}>
+            {data().kind === 'api' ? `API : ${data().apiUrl}${data().apiUrl === PRODUCTION_API_URL ? ' (PRODUCTION)' : ''}` : 'Source : démo hors ligne'}
+          </Muted>
+        )}
       </FormScroll>
     </Screen>
   );

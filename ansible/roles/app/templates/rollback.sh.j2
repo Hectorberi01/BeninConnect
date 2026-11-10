@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+# Retour arrière de l'API (généré par Ansible). Images téléchargées depuis GHCR : rien ne dépend du cache du serveur.
+#   ./rollback.sh            menu : 5 dernières versions, choix, redéploiement
+#   ./rollback.sh 1.1.0      cette version (ou sha-1a2b3c4), après confirmation
+#   ./rollback.sh 1.1.0 -y   sans confirmation
+#   ./rollback.sh --list     5 dernières versions
+# Ne touche ni à la console, ni au site, ni à Caddy : pour un retour complet, Actions > Deploy > previous.
+set -euo pipefail
+cd "$(dirname "$0")"
+
+# Valeurs d'Ansible
+API_PORT={{ api_port }}
+HEALTH_RETRIES={{ health_retries }}
+DEFAULT_REGISTRY={{ app_image_registry | lower }}
+{% raw %}
+HISTORY=deploy-history.log
+COMPOSE=(docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.deploy)
+KEEP=5
+
+env_value() { sed -n "s/^$1=//p" .env.deploy 2>/dev/null | tail -n 1; }
+REGISTRY=$(env_value API_REGISTRY); REGISTRY=${REGISTRY:-$DEFAULT_REGISTRY}
+REPO="$REGISTRY/beninconnect-api"
+CURRENT=$(env_value APP_VERSION)
+
+# Tags semver publiés sur GHCR (connexion « docker login ghcr.io » du compte courant ; vide si indisponible)
+registry_tags() {
+  python3 - "$REGISTRY" <<'PY' 2>/dev/null || true
+import base64, json, os, sys, urllib.request
+registry = sys.argv[1]
+host, _, owner = registry.partition("/")
+repo = f"{owner}/beninconnect-api"
+auth = json.load(open(os.path.expanduser("~/.docker/config.json"))).get("auths", {}).get(host, {}).get("auth")
+req = urllib.request.Request(f"https://{host}/token?service={host}&scope=repository:{repo}:pull")
+if auth:
+    req.add_header("Authorization", "Basic " + auth)
+token = json.load(urllib.request.urlopen(req, timeout=10))["token"]
+req = urllib.request.Request(f"https://{host}/v2/{repo}/tags/list?n=1000", headers={"Authorization": f"Bearer {token}"})
+tags = json.load(urllib.request.urlopen(req, timeout=10)).get("tags") or []
+semver = [t for t in tags if t.count(".") == 2 and all(p.isdigit() for p in t.split("."))]
+for t in sorted(semver, key=lambda t: tuple(map(int, t.split("."))), reverse=True):
+    print(t)
+PY
+}
+
+# 5 dernières versions : déploiements récents (avec leur date), complétés par les versions publiées sur GHCR
+load_versions() {
+  VERSIONS=(); DATES=()
+  if [ -f "$HISTORY" ]; then
+    while IFS=$'\t' read -r date tag _; do
+      [ -n "$tag" ] || continue
+      [[ " ${VERSIONS[*]-} " == *" $tag "* ]] && continue
+      VERSIONS+=("$tag"); DATES+=("déployée le ${date%T*} à $(echo "${date#*T}" | cut -c1-5) UTC")
+      [ ${#VERSIONS[@]} -ge $KEEP ] && return
+    done < <(tac "$HISTORY")
+  fi
+  while read -r tag; do
+    [ -n "$tag" ] || continue
+    [[ " ${VERSIONS[*]-} " == *" $tag "* ]] && continue
+    VERSIONS+=("$tag"); DATES+=("publiée sur GHCR")
+    [ ${#VERSIONS[@]} -ge $KEEP ] && return
+  done < <(registry_tags)
+}
+
+print_versions() {
+  echo "Version en production : ${CURRENT:-inconnue}"
+  echo
+  for i in "${!VERSIONS[@]}"; do
+    mark=""; [ "${VERSIONS[$i]}" = "$CURRENT" ] && mark="  ← en cours"
+    printf '  %d) %-16s %s%s\n' $((i + 1)) "${VERSIONS[$i]}" "${DATES[$i]}" "$mark"
+  done
+}
+
+valid_tag() { [[ "$1" =~ ^(sha-[0-9a-f]{7,40}|[0-9]+\.[0-9]+\.[0-9]+)$ ]]; }
+
+healthy() {
+  for _ in $(seq 1 $HEALTH_RETRIES); do
+    curl -fsS "http://127.0.0.1:$API_PORT/health" > /dev/null 2>&1 && return 0
+    sleep 10
+  done
+  return 1
+}
+
+set_version() {
+  if grep -q '^APP_VERSION=' .env.deploy 2>/dev/null; then
+    sed -i "s|^APP_VERSION=.*|APP_VERSION=$1|" .env.deploy
+  else
+    printf 'APP_VERSION=%s\nAPI_REGISTRY=%s\n' "$1" "$REGISTRY" >> .env.deploy
+  fi
+}
+
+deploy() {
+  local tag=$1 image="$REPO:$1"
+  echo "Téléchargement de $image…"
+  if ! docker pull --quiet "$image"; then
+    docker image inspect "$image" > /dev/null 2>&1 || {
+      echo "Image introuvable sur GHCR. Version existante ? Sinon : docker login ghcr.io (jeton read:packages)."
+      exit 1
+    }
+    echo "GHCR injoignable : image déjà présente sur le serveur utilisée."
+  fi
+
+  set_version "$tag"
+  "${COMPOSE[@]}" up -d api
+  echo "Démarrage de l'API (migrations comprises)…"
+  if healthy; then
+    version=$(curl -fsS "http://127.0.0.1:$API_PORT/" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')
+    printf '%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$tag" "${version:-?}" >> "$HISTORY"
+    echo "API en ligne : version ${version:-$tag}."
+    return 0
+  fi
+
+  echo "L'API ne répond pas sur /health. Journaux :"
+  "${COMPOSE[@]}" logs --no-color --tail 40 api || true
+  if [ -n "$CURRENT" ] && [ "$CURRENT" != "$tag" ]; then
+    echo "Retour automatique à $CURRENT…"
+    set_version "$CURRENT"
+    "${COMPOSE[@]}" up -d api
+    healthy && echo "API revenue sur $CURRENT." || echo "L'API ne répond toujours pas : voir les journaux."
+  fi
+  exit 1
+}
+
+load_versions
+
+case "${1:-}" in
+  --list) print_versions; exit 0 ;;
+  -h|--help) sed -n '2,7p' "$0"; exit 0 ;;
+esac
+
+tag=${1:-}
+if [ -z "$tag" ]; then
+  [ ${#VERSIONS[@]} -gt 0 ] || { echo "Aucune version connue : ./rollback.sh <version>"; exit 1; }
+  print_versions
+  echo
+  read -rp "Version à redéployer (1-${#VERSIONS[@]}, ou un tag, Entrée pour annuler) : " choice
+  [ -n "$choice" ] || { echo "Annulé."; exit 0; }
+  if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#VERSIONS[@]} ]; then
+    tag=${VERSIONS[$((choice - 1))]}
+  else
+    tag=$choice
+  fi
+fi
+
+valid_tag "$tag" || { echo "Version invalide : $tag (attendu 1.1.0 ou sha-1a2b3c4)"; exit 1; }
+[ "$tag" != "$CURRENT" ] || { echo "$tag est déjà en production."; exit 0; }
+
+if [ "${2:-}" != "-y" ]; then
+  echo "Les migrations de la base ne sont pas annulées par un retour arrière."
+  read -rp "Redéployer l'API en version $tag (actuelle : ${CURRENT:-inconnue}) ? [o/N] " ok
+  [[ "$ok" =~ ^[oOyY]$ ]] || { echo "Annulé."; exit 0; }
+fi
+
+deploy "$tag"
+{% endraw %}

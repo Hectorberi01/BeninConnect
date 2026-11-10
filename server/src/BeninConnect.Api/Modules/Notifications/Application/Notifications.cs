@@ -31,11 +31,19 @@ public sealed record MarkNotificationReadCommand(Guid Id) : ICommand<Notificatio
 
 public sealed record MarkAllNotificationsReadCommand : ICommand<CountDto>;
 
+/// <summary>Supprime une de mes notifications.</summary>
+public sealed record DeleteNotificationCommand(Guid Id) : ICommand<CountDto>;
+
+/// <summary>Supprime toutes mes notifications (ou celles d'une catégorie).</summary>
+public sealed record ClearNotificationsCommand(NotificationCategory? Category) : ICommand<CountDto>;
+
 public sealed class NotificationHandlers(INotificationsDb db, ICurrentUser me) :
     IRequestHandler<GetNotificationsQuery, IReadOnlyList<NotificationDto>>,
     IRequestHandler<GetUnreadNotificationCountQuery, CountDto>,
     IRequestHandler<MarkNotificationReadCommand, NotificationDto>,
-    IRequestHandler<MarkAllNotificationsReadCommand, CountDto>
+    IRequestHandler<MarkAllNotificationsReadCommand, CountDto>,
+    IRequestHandler<DeleteNotificationCommand, CountDto>,
+    IRequestHandler<ClearNotificationsCommand, CountDto>
 {
     public async Task<IReadOnlyList<NotificationDto>> Handle(GetNotificationsQuery request, CancellationToken ct)
     {
@@ -70,5 +78,22 @@ public sealed class NotificationHandlers(INotificationsDb db, ICurrentUser me) :
 
         await db.SaveChangesAsync(ct);
         return new CountDto(unread.Count);
+    }
+
+    public async Task<CountDto> Handle(DeleteNotificationCommand request, CancellationToken ct)
+    {
+        var deleted = await db.Notifications.Where(n => n.Id == request.Id && n.UserId == me.Id).ExecuteDeleteAsync(ct);
+        return deleted == 0 ? throw new NotFoundException("Notification") : new CountDto(deleted);
+    }
+
+    public async Task<CountDto> Handle(ClearNotificationsCommand request, CancellationToken ct)
+    {
+        var query = db.Notifications.Where(n => n.UserId == me.Id);
+        if (request.Category is { } category)
+        {
+            query = query.Where(n => n.Category == category);
+        }
+
+        return new CountDto(await query.ExecuteDeleteAsync(ct));
     }
 }

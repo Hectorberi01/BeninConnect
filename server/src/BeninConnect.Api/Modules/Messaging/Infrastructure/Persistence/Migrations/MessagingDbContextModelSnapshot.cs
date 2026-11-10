@@ -45,6 +45,9 @@ namespace BeninConnect.Api.Modules.Messaging.Infrastructure.Persistence.Migratio
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("ClearedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("ConversationId", "UserId");
 
                     b.HasIndex("UserId");

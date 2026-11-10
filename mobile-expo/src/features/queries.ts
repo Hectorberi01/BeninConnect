@@ -2,10 +2,11 @@ import { type InfiniteData, type QueryClient, useInfiniteQuery, useMutation, use
 import { Share } from 'react-native';
 import { SITE_URL } from '@/core/config';
 import { useSession } from '@/core/session';
+import * as fmt from '@/core/format';
 import { toast } from '@/core/toast';
 import { data } from '@/data';
 import type {
-  Comment, Message,
+  AppNotification, Comment, ConversationSummary, Message,
   Community, CommunityEvent, CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, NotificationCategory,
   OutgoingFile, Paged, Post, PostFilter, UpdatePostRequest, UpdateProfileRequest,
 } from '@/data/types';
@@ -371,6 +372,23 @@ export function useDeleteMessage(conversationId: string) {
   });
 }
 
+/** Supprime la discussion de ma liste (l'autre membre garde son historique). */
+export function useDeleteConversation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) => data().deleteConversation(conversationId),
+    onMutate: (conversationId) => {
+      qc.setQueryData<ConversationSummary[]>(['conversations'], (old) => old?.filter((s) => s.conversation.id !== conversationId));
+    },
+    onSuccess: (_r, conversationId) => {
+      qc.removeQueries({ queryKey: ['messages', conversationId] });
+      toast('Discussion supprimée.');
+    },
+    onError,
+    onSettled: () => refreshMessaging(qc),
+  });
+}
+
 export function useReactToMessage(conversationId: string) {
   const qc = useQueryClient();
   const key = ['messages', conversationId];
@@ -454,6 +472,15 @@ export function useNotificationActions() {
     markAll: () => data().markAllNotificationsRead().then(async () => {
       await refresh();
       toast('Toutes les notifications sont lues.');
+    }).catch(onError),
+    remove: (id: string) => {
+      // Retirée tout de suite de la liste, puis synchronisée
+      qc.setQueriesData<AppNotification[]>({ queryKey: ['notifications'] }, (old) => old?.filter((n) => n.id !== id));
+      return data().deleteNotification(id).catch(onError).finally(refresh);
+    },
+    clear: (category?: NotificationCategory) => data().clearNotifications(category).then(async (count) => {
+      await refresh();
+      toast(count > 0 ? `${fmt.plural(count, 'notification')} supprimée${count > 1 ? 's' : ''}.` : 'Aucune notification à supprimer.');
     }).catch(onError),
   };
 }

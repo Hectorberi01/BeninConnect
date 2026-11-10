@@ -3,7 +3,7 @@ import type { DataSource } from '../repositories';
 import { INTERESTS, REACTIONS } from '../repositories';
 import type {
   AppNotification, Comment, Community, CommunityEvent, CommunityMember, Conversation, CreateEventRequest, EventFilter,
-  MembershipStatus, Message, OutgoingFile, Paged, Post, PostFilter, User, LocalPhoto, LocalVideo, ReportReason, ReportTarget,
+  MembershipStatus, Message, NotificationCategory, OutgoingFile, Paged, Post, PostFilter, User, LocalPhoto, LocalVideo, ReportReason, ReportTarget,
 } from '../types';
 import { AppError, displayName, isEventFull, membershipStatus, toggleReaction } from '../types';
 import { COMMUNITY_CATEGORIES, EVENT_CATEGORIES } from './seed/seed';
@@ -529,9 +529,13 @@ export class MockDataSource implements DataSource {
     return c;
   }
 
+  /** Discussion supprimée par un membre : date à partir de laquelle il revoit les messages. */
+  private readonly cleared = new Map<string, string>();
+  private visibleTo = (m: Message) => m.sentAt > (this.cleared.get(`${this.userId}:${m.conversationId}`) ?? '');
+
   private summary(c: Conversation) {
     const otherId = c.participantIds.find((p) => p !== this.userId)!;
-    const msgs = this.store.messages.filter((m) => m.conversationId === c.id);
+    const msgs = this.store.messages.filter((m) => m.conversationId === c.id && this.visibleTo(m));
     return {
       conversation: c,
       otherParticipant: this.find(this.store.users, otherId, 'Membre'),
@@ -546,6 +550,7 @@ export class MockDataSource implements DataSource {
     return this.store.conversations
       .filter((c) => c.participantIds.includes(this.userId))
       .map((c) => this.summary(c))
+      .filter((s) => s.lastMessage || !this.cleared.has(`${this.userId}:${s.conversation.id}`))
       .sort((a, b) => (b.lastMessage?.sentAt ?? b.conversation.createdAt).localeCompare(a.lastMessage?.sentAt ?? a.conversation.createdAt));
   }
 
@@ -554,7 +559,13 @@ export class MockDataSource implements DataSource {
   async getMessages(conversationId: string) {
     await this.net();
     this.mine(conversationId);
-    return this.store.messages.filter((m) => m.conversationId === conversationId).sort((a, b) => a.sentAt.localeCompare(b.sentAt));
+    return this.store.messages.filter((m) => m.conversationId === conversationId && this.visibleTo(m)).sort((a, b) => a.sentAt.localeCompare(b.sentAt));
+  }
+
+  async deleteConversation(conversationId: string) {
+    await this.net();
+    this.mine(conversationId);
+    this.cleared.set(`${this.userId}:${conversationId}`, new Date().toISOString());
   }
 
   private post(conversationId: string, senderId: string, content: string, isSimulated: boolean, sharedPostId: string | null = null) {
@@ -677,7 +688,7 @@ export class MockDataSource implements DataSource {
   async getUnreadMessageCount() {
     await this.net();
     const mine = new Set(this.store.conversations.filter((c) => c.participantIds.includes(this.userId)).map((c) => c.id));
-    return this.store.messages.filter((m) => mine.has(m.conversationId) && m.senderId !== this.userId && !m.isRead).length;
+    return this.store.messages.filter((m) => mine.has(m.conversationId) && m.senderId !== this.userId && !m.isRead && this.visibleTo(m)).length;
   }
 
   // --- Événements -------------------------------------------------------------------------
@@ -769,6 +780,19 @@ export class MockDataSource implements DataSource {
     const n = this.store.notifications.find((x) => x.id === id && x.userId === this.userId);
     if (!n) throw new AppError('Notification introuvable.', 404);
     return this.replace(this.store.notifications, { ...n, isRead: true });
+  }
+
+  async deleteNotification(id: string) {
+    await this.net();
+    if (!this.store.notifications.some((n) => n.id === id && n.userId === this.userId)) throw new AppError('Notification introuvable.', 404);
+    this.store.notifications = this.store.notifications.filter((n) => n.id !== id);
+  }
+
+  async clearNotifications(category?: NotificationCategory) {
+    await this.net();
+    const before = this.store.notifications.length;
+    this.store.notifications = this.store.notifications.filter((n) => n.userId !== this.userId || (!!category && n.category !== category));
+    return before - this.store.notifications.length;
   }
 
   async markAllNotificationsRead() {

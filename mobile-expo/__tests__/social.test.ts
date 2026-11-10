@@ -93,3 +93,28 @@ describe('MockDataSource : lot social', () => {
     expect(message.content).toBe('');
   });
 });
+
+describe('MockDataSource : suppressions', () => {
+  it('notification supprimée, puis tout effacer', async () => {
+    const { source } = await signedIn();
+    const all = await source.getNotifications();
+    expect(all.length).toBeGreaterThan(1);
+    await source.deleteNotification(all[0].id);
+    expect((await source.getNotifications()).map((n) => n.id)).not.toContain(all[0].id);
+    expect(await source.clearNotifications()).toBe(all.length - 1);
+    expect(await source.getNotifications()).toEqual([]);
+  });
+
+  it('discussion supprimée pour moi, de retour au message suivant', async () => {
+    const { source, me } = await signedIn();
+    const [summary] = await source.getConversations();
+    const id = summary.conversation.id;
+    await source.deleteConversation(id);
+    expect((await source.getConversations()).map((s) => s.conversation.id)).not.toContain(id);
+    expect(await source.getMessages(id)).toEqual([]);
+    await new Promise((r) => setTimeout(r, 5));
+    await source.sendMessage(id, 'Me revoilà');
+    expect((await source.getMessages(id)).map((m) => m.content)).toEqual(['Me revoilà']);
+    expect((await source.getConversations()).some((s) => s.conversation.id === id && s.lastMessage?.senderId === me.id)).toBe(true);
+  });
+});

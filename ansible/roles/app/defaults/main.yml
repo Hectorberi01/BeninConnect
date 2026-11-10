@@ -14,3 +14,5 @@ app_image_tag: ""
 app_image_registry: ghcr.io/hectorberi01
 registry_user: ""
 registry_token: ""
+# Images de l'API gardées sur le serveur (retour arrière sans téléchargement)
+keep_images: 5

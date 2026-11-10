@@ -1,10 +1,12 @@
-# Intégration continue : tests de chaque partie, puis images Docker publiées sur GHCR (branche main).
+# Intégration continue : tests de chaque partie, puis images Docker publiées sur GHCR
+# (branche main : sha-1a2b3c4 + latest ; tag Git v1.2.0 : 1.2.0 + 1.2).
 name: CI
 
 # Application Avalonia hors CI : ses projets et ses tests ne déclenchent rien.
 on:
   push:
     branches: [main]
+    tags: ["v*.*.*"]
     paths-ignore:
       - "src/BeninConnect.Desktop/**"
       - "src/BeninConnect.Android/**"
@@ -131,7 +133,7 @@ jobs:
 
   images:
     name: Images Docker (GHCR)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     needs: [backend, admin-console]
     runs-on: ubuntu-latest
     permissions:
@@ -156,8 +158,16 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/beninconnect-${{ matrix.name }}
           tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short,prefix=sha-
-            type=raw,value=latest
+            type=raw,value=latest,enable={{is_default_branch}}
+      # Version lue par l'API (racine / et console) : 1.2.0 sur un tag, sha-1a2b3c4 sinon
+      - id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF_NAME#v}"; else v="sha-${GITHUB_SHA::7}"; fi
+          echo "value=$v" >> "$GITHUB_OUTPUT"
+          echo "Version de l'image : \`$v\`" >> "$GITHUB_STEP_SUMMARY"
       - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
@@ -165,5 +175,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: APP_VERSION=${{ steps.version.outputs.value }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}

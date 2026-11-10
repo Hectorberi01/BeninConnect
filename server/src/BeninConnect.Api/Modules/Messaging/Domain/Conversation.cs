@@ -30,6 +30,17 @@ public sealed class Conversation
 
     public bool Includes(Guid userId) => _participants.Any(p => p.UserId == userId);
 
+    /// <summary>Messages visibles par ce membre : envoyés après sa dernière suppression de la discussion.</summary>
+    public DateTimeOffset? ClearedAtFor(Guid userId) => _participants.FirstOrDefault(p => p.UserId == userId)?.ClearedAt;
+
+    /// <summary>Supprime la discussion pour ce membre seulement (l'autre garde son historique).</summary>
+    public void ClearFor(Guid userId, DateTimeOffset now)
+    {
+        var participant = _participants.FirstOrDefault(p => p.UserId == userId)
+                          ?? throw new ForbiddenException("Vous ne participez pas à cette conversation.");
+        participant.Clear(now);
+    }
+
     public Message Post(Guid id, Guid senderId, string content, DateTimeOffset now, bool isSimulated = false, MessageAttachment? attachment = null,
         Guid? sharedPostId = null)
     {
@@ -56,6 +67,11 @@ public sealed class ConversationParticipant
 
     public Guid ConversationId { get; private set; }
     public Guid UserId { get; private set; }
+
+    /// <summary>Discussion supprimée par ce membre : les messages antérieurs lui sont masqués.</summary>
+    public DateTimeOffset? ClearedAt { get; private set; }
+
+    public void Clear(DateTimeOffset now) => ClearedAt = now;
 }
 
 public enum AttachmentKind

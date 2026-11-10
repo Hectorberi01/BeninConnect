@@ -208,6 +208,7 @@ export class ApiDataSource implements DataSource {
   editMessage = (id: string, messageId: string, content: string) =>
     this.request<Message>('PUT', `api/conversations/${id}/messages/${messageId}`, { content });
   deleteMessage = (id: string, messageId: string) => this.request<Message>('DELETE', `api/conversations/${id}/messages/${messageId}`);
+  deleteConversation = async (id: string) => { await this.request('DELETE', `api/conversations/${id}`); };
   async sendAttachment(id: string, file: OutgoingFile, caption?: string) {
     const form = new FormData();
     if (Platform.OS === 'web') {
@@ -252,4 +253,7 @@ export class ApiDataSource implements DataSource {
     this.post<void>('api/notifications/devices', { token, platform, mutedCategories });
   unregisterPushDevice = (token: string) => this.post<void>('api/notifications/devices/unregister', { token });
   markAllNotificationsRead = async () => (await this.post<{ count: number }>('api/notifications/read-all')).count;
+  deleteNotification = async (id: string) => { await this.request('DELETE', `api/notifications/${id}`); };
+  clearNotifications = async (category?: NotificationCategory) =>
+    (await this.request<{ count: number }>('DELETE', `api/notifications${this.q({ category })}`)).count;
 }

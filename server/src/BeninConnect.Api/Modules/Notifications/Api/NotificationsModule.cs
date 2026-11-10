@@ -50,6 +50,8 @@ public sealed class NotificationsModule : IModule
         notifications.MapGet("/unread-count", (ISender s, CancellationToken ct) => s.Send(new GetUnreadNotificationCountQuery(), ct));
         notifications.MapPost("/{id:guid}/read", (Guid id, ISender s, CancellationToken ct) => s.Send(new MarkNotificationReadCommand(id), ct));
         notifications.MapPost("/read-all", (ISender s, CancellationToken ct) => s.Send(new MarkAllNotificationsReadCommand(), ct));
+        notifications.MapDelete("/{id:guid}", (Guid id, ISender s, CancellationToken ct) => s.Send(new DeleteNotificationCommand(id), ct));
+        notifications.MapDelete("", (NotificationCategory? category, ISender s, CancellationToken ct) => s.Send(new ClearNotificationsCommand(category), ct));
 
         // Téléphone du membre : enregistré après la connexion et à chaque changement de réglages, retiré à la déconnexion.
         notifications.MapPost("/devices", async (RegisterPushDeviceCommand c, ISender s, CancellationToken ct) =>

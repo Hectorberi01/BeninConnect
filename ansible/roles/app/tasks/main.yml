@@ -96,17 +96,18 @@
     group: "{{ deploy_user }}"
     mode: "0600"
 
-# Image à déployer (non secret), séparée du .env pour ne jamais le modifier.
-- name: Image de l'API (.env.deploy)
+# Version à déployer (non secret), séparée du .env pour ne jamais toucher aux secrets.
+- name: Version de l'API (.env.deploy)
   ansible.builtin.copy:
     dest: "{{ app_dir }}/server/.env.deploy"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
     mode: "0644"
     content: |
-      # Généré par Ansible : image de l'API à déployer (vide = construite sur le serveur)
+      # Version de l'API à déployer (écrit par le déploiement et par rollback.sh ; vide = image construite sur le serveur)
       {% if app_from_registry %}
-      API_IMAGE={{ app_image_registry | lower }}/beninconnect-api:{{ app_image_tag }}
+      APP_VERSION={{ app_image_tag }}
+      API_REGISTRY={{ app_image_registry | lower }}
       {% endif %}
 
 - name: Appliquer les reconstructions en attente
@@ -161,6 +162,51 @@
     - name: Échec du déploiement
       ansible.builtin.fail:
         msg: "L'API ne répond pas sur /health. Dernières lignes :\n{{ api_logs.stdout_lines[-40:] | join('\n') }}"
+
+# Historique des déploiements : sert au retour arrière (Deploy « previous », ./rollback.sh)
+- name: Version qui tourne
+  when: app_from_registry
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ api_port }}/"
+    return_content: true
+  register: api_root
+
+- name: Dernière version de l'historique
+  when: app_from_registry
+  ansible.builtin.shell: "tail -n 1 {{ app_dir }}/server/deploy-history.log 2>/dev/null | cut -f2"
+  register: last_deployed
+  changed_when: false
+
+# Même version redéployée : pas de nouvelle ligne (sinon « previous » reviendrait sur elle-même)
+- name: Ajouter le déploiement à l'historique
+  when: app_from_registry and last_deployed.stdout != app_image_tag
+  ansible.builtin.lineinfile:
+    path: "{{ app_dir }}/server/deploy-history.log"
+    line: "{{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}\t{{ app_image_tag }}\t{{ api_root.json.version | default('?') }}"
+    insertafter: EOF
+    create: true
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0644"
+
+- name: Script de retour arrière
+  ansible.builtin.template:
+    src: rollback.sh.j2
+    dest: "{{ app_dir }}/server/rollback.sh"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0750"
+
+# Les plus récentes d'abord ; une image utilisée par un conteneur n'est jamais supprimée
+- name: Garder les dernières images de l'API
+  when: app_from_registry
+  ansible.builtin.shell: |
+    {% raw %}docker images "$REPO" --format '{{.Repository}}:{{.Tag}}'{% endraw %} \
+      | grep -v -e ':<none>$' -e ':latest$' | tail -n +$(( KEEP + 1 )) | xargs -r docker rmi > /dev/null 2>&1 || true
+  environment:
+    REPO: "{{ app_image_registry | lower }}/beninconnect-api"
+    KEEP: "{{ keep_images }}"
+  changed_when: false
 
 - name: Supprimer les images inutilisées
   community.docker.docker_prune:
