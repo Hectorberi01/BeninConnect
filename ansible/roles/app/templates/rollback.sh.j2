@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Retour arrière de l'API (généré par Ansible). Images téléchargées depuis GHCR : rien ne dépend du cache du serveur.
-#   ./rollback.sh            menu : 5 dernières versions, choix, redéploiement
+#   ./rollback.sh            menu : 5 dernières versions publiées sur GHCR, choix, redéploiement
 #   ./rollback.sh 1.1.0      cette version (ou sha-1a2b3c4), après confirmation
 #   ./rollback.sh 1.1.0 -y   sans confirmation
 #   ./rollback.sh --list     5 dernières versions
@@ -22,43 +22,55 @@ REGISTRY=$(env_value API_REGISTRY); REGISTRY=${REGISTRY:-$DEFAULT_REGISTRY}
 REPO="$REGISTRY/beninconnect-api"
 CURRENT=$(env_value APP_VERSION)
 
-# Tags semver publiés sur GHCR (connexion « docker login ghcr.io » du compte courant ; vide si indisponible)
-registry_tags() {
+# Versions publiées sur GHCR, les plus récentes d'abord : « tag<TAB>date ».
+# API GitHub Packages avec le jeton de « docker login ghcr.io » (droit read:packages) ; vide si indisponible.
+registry_versions() {
   python3 - "$REGISTRY" <<'PY' 2>/dev/null || true
-import base64, json, os, sys, urllib.request
-registry = sys.argv[1]
-host, _, owner = registry.partition("/")
-repo = f"{owner}/beninconnect-api"
-auth = json.load(open(os.path.expanduser("~/.docker/config.json"))).get("auths", {}).get(host, {}).get("auth")
-req = urllib.request.Request(f"https://{host}/token?service={host}&scope=repository:{repo}:pull")
-if auth:
-    req.add_header("Authorization", "Basic " + auth)
-token = json.load(urllib.request.urlopen(req, timeout=10))["token"]
-req = urllib.request.Request(f"https://{host}/v2/{repo}/tags/list?n=1000", headers={"Authorization": f"Bearer {token}"})
-tags = json.load(urllib.request.urlopen(req, timeout=10)).get("tags") or []
-semver = [t for t in tags if t.count(".") == 2 and all(p.isdigit() for p in t.split("."))]
-for t in sorted(semver, key=lambda t: tuple(map(int, t.split("."))), reverse=True):
-    print(t)
+import base64, json, os, re, sys, urllib.request
+host, _, owner = sys.argv[1].partition("/")
+auth = json.load(open(os.path.expanduser("~/.docker/config.json")))["auths"][host]["auth"]
+token = base64.b64decode(auth).decode().split(":", 1)[1]
+semver = re.compile(r"^\d+\.\d+\.\d+$")
+for kind in ("users", "orgs"):
+    url = f"https://api.github.com/{kind}/{owner}/packages/container/beninconnect-api/versions?per_page=50"
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"})
+    try:
+        versions = json.load(urllib.request.urlopen(req, timeout=10))
+    except Exception:
+        continue
+    for v in sorted(versions, key=lambda v: v["created_at"], reverse=True):
+        tags = v.get("metadata", {}).get("container", {}).get("tags", [])
+        # Nom affiché : 1.2.0 si la version en a un, sinon sha-1a2b3c4 (ni « latest » ni « 1.2 »)
+        name = next((t for t in tags if semver.match(t)), None) or next((t for t in tags if t.startswith("sha-")), None)
+        if name:
+            print(f"{name}\t{v['created_at']}")
+    break
 PY
 }
 
-# 5 dernières versions : déploiements récents (avec leur date), complétés par les versions publiées sur GHCR
+# Date lisible : 2026-11-10T23:49:00Z → 2026-11-10 à 23:49 UTC
+pretty_date() { echo "${1%T*} à $(echo "${1#*T}" | cut -c1-5) UTC"; }
+
+# 5 dernières versions : publiées sur GHCR (source de vérité), sinon historique des déploiements du serveur
 load_versions() {
   VERSIONS=(); DATES=()
-  if [ -f "$HISTORY" ]; then
-    while IFS=$'\t' read -r date tag _; do
-      [ -n "$tag" ] || continue
-      [[ " ${VERSIONS[*]-} " == *" $tag "* ]] && continue
-      VERSIONS+=("$tag"); DATES+=("déployée le ${date%T*} à $(echo "${date#*T}" | cut -c1-5) UTC")
-      [ ${#VERSIONS[@]} -ge $KEEP ] && return
-    done < <(tac "$HISTORY")
-  fi
-  while read -r tag; do
+  while IFS=$'\t' read -r tag date; do
     [ -n "$tag" ] || continue
     [[ " ${VERSIONS[*]-} " == *" $tag "* ]] && continue
-    VERSIONS+=("$tag"); DATES+=("publiée sur GHCR")
+    VERSIONS+=("$tag"); DATES+=("publiée le $(pretty_date "$date")")
     [ ${#VERSIONS[@]} -ge $KEEP ] && return
-  done < <(registry_tags)
+  done < <(registry_versions)
+  [ ${#VERSIONS[@]} -eq 0 ] || return 0
+
+  echo "(GHCR indisponible : versions de deploy-history.log)" >&2
+  [ -f "$HISTORY" ] || return 0
+  while IFS=$'\t' read -r date tag _; do
+    [ -n "$tag" ] || continue
+    [[ " ${VERSIONS[*]-} " == *" $tag "* ]] && continue
+    VERSIONS+=("$tag"); DATES+=("déployée le $(pretty_date "$date")")
+    [ ${#VERSIONS[@]} -ge $KEEP ] && return
+  done < <(tac "$HISTORY")
+  return 0
 }
 
 print_versions() {

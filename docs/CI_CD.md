@@ -83,28 +83,30 @@ même après un nettoyage de son cache. La version en production est `APP_VERSIO
 (écrit par le déploiement, à côté du `.env` qui ne contient que les secrets et n'est jamais réécrit).
 
 - **GitHub** (API, console, site et Caddy ensemble) : Actions > Deploy > Run workflow > `previous` ou une version.
-- **Sur le serveur** (API seulement), menu des 5 dernières versions :
+- **Sur le serveur** (API seulement), menu des 5 dernières versions publiées sur GHCR
+  (API GitHub Packages ; si GHCR est injoignable, celles de `deploy-history.log`) :
 
   ```
-  $ cd /opt/beninconnect/server && sudo -u deploy ./rollback.sh
+  $ cd /opt/beninconnect/server && ./rollback.sh      # en tant que ubuntu (deploy_user)
   Version en production : sha-c3d4e5f
 
-    1) sha-c3d4e5f      déployée le 2026-11-12 à 09:41 UTC  ← en cours
-    2) 1.1.0            déployée le 2026-11-10 à 18:02 UTC
-    3) 1.0.0            déployée le 2026-11-02 à 20:15 UTC
-    4) 1.0.2            publiée sur GHCR
+    1) sha-c3d4e5f      publiée le 2026-11-12 à 09:38 UTC  ← en cours
+    2) 1.1.0            publiée le 2026-11-10 à 17:55 UTC
+    3) sha-9a8b7c6      publiée le 2026-11-08 à 21:02 UTC
+    4) 1.0.0            publiée le 2026-11-02 à 20:10 UTC
+    5) sha-1f2e3d4      publiée le 2026-11-01 à 12:30 UTC
 
-  Version à redéployer (1-4, ou un tag, Entrée pour annuler) : 2
+  Version à redéployer (1-5, ou un tag, Entrée pour annuler) : 2
   ```
 
   Autres usages : `./rollback.sh --list`, `./rollback.sh 1.1.0` (confirmation), `./rollback.sh 1.1.0 -y` (sans confirmation).
   Si la version choisie ne répond pas sur `/health`, le script revient tout seul à la version précédente.
 
-Connexion à GHCR du compte `deploy`, une fois (inutile si le paquet est public) : jeton GitHub *classic* avec
+Connexion à GHCR de l'utilisateur de déploiement (`deploy_user`, `ubuntu` en production), une fois (inutile si le paquet est public) : jeton GitHub *classic* avec
 le seul droit `read:packages`, puis
 
 ```bash
-sudo -u deploy docker login ghcr.io -u <utilisateur GitHub>   # coller le jeton comme mot de passe
+docker login ghcr.io -u <utilisateur GitHub>   # connecté en ubuntu ; coller le jeton comme mot de passe
 ```
 
 Sans cette connexion, le script se rabat sur les images encore présentes sur le serveur (les 5 dernières, `keep_images`).
