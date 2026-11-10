@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using BeninConnect.Shared.Domain;
 
 namespace BeninConnect.Modules.Feed.Domain;
@@ -9,9 +10,30 @@ public enum PostVisibility
     OnlyMe
 }
 
+/// <summary>Hashtags (#Cotonou) et mentions (identifiants de membres) d'un texte.</summary>
+public static partial class SocialText
+{
+    public const int MaxTags = 20;
+    public const int MaxMentions = 20;
+
+    /// <summary>Hashtags en minuscules, sans le #, sans doublon.</summary>
+    public static List<string> Tags(string text) =>
+        TagRegex().Matches(text).Select(m => m.Groups[1].Value.ToLowerInvariant()).Distinct().Take(MaxTags).ToList();
+
+    public static string NormalizeTag(string tag) => tag.Trim().TrimStart('#').ToLowerInvariant();
+
+    public static List<Guid> Mentions(IEnumerable<Guid>? ids, Guid authorId) =>
+        (ids ?? []).Where(id => id != Guid.Empty && id != authorId).Distinct().Take(MaxMentions).ToList();
+
+    [GeneratedRegex(@"(?<![\p{L}\p{N}_])#([\p{L}\p{N}_]{2,40})")]
+    private static partial Regex TagRegex();
+}
+
 public sealed class Post
 {
     public const int MaxLength = 2000;
+    public const int MaxImages = 10;
+    public const int MaxPinned = 3;
 
     private readonly List<PostLike> _likes = [];
 
@@ -34,6 +56,20 @@ public sealed class Post
     public string? HiddenReason { get; private set; }
     public DateTimeOffset? EditedAt { get; private set; }
 
+    /// <summary>Photos du carrousel, dans l'ordre (ImagePath = la première, pour l'aperçu).</summary>
+    public List<string> Images { get; private set; } = [];
+
+    /// <summary>Hashtags du texte, en minuscules.</summary>
+    public List<string> Tags { get; private set; } = [];
+
+    public List<Guid> MentionIds { get; private set; } = [];
+
+    /// <summary>Épinglée en haut du profil de l'auteur.</summary>
+    public DateTimeOffset? PinnedAt { get; private set; }
+
+    /// <summary>Commentaire épinglé par l'auteur sous sa publication.</summary>
+    public Guid? PinnedCommentId { get; private set; }
+
     /// <summary>Masquée par la modération : invisible pour les membres, conservée pour l'historique.</summary>
     public void Hide(string reason)
     {
@@ -55,37 +91,74 @@ public sealed class Post
     public IReadOnlyCollection<PostLike> Likes => _likes;
 
     public static Post Create(
-        Guid id, Guid authorId, Guid? communityId, string content, string? imagePath, PostVisibility visibility, DateTimeOffset now, string? videoPath = null)
+        Guid id, Guid authorId, Guid? communityId, string content, string? imagePath, PostVisibility visibility, DateTimeOffset now, string? videoPath = null,
+        IReadOnlyList<string>? images = null, IEnumerable<Guid>? mentions = null)
     {
         var text = Validate(content, visibility, communityId);
-        return new Post
+        var post = new Post
         {
             Id = id,
             AuthorId = authorId,
             CommunityId = communityId,
             Content = text,
-            ImagePath = imagePath,
             VideoPath = videoPath,
             Visibility = visibility,
-            CreatedAt = now
+            CreatedAt = now,
+            Tags = SocialText.Tags(text),
+            MentionIds = SocialText.Mentions(mentions, authorId)
         };
+        post.SetMedia(imagePath, videoPath, images);
+        return post;
     }
 
-    /// <summary>Modification par l'auteur : texte, photo ou vidéo, visibilité (la communauté ne change pas).</summary>
-    public void Edit(string content, string? imagePath, PostVisibility visibility, DateTimeOffset now, string? videoPath = null)
+    /// <summary>Modification par l'auteur : texte, photos ou vidéo, visibilité (la communauté ne change pas).</summary>
+    public void Edit(string content, string? imagePath, PostVisibility visibility, DateTimeOffset now, string? videoPath = null,
+        IReadOnlyList<string>? images = null, IEnumerable<Guid>? mentions = null)
     {
         var text = Validate(content, visibility, CommunityId);
-        if (text == Content && imagePath == ImagePath && visibility == Visibility && videoPath == VideoPath)
+        var before = (Content, ImagePath, VideoPath, Visibility, string.Join('|', Images), string.Join('|', MentionIds));
+        Content = text;
+        Visibility = visibility;
+        Tags = SocialText.Tags(text);
+        MentionIds = SocialText.Mentions(mentions, AuthorId);
+        SetMedia(imagePath, videoPath, images);
+        if (before != (Content, ImagePath, VideoPath, Visibility, string.Join('|', Images), string.Join('|', MentionIds)))
         {
+            EditedAt = now;
+        }
+    }
+
+    /// <summary>
+    /// Vidéo : ImagePath = miniature, pas de carrousel. Sinon, Images (jusqu'à 10) ; ImagePath = la première.
+    /// Un seul ImagePath sans Images (anciennes versions de l'app) devient un carrousel d'une photo.
+    /// </summary>
+    private void SetMedia(string? imagePath, string? videoPath, IReadOnlyList<string>? images)
+    {
+        VideoPath = videoPath;
+        if (videoPath is not null)
+        {
+            ImagePath = imagePath;
+            Images = [];
             return;
         }
 
-        Content = text;
-        ImagePath = imagePath;
-        VideoPath = videoPath;
-        Visibility = visibility;
-        EditedAt = now;
+        var list = (images is { Count: > 0 } ? images : imagePath is null ? [] : [imagePath])
+            .Where(i => !string.IsNullOrWhiteSpace(i)).Distinct().ToList();
+        if (list.Count > MaxImages)
+        {
+            throw new DomainException($"Une publication contient au plus {MaxImages} photos.");
+        }
+
+        Images = list;
+        ImagePath = list.FirstOrDefault();
     }
+
+    /// <summary>L'auteur épingle ou désépingle sa publication en haut de son profil.</summary>
+    public void Pin(DateTimeOffset now) => PinnedAt ??= now;
+
+    public void Unpin() => PinnedAt = null;
+
+    public void PinComment(Guid? commentId) => PinnedCommentId = commentId;
 
     private static string Validate(string content, PostVisibility visibility, Guid? communityId)
     {
@@ -124,9 +197,9 @@ public sealed class Post
 
     public void Share() => ShareCount++;
 
-    public Comment AddComment(Guid id, Guid authorId, string content, DateTimeOffset now)
+    public Comment AddComment(Guid id, Guid authorId, string content, DateTimeOffset now, Guid? parentId = null, IEnumerable<Guid>? mentions = null)
     {
-        var comment = Comment.Create(id, Id, authorId, content, now);
+        var comment = Comment.Create(id, Id, authorId, content, now, parentId, mentions);
         CommentCount++;
         return comment;
     }
@@ -175,13 +248,18 @@ public sealed class Comment
     public string Content { get; private set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; private set; }
 
+    /// <summary>Réponse à ce commentaire (un seul niveau : une réponse à une réponse vise le commentaire d'origine).</summary>
+    public Guid? ParentId { get; private set; }
+
+    public List<Guid> MentionIds { get; private set; } = [];
+
     public IReadOnlyCollection<CommentReaction> Reactions => _reactions;
 
     /// <summary>Retourne true si le membre a désormais une réaction sur ce commentaire.</summary>
     public bool React(Guid userId, string? emoji, DateTimeOffset now) =>
         Reaction.Toggle(_reactions, userId, emoji, now, value => new CommentReaction(Id, userId, value, now));
 
-    internal static Comment Create(Guid id, Guid postId, Guid authorId, string content, DateTimeOffset now)
+    internal static Comment Create(Guid id, Guid postId, Guid authorId, string content, DateTimeOffset now, Guid? parentId, IEnumerable<Guid>? mentions)
     {
         var text = content.Trim();
         if (text.Length == 0)
@@ -194,7 +272,11 @@ public sealed class Comment
             throw new DomainException($"Le commentaire ne doit pas dépasser {MaxLength} caractères.");
         }
 
-        return new Comment { Id = id, PostId = postId, AuthorId = authorId, Content = text, CreatedAt = now };
+        return new Comment
+        {
+            Id = id, PostId = postId, AuthorId = authorId, Content = text, CreatedAt = now, ParentId = parentId,
+            MentionIds = SocialText.Mentions(mentions, authorId)
+        };
     }
 }
 
@@ -213,4 +295,23 @@ public sealed class CommentReaction : Reaction
     }
 
     public Guid CommentId { get; private set; }
+}
+
+/// <summary>Publication enregistrée par un membre (onglet « Enregistrés »).</summary>
+public sealed class SavedPost
+{
+    private SavedPost()
+    {
+    }
+
+    public SavedPost(Guid userId, Guid postId, DateTimeOffset savedAt)
+    {
+        UserId = userId;
+        PostId = postId;
+        SavedAt = savedAt;
+    }
+
+    public Guid UserId { get; private set; }
+    public Guid PostId { get; private set; }
+    public DateTimeOffset SavedAt { get; private set; }
 }

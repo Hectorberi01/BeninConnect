@@ -10,7 +10,13 @@ using BeninConnect.Shared.Infrastructure;
 
 namespace BeninConnect.Modules.Feed.Api;
 
-public sealed record UpdatePostRequest(string Content, string? ImagePath, PostVisibility Visibility, string? VideoPath = null);
+public sealed record UpdatePostRequest(
+    string Content, string? ImagePath, PostVisibility Visibility, string? VideoPath = null,
+    IReadOnlyList<string>? Images = null, IReadOnlyList<Guid>? Mentions = null);
+
+public sealed record CommentRequest(string Content, Guid? ParentId = null, IReadOnlyList<Guid>? Mentions = null);
+
+public sealed record PinCommentRequest(Guid? CommentId);
 
 /// <summary>Publications, commentaires, j'aime et réactions.</summary>
 public sealed class FeedModule : IModule
@@ -37,8 +43,15 @@ public sealed class FeedModule : IModule
 
         var feed = app.MapGroup("/api").WithTags("Publications").RequireAuthorization();
         feed.MapGet("/feed", (int? skip, int? take, ISender s, CancellationToken ct) => s.Send(new GetFeedQuery(skip ?? 0, take ?? 10), ct));
-        feed.MapGet("/posts", (Guid? authorId, Guid? communityId, string? search, ISender s, CancellationToken ct) =>
-            s.Send(new GetPostsQuery(authorId, communityId, search), ct));
+        feed.MapGet("/posts", (Guid? authorId, Guid? communityId, string? search, string? tag, ISender s, CancellationToken ct) =>
+            s.Send(new GetPostsQuery(authorId, communityId, search, tag), ct));
+        feed.MapGet("/posts/saved", (ISender s, CancellationToken ct) => s.Send(new GetSavedPostsQuery(), ct));
+        feed.MapGet("/posts/saved/ids", (ISender s, CancellationToken ct) => s.Send(new GetSavedPostIdsQuery(), ct));
+        feed.MapPost("/posts/{id:guid}/save", (Guid id, ISender s, CancellationToken ct) => s.Send(new ToggleSaveCommand(id), ct));
+        feed.MapPost("/posts/{id:guid}/pin", (Guid id, ISender s, CancellationToken ct) => s.Send(new PinPostCommand(id, true), ct));
+        feed.MapDelete("/posts/{id:guid}/pin", (Guid id, ISender s, CancellationToken ct) => s.Send(new PinPostCommand(id, false), ct));
+        feed.MapPut("/posts/{id:guid}/pinned-comment", (Guid id, PinCommentRequest r, ISender s, CancellationToken ct) =>
+            s.Send(new PinCommentCommand(id, r.CommentId), ct));
         feed.MapGet("/posts/{id:guid}", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetPostQuery(id), ct));
         feed.MapPost("/posts", async (CreatePostCommand c, ISender s, CancellationToken ct) =>
         {
@@ -46,7 +59,7 @@ public sealed class FeedModule : IModule
             return Results.Created($"/api/posts/{post.Id}", post);
         });
         feed.MapPut("/posts/{id:guid}", (Guid id, UpdatePostRequest r, ISender s, CancellationToken ct) =>
-            s.Send(new UpdatePostCommand(id, r.Content, r.ImagePath, r.Visibility, r.VideoPath), ct));
+            s.Send(new UpdatePostCommand(id, r.Content, r.ImagePath, r.Visibility, r.VideoPath, r.Images, r.Mentions), ct));
         feed.MapDelete("/posts/{id:guid}", async (Guid id, ISender s, CancellationToken ct) =>
         {
             await s.Send(new DeleteMyPostCommand(id), ct);
@@ -55,9 +68,9 @@ public sealed class FeedModule : IModule
         feed.MapPost("/posts/{id:guid}/like", (Guid id, ISender s, CancellationToken ct) => s.Send(new ToggleLikeCommand(id), ct));
         feed.MapPost("/posts/{id:guid}/share", (Guid id, ISender s, CancellationToken ct) => s.Send(new SharePostCommand(id), ct));
         feed.MapGet("/posts/{id:guid}/comments", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetCommentsQuery(id), ct));
-        feed.MapPost("/posts/{id:guid}/comments", async (Guid id, ContentRequest r, ISender s, CancellationToken ct) =>
+        feed.MapPost("/posts/{id:guid}/comments", async (Guid id, CommentRequest r, ISender s, CancellationToken ct) =>
         {
-            var comment = await s.Send(new AddCommentCommand(id, r.Content), ct);
+            var comment = await s.Send(new AddCommentCommand(id, r.Content, r.ParentId, r.Mentions), ct);
             return Results.Created($"/api/posts/{id}/comments", comment);
         });
         feed.MapPost("/posts/{id:guid}/comments/{commentId:guid}/reactions", (Guid id, Guid commentId, ReactionRequest r, ISender s, CancellationToken ct) =>

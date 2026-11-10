@@ -1,7 +1,7 @@
 import type {
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, MembershipStatus, Message,
-  NotificationCategory, OutgoingFile, Paged, Post, ReportReason, ReportTarget, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User, LocalPhoto, LocalVideo } from './types';
+  NotificationCategory, OutgoingFile, Paged, Post, ReportReason, ReportTarget, PostFilter, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User, LocalPhoto, LocalVideo } from './types';
 
 /**
  * Contrat unique de la couche données : implémenté par le mock hors ligne et par le client HTTP de l'API.
@@ -39,7 +39,15 @@ export interface DataSource {
   // Publications
   getFeed(skip: number, take: number): Promise<Paged<Post>>;
   getPost(id: string): Promise<Post>;
-  getPosts(filter: { authorId?: string; communityId?: string; search?: string }): Promise<Post[]>;
+  getPosts(filter: PostFilter): Promise<Post[]>;
+  /** Enregistrements (visibles par moi seul). */
+  toggleSave(postId: string): Promise<boolean>;
+  getSavedPosts(): Promise<Post[]>;
+  getSavedPostIds(): Promise<string[]>;
+  /** Épingle sur le profil (3 au plus) ; réservé à l'auteur. */
+  pinPost(postId: string, pinned: boolean): Promise<Post>;
+  /** Commentaire épinglé (null : retiré) ; réservé à l'auteur de la publication. */
+  pinComment(postId: string, commentId: string | null): Promise<Post>;
   createPost(request: CreatePostRequest): Promise<Post>;
   /** Réservé à l'auteur ; la communauté ne change pas. */
   updatePost(postId: string, request: UpdatePostRequest): Promise<Post>;
@@ -50,7 +58,7 @@ export interface DataSource {
   /** Signalement à la modération (publication, commentaire, membre ou communauté). */
   report(target: ReportTarget, targetId: string, reason: ReportReason, details?: string): Promise<void>;
   getComments(postId: string): Promise<Comment[]>;
-  addComment(postId: string, content: string): Promise<Comment>;
+  addComment(postId: string, content: string, options?: { parentId?: string | null; mentions?: string[] }): Promise<Comment>;
   /** Envoie une photo de l'appareil ; retourne le chemin à enregistrer (profil, couverture, publication). */
   uploadImage(photo: LocalPhoto): Promise<string>;
   /** Vidéo d'une publication (60 Mo) ; onProgress reçoit 0 à 1. Retourne le chemin à enregistrer (videoPath). */
@@ -76,6 +84,8 @@ export interface DataSource {
   getConversation(id: string): Promise<ConversationSummary>;
   getMessages(conversationId: string): Promise<Message[]>;
   sendMessage(conversationId: string, content: string): Promise<Message>;
+  /** Envoie une publication dans la discussion (avec un mot facultatif). */
+  sendPost(conversationId: string, postId: string, content?: string): Promise<Message>;
   /** Scénario de démonstration explicite : réponse marquée « simulée ». */
   simulateReply(conversationId: string, content: string): Promise<Message>;
   reactToMessage(conversationId: string, messageId: string, emoji: string): Promise<Message>;

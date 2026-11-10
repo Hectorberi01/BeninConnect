@@ -1,3 +1,4 @@
+using BeninConnect.Modules.Feed.Contracts;
 using BeninConnect.Modules.Feed.Domain;
 using BeninConnect.Modules.Identity.Contracts;
 using BeninConnect.Modules.Media.Contracts;
@@ -32,16 +33,19 @@ public sealed class DeleteMyPostHandler(IFeedDb db, IEventBus bus, ICurrentUser 
 }
 
 /// <summary>Modification par l'auteur ; l'ancienne photo remplacée est effacée du stockage.</summary>
-public sealed record UpdatePostCommand(Guid Id, string Content, string? ImagePath, PostVisibility Visibility, string? VideoPath = null)
+public sealed record UpdatePostCommand(
+    Guid Id, string Content, string? ImagePath, PostVisibility Visibility, string? VideoPath = null,
+    IReadOnlyList<string>? Images = null, IReadOnlyList<Guid>? Mentions = null)
     : ICommand<PostDto>, IValidatable
 {
     public IEnumerable<(string, string)> Validate() =>
         Rules.Length(nameof(Content), Content, "La publication", 3, Post.MaxLength)
             .Concat(Rules.ImagePath(nameof(ImagePath), ImagePath))
-            .Concat(Rules.VideoPath(nameof(VideoPath), VideoPath));
+            .Concat(Rules.VideoPath(nameof(VideoPath), VideoPath))
+            .Concat(PostRules.Images(Images));
 }
 
-public sealed class UpdatePostHandler(IFeedDb db, IEventBus bus, ICurrentUser me, TimeProvider clock) : IRequestHandler<UpdatePostCommand, PostDto>
+public sealed class UpdatePostHandler(IFeedDb db, IEventBus bus, IIdentityModule identity, ICurrentUser me, TimeProvider clock) : IRequestHandler<UpdatePostCommand, PostDto>
 {
     public async Task<PostDto> Handle(UpdatePostCommand request, CancellationToken ct)
     {
@@ -52,12 +56,26 @@ public sealed class UpdatePostHandler(IFeedDb db, IEventBus bus, ICurrentUser me
         }
 
         var previous = post.Files();
+        var previousMentions = post.MentionIds.ToList();
+        var mentions = SocialText.Mentions(request.Mentions, me.Id);
+        if (mentions.Count > 0)
+        {
+            var names = await identity.GetNamesAsync(mentions, ct);
+            var blocked = await identity.GetBlockedRelationsAsync(me.Id, ct);
+            mentions = mentions.Where(id => names.ContainsKey(id) && !blocked.Contains(id)).ToList();
+        }
+
         post.Edit(request.Content, string.IsNullOrWhiteSpace(request.ImagePath) ? null : request.ImagePath, request.Visibility, clock.GetUtcNow(),
-            string.IsNullOrWhiteSpace(request.VideoPath) ? null : request.VideoPath);
+            string.IsNullOrWhiteSpace(request.VideoPath) ? null : request.VideoPath, request.Images, mentions);
         await db.SaveChangesAsync(ct);
         if (previous.Except(post.Files()).ToList() is { Count: > 0 } replaced)
         {
             await bus.PublishAsync(new ImagesReleased(replaced), ct);
+        }
+
+        if (post.MentionIds.Except(previousMentions).ToList() is { Count: > 0 } added)
+        {
+            await bus.PublishAsync(new MembersMentioned(post.Id, me.Id, added, Text.Excerpt(post.Content), false), ct);
         }
 
         return post.ToDto();

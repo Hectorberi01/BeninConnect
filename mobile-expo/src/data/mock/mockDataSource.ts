@@ -3,10 +3,11 @@ import type { DataSource } from '../repositories';
 import { INTERESTS, REACTIONS } from '../repositories';
 import type {
   AppNotification, Comment, Community, CommunityEvent, CommunityMember, Conversation, CreateEventRequest, EventFilter,
-  MembershipStatus, Message, OutgoingFile, Paged, Post, User, LocalPhoto, LocalVideo, ReportReason, ReportTarget,
+  MembershipStatus, Message, OutgoingFile, Paged, Post, PostFilter, User, LocalPhoto, LocalVideo, ReportReason, ReportTarget,
 } from '../types';
 import { AppError, displayName, isEventFull, membershipStatus, toggleReaction } from '../types';
 import { COMMUNITY_CATEGORIES, EVENT_CATEGORIES } from './seed/seed';
+import { extractTags, normalizeTag } from '../social';
 import { createMockStore, type MockStore } from './factory';
 import { newId } from './random';
 
@@ -238,13 +239,70 @@ export class MockDataSource implements DataSource {
     return post;
   }
 
-  async getPosts(f: { authorId?: string; communityId?: string; search?: string }) {
+  async getPosts(f: PostFilter) {
     await this.net();
     const q = f.search?.trim();
+    const tag = f.tag ? normalizeTag(f.tag) : null;
+    // Profil : publications épinglées d'abord
+    const pinned = (p: Post) => (f.authorId && p.pinnedAt ? p.pinnedAt : '');
     return this.visiblePosts(this.userId)
-      .filter((p) => (!f.authorId || p.authorId === f.authorId) && (!f.communityId || p.communityId === f.communityId) && (!q || v.matches(p.content, q)))
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .slice(0, q ? 30 : 200);
+      .filter((p) => (!f.authorId || p.authorId === f.authorId) && (!f.communityId || p.communityId === f.communityId) && (!q || v.matches(p.content, q))
+        && (!tag || extractTags(p.content).includes(tag)))
+      .sort((a, b) => pinned(b).localeCompare(pinned(a)) || b.createdAt.localeCompare(a.createdAt))
+      .slice(0, q || tag ? 30 : 200);
+  }
+
+  private readonly saved = new Map<string, string[]>();
+
+  async toggleSave(postId: string) {
+    await this.getPost(postId);
+    const mine = this.saved.get(this.userId) ?? [];
+    const saved = !mine.includes(postId);
+    this.saved.set(this.userId, saved ? [postId, ...mine] : mine.filter((id) => id !== postId));
+    return saved;
+  }
+
+  async getSavedPostIds() {
+    await this.net();
+    const visible = new Set(this.visiblePosts(this.userId).map((p) => p.id));
+    return (this.saved.get(this.userId) ?? []).filter((id) => visible.has(id));
+  }
+
+  async getSavedPosts() {
+    const ids = await this.getSavedPostIds();
+    return ids.map((id) => this.store.posts.find((p) => p.id === id)!);
+  }
+
+  async pinPost(postId: string, pinned: boolean) {
+    const post = await this.getPost(postId);
+    if (post.authorId !== this.userId) throw new AppError('Vous ne pouvez épingler que vos propres publications.', 403);
+    if (pinned && !post.pinnedAt && this.store.posts.filter((p) => p.authorId === this.userId && p.pinnedAt).length >= 3) {
+      throw new AppError('Vous pouvez épingler 3 publications au plus. Désépinglez-en une d\'abord.', 400);
+    }
+    return this.replace(this.store.posts, { ...post, pinnedAt: pinned ? post.pinnedAt ?? new Date().toISOString() : null });
+  }
+
+  async pinComment(postId: string, commentId: string | null) {
+    const post = await this.getPost(postId);
+    if (post.authorId !== this.userId) throw new AppError('Seul l\'auteur de la publication peut épingler un commentaire.', 403);
+    if (commentId && !this.store.comments.some((c) => c.id === commentId && c.postId === postId && !c.parentId)) {
+      throw new AppError('Commentaire introuvable.', 404);
+    }
+    return this.replace(this.store.posts, { ...post, pinnedCommentId: commentId });
+  }
+
+  /** Membres mentionnés existants, hors auteur et membres bloqués. */
+  private validMentions(ids: string[] | undefined) {
+    return [...new Set(ids ?? [])].filter((id) => id !== this.userId && !this.isBlocked(this.userId, id)
+      && this.store.users.some((u) => u.id === id)).slice(0, 20);
+  }
+
+  private announceMentions(ids: string[], postId: string, text: string, inComment: boolean) {
+    const me = displayName(this.find(this.store.users, this.userId, 'Compte'));
+    for (const id of ids) {
+      this.notify(id, { category: 'Social', title: `${me} vous a mentionné dans ${inComment ? 'un commentaire' : 'une publication'}`,
+        body: `« ${excerpt(text)} »`, target: 'Post', targetId: postId });
+    }
   }
 
   async createPost(r: Parameters<DataSource['createPost']>[0]) {
@@ -252,11 +310,16 @@ export class MockDataSource implements DataSource {
     this.validate({ content: v.length(r.content, 'La publication', 3, 2000) });
     if (r.visibility === 'CommunityMembers' && !r.communityId) throw new AppError('Choisissez une communauté pour une publication réservée aux membres.', 400);
     if (r.communityId && !this.memberOf(this.userId).has(r.communityId)) throw new AppError('Rejoignez la communauté pour y publier.', 403);
+    if ((r.images?.length ?? 0) > 10) throw new AppError('Une publication contient au plus 10 photos.', 400);
+    const images = r.videoPath ? [] : r.images ?? (r.imagePath ? [r.imagePath] : []);
+    const mentionIds = this.validMentions(r.mentions);
     const post: Post = {
-      id: newId(), authorId: this.userId, communityId: r.communityId, content: r.content.trim(), imagePath: r.imagePath,
+      id: newId(), authorId: this.userId, communityId: r.communityId, content: r.content.trim(), imagePath: images[0] ?? r.imagePath,
       createdAt: new Date().toISOString(), visibility: r.visibility, likedBy: [], commentCount: 0, shareCount: 0, videoPath: r.videoPath ?? null,
+      images, mentionIds, pinnedAt: null, pinnedCommentId: null,
     };
     this.store.posts.push(post);
+    this.announceMentions(mentionIds, post.id, post.content, false);
     return post;
   }
 
@@ -265,7 +328,14 @@ export class MockDataSource implements DataSource {
     if (post.authorId !== this.userId) throw new AppError('Vous ne pouvez modifier que vos propres publications.', 403);
     this.validate({ content: v.length(r.content, 'La publication', 3, 2000) });
     if (r.visibility === 'CommunityMembers' && !post.communityId) throw new AppError('Choisissez une communauté pour une publication réservée aux membres.', 400);
-    return this.replace(this.store.posts, { ...post, content: r.content.trim(), imagePath: r.imagePath, visibility: r.visibility, videoPath: r.videoPath ?? null, editedAt: new Date().toISOString() });
+    if ((r.images?.length ?? 0) > 10) throw new AppError('Une publication contient au plus 10 photos.', 400);
+    const images = r.videoPath ? [] : r.images ?? (r.imagePath ? [r.imagePath] : []);
+    const mentionIds = this.validMentions(r.mentions);
+    this.announceMentions(mentionIds.filter((id) => !post.mentionIds?.includes(id)), post.id, r.content, false);
+    return this.replace(this.store.posts, {
+      ...post, content: r.content.trim(), imagePath: images[0] ?? r.imagePath, visibility: r.visibility, videoPath: r.videoPath ?? null,
+      images, mentionIds, editedAt: new Date().toISOString(),
+    });
   }
 
   async toggleLike(postId: string) {
@@ -324,16 +394,32 @@ export class MockDataSource implements DataSource {
     return this.store.comments.filter((c) => c.postId === postId && !this.isBlocked(this.userId, c.authorId)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
-  async addComment(postId: string, content: string) {
+  async addComment(postId: string, content: string, o?: { parentId?: string | null; mentions?: string[] }) {
     const post = await this.getPost(postId);
     this.validate({ content: v.length(content, 'Le commentaire', 1, 1000) });
-    const comment: Comment = { id: newId(), postId, authorId: this.userId, content: content.trim(), createdAt: new Date().toISOString(), reactions: [] };
+    // Réponse à une réponse : rattachée au commentaire d'origine (un seul niveau)
+    let parent: Comment | undefined;
+    if (o?.parentId) {
+      const target = this.store.comments.find((c) => c.id === o.parentId && c.postId === postId);
+      if (!target) throw new AppError('Commentaire introuvable.', 404);
+      parent = target.parentId ? this.store.comments.find((c) => c.id === target.parentId) ?? target : target;
+      if (target.authorId !== this.userId) {
+        const me = this.find(this.store.users, this.userId, 'Compte');
+        this.notify(target.authorId, { category: 'Social', title: `${displayName(me)} a répondu à votre commentaire`, body: `« ${excerpt(content.trim())} »`, target: 'Post', targetId: post.id });
+      }
+    }
+    const mentionIds = this.validMentions(o?.mentions);
+    const comment: Comment = {
+      id: newId(), postId, authorId: this.userId, content: content.trim(), createdAt: new Date().toISOString(), reactions: [],
+      parentId: parent?.id ?? null, mentionIds,
+    };
     this.store.comments.push(comment);
     this.replace(this.store.posts, { ...post, commentCount: post.commentCount + 1 });
     if (post.authorId !== this.userId) {
       const me = this.find(this.store.users, this.userId, 'Compte');
       this.notify(post.authorId, { category: 'Social', title: `${displayName(me)} a commenté votre publication`, body: `« ${excerpt(comment.content)} »`, target: 'Post', targetId: post.id });
     }
+    this.announceMentions(mentionIds, post.id, comment.content, true);
     return comment;
   }
 
@@ -471,9 +557,11 @@ export class MockDataSource implements DataSource {
     return this.store.messages.filter((m) => m.conversationId === conversationId).sort((a, b) => a.sentAt.localeCompare(b.sentAt));
   }
 
-  private post(conversationId: string, senderId: string, content: string, isSimulated: boolean) {
-    this.validate({ content: v.length(content, 'Le message', 1, 2000) });
-    const m: Message = { id: newId(), conversationId, senderId, content: content.trim(), sentAt: new Date().toISOString(), isRead: false, isSimulated, reactions: [] };
+  private post(conversationId: string, senderId: string, content: string, isSimulated: boolean, sharedPostId: string | null = null) {
+    if (!sharedPostId || content.trim()) this.validate({ content: v.length(content, 'Le message', 1, 2000) });
+    const m: Message = {
+      id: newId(), conversationId, senderId, content: content.trim(), sentAt: new Date().toISOString(), isRead: false, isSimulated, reactions: [], sharedPostId,
+    };
     this.store.messages.push(m);
     return m;
   }
@@ -486,6 +574,18 @@ export class MockDataSource implements DataSource {
     const me = this.find(this.store.users, this.userId, 'Compte');
     for (const other of c.participantIds.filter((p) => p !== this.userId)) {
       this.notify(other, { category: 'Messages', title: `Nouveau message de ${displayName(me)}`, body: excerpt(message.content), target: 'Conversation', targetId: c.id });
+    }
+    return message;
+  }
+
+  async sendPost(conversationId: string, postId: string, content = '') {
+    await this.getPost(postId);
+    const c = this.mine(conversationId);
+    this.ensureNotBlocked(c);
+    const message = this.post(conversationId, this.userId, content, false, postId);
+    const me = this.find(this.store.users, this.userId, 'Compte');
+    for (const other of c.participantIds.filter((p) => p !== this.userId)) {
+      this.notify(other, { category: 'Messages', title: `Nouveau message de ${displayName(me)}`, body: '📰 Publication partagée', target: 'Conversation', targetId: c.id });
     }
     return message;
   }

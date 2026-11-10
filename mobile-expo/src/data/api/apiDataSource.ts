@@ -3,7 +3,7 @@ import type { DataSource } from '../repositories';
 import type {
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, MembershipStatus, Message, NotificationCategory,
-  LocalPhoto, LocalVideo, OutgoingFile, Paged, Post, ReportReason, ReportTarget, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User,
+  LocalPhoto, LocalVideo, OutgoingFile, Paged, Post, PostFilter, ReportReason, ReportTarget, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User,
 } from '../types';
 import { Platform } from 'react-native';
 import { AppError } from '../types';
@@ -123,7 +123,12 @@ export class ApiDataSource implements DataSource {
   // Publications
   getFeed = (skip: number, take: number) => this.get<Paged<Post>>(`api/feed?skip=${skip}&take=${take}`);
   getPost = (id: string) => this.get<Post>(`api/posts/${id}`);
-  getPosts = (f: { authorId?: string; communityId?: string; search?: string }) => this.get<Post[]>(`api/posts${this.q(f)}`);
+  getPosts = (f: PostFilter) => this.get<Post[]>(`api/posts${this.q({ ...f })}`);
+  toggleSave = async (id: string) => (await this.post<{ saved: boolean }>(`api/posts/${id}/save`)).saved;
+  getSavedPosts = () => this.get<Post[]>('api/posts/saved');
+  getSavedPostIds = () => this.get<string[]>('api/posts/saved/ids');
+  pinPost = (id: string, pinned: boolean) => this.request<Post>(pinned ? 'POST' : 'DELETE', `api/posts/${id}/pin`);
+  pinComment = (id: string, commentId: string | null) => this.request<Post>('PUT', `api/posts/${id}/pinned-comment`, { commentId });
   createPost = (r: CreatePostRequest) => this.post<Post>('api/posts', r);
   updatePost = (id: string, r: UpdatePostRequest) => this.request<Post>('PUT', `api/posts/${id}`, r);
   toggleLike = (id: string) => this.post<Post>(`api/posts/${id}/like`);
@@ -176,7 +181,8 @@ export class ApiDataSource implements DataSource {
     });
   }
 
-  addComment = (id: string, content: string) => this.post<Comment>(`api/posts/${id}/comments`, { content });
+  addComment = (id: string, content: string, o?: { parentId?: string | null; mentions?: string[] }) =>
+    this.post<Comment>(`api/posts/${id}/comments`, { content, parentId: o?.parentId ?? null, mentions: o?.mentions ?? [] });
   reactToComment = (postId: string, commentId: string, emoji: string) =>
     this.post<Comment>(`api/posts/${postId}/comments/${commentId}/reactions`, { emoji });
 
@@ -198,6 +204,7 @@ export class ApiDataSource implements DataSource {
   getConversation = (id: string) => this.get<ConversationSummary>(`api/conversations/${id}`);
   getMessages = (id: string) => this.get<Message[]>(`api/conversations/${id}/messages`);
   sendMessage = (id: string, content: string) => this.post<Message>(`api/conversations/${id}/messages`, { content });
+  sendPost = (id: string, postId: string, content?: string) => this.post<Message>(`api/conversations/${id}/messages`, { content: content ?? '', postId });
   editMessage = (id: string, messageId: string, content: string) =>
     this.request<Message>('PUT', `api/conversations/${id}/messages/${messageId}`, { content });
   deleteMessage = (id: string, messageId: string) => this.request<Message>('DELETE', `api/conversations/${id}/messages/${messageId}`);

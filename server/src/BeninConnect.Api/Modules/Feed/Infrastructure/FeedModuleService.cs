@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BeninConnect.Modules.Feed.Infrastructure;
 
-public sealed class FeedModuleService(FeedDbContext db, AdminPostReader reader) : IFeedModule, IModuleStatistics
+public sealed class FeedModuleService(FeedDbContext db, AdminPostReader reader, PostAccess access) : IFeedModule, IModuleStatistics
 {
     public async Task<IReadOnlyDictionary<Guid, ContentPreview>> GetPostPreviewsAsync(IEnumerable<Guid> ids, CancellationToken ct)
     {
@@ -36,10 +36,25 @@ public sealed class FeedModuleService(FeedDbContext db, AdminPostReader reader) 
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task<bool> CanSeePostAsync(Guid postId, CancellationToken ct) =>
+        await (await access.VisibleAsync(db.Posts.AsNoTracking(), ct)).AnyAsync(p => p.Id == postId, ct);
+
     public async Task DeleteCommentAsync(Guid commentId, CancellationToken ct)
     {
         var comment = await db.Comments.FirstOrDefaultAsync(c => c.Id == commentId, ct) ?? throw new NotFoundException("Commentaire");
-        (await db.Posts.FirstOrDefaultAsync(p => p.Id == comment.PostId, ct))?.CommentRemoved();
+        var replies = await db.Comments.Where(c => c.ParentId == commentId).ToListAsync(ct);
+        var post = await db.Posts.FirstOrDefaultAsync(p => p.Id == comment.PostId, ct);
+        foreach (var _ in replies.Append(comment))
+        {
+            post?.CommentRemoved();
+        }
+
+        if (post?.PinnedCommentId == commentId)
+        {
+            post.PinComment(null);
+        }
+
+        db.Comments.RemoveRange(replies);
         db.Comments.Remove(comment);
         await db.SaveChangesAsync(ct);
     }

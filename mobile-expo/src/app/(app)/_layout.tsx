@@ -20,6 +20,8 @@ function SignedIn({ background }: { background: string }) {
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: background } }}>
       <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
       <Stack.Screen name="post/new" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="post/send" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="user/qr" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
     </Stack>
   );
 }

@@ -7,7 +7,7 @@ import { data } from '@/data';
 import type {
   Comment, Message,
   Community, CommunityEvent, CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, NotificationCategory,
-  OutgoingFile, Paged, Post, UpdatePostRequest, UpdateProfileRequest,
+  OutgoingFile, Paged, Post, PostFilter, UpdatePostRequest, UpdateProfileRequest,
 } from '@/data/types';
 import { errorMessage, toggleReaction } from '@/data/types';
 
@@ -57,7 +57,7 @@ export const useFeed = () =>
 
 export const usePost = (id: string, enabled = true) => useQuery({ queryKey: ['post', id], queryFn: () => data().getPost(id), enabled });
 
-export const usePosts = (filter: { authorId?: string; communityId?: string; search?: string }, enabled = true) =>
+export const usePosts = (filter: PostFilter, enabled = true) =>
   useQuery({ queryKey: ['posts', filter], queryFn: () => data().getPosts(filter), enabled });
 
 export const useComments = (postId: string) =>
@@ -69,6 +69,56 @@ export function patchPost(qc: QueryClient, post: Post) {
   qc.setQueriesData<InfiniteData<Paged<Post>>>({ queryKey: ['feed'] }, (old) =>
     old && { ...old, pages: old.pages.map((p) => ({ ...p, items: p.items.map((x) => (x.id === post.id ? post : x)) })) });
   qc.setQueriesData<Post[]>({ queryKey: ['posts'] }, (old) => old?.map((x) => (x.id === post.id ? post : x)));
+  qc.setQueryData<Post[]>(['savedPosts'], (old) => old?.map((x) => (x.id === post.id ? post : x)));
+}
+
+// --- Enregistrements et épingles ---------------------------------------------------------
+
+export const useSavedIds = () =>
+  useQuery({ queryKey: ['savedIds'], queryFn: () => data().getSavedPostIds(), staleTime: 60_000, select: (ids) => new Set(ids) });
+export const useSavedPosts = (enabled = true) => useQuery({ queryKey: ['savedPosts'], queryFn: () => data().getSavedPosts(), enabled });
+
+/** Enregistrer / retirer (mise à jour immédiate, annulée en cas d'erreur). */
+export function useToggleSave() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (post: Post) => data().toggleSave(post.id),
+    onMutate: (post) => {
+      const previous = qc.getQueryData<string[]>(['savedIds']);
+      qc.setQueryData<string[]>(['savedIds'], (old = []) => (old.includes(post.id) ? old.filter((x) => x !== post.id) : [post.id, ...old]));
+      return previous;
+    },
+    onSuccess: (saved) => {
+      qc.invalidateQueries({ queryKey: ['savedPosts'] });
+      toast(saved ? 'Publication enregistrée.' : 'Retirée de vos enregistrements.');
+    },
+    onError: (e, _post, previous) => {
+      qc.setQueryData(['savedIds'], previous);
+      onError(e);
+    },
+  });
+}
+
+export function usePinPost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ post, pinned }: { post: Post; pinned: boolean }) => data().pinPost(post.id, pinned),
+    onSuccess: (post) => {
+      patchPost(qc, post);
+      qc.invalidateQueries({ queryKey: ['posts'] });
+      toast(post.pinnedAt ? 'Publication épinglée sur votre profil.' : 'Publication désépinglée.', 'success');
+    },
+    onError,
+  });
+}
+
+export function usePinComment(postId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (commentId: string | null) => data().pinComment(postId, commentId),
+    onSuccess: (post) => patchPost(qc, post),
+    onError,
+  });
 }
 
 export function useToggleLike() {
@@ -153,7 +203,8 @@ export function useUpdatePost() {
 export function useAddComment(postId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (content: string) => data().addComment(postId, content),
+    mutationFn: ({ content, parentId, mentions }: { content: string; parentId?: string | null; mentions?: string[] }) =>
+      data().addComment(postId, content, { parentId, mentions }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['comments', postId] });
       patchPost(qc, await data().getPost(postId));
@@ -233,7 +284,9 @@ export function useCreateCommunity() {
 // --- Messagerie -------------------------------------------------------------------------
 
 export const useConversations = () => useQuery({ queryKey: ['conversations'], queryFn: () => data().getConversations() });
-export const useConversation = (id: string) => useQuery({ queryKey: ['conversation', id], queryFn: () => data().getConversation(id) });
+/** live : présence de l'autre membre rafraîchie toutes les 30 s (écran de discussion). */
+export const useConversation = (id: string, live = false) =>
+  useQuery({ queryKey: ['conversation', id], queryFn: () => data().getConversation(id), refetchInterval: live ? 30_000 : false });
 export const useMessages = (id: string) => useQuery({ queryKey: ['messages', id], queryFn: () => data().getMessages(id) });
 export const useUnreadMessages = () =>
   useQuery({ queryKey: ['unreadMessages'], queryFn: () => data().getUnreadMessageCount(), refetchInterval: 30_000 });
@@ -258,6 +311,22 @@ export function useSendMessage(conversationId: string) {
   return useMutation({
     mutationFn: ({ content, simulated }: { content: string; simulated?: boolean }) =>
       simulated ? data().simulateReply(conversationId, content) : data().sendMessage(conversationId, content),
+    onSuccess: (message) => {
+      upsertMessage(qc, message);
+      return refreshMessaging(qc);
+    },
+    onError,
+  });
+}
+
+/** Envoie une publication à un membre (ouvre ou crée la discussion). */
+export function useSendPostTo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, postId, content }: { userId: string; postId: string; content?: string }) => {
+      const conversation = await data().startConversation(userId);
+      return data().sendPost(conversation.id, postId, content);
+    },
     onSuccess: (message) => {
       upsertMessage(qc, message);
       return refreshMessaging(qc);

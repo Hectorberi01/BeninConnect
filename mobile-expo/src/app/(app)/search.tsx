@@ -17,7 +17,8 @@ async function searchAll(q: string, scope: Scope) {
   const want = (s: Scope) => scope === 'All' || scope === s;
   const [people, posts, communities, events] = await Promise.all([
     want('People') ? data().searchUsers(q) : [],
-    want('Posts') ? data().getPosts({ search: q }) : [],
+    // « #cotonou » : publications portant ce hashtag
+    want('Posts') ? data().getPosts(q.startsWith('#') ? { tag: q.slice(1) } : { search: q }) : [],
     want('Communities') ? data().getCommunities(q) : [],
     want('Events') ? data().getEvents({ search: q }) : [],
   ]);

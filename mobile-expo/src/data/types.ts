@@ -46,7 +46,19 @@ export interface Post {
   editedAt?: string | null;
   /** Vidéo (imagePath : sa miniature). */
   videoPath?: string | null;
+  /** Carrousel de photos (10 au plus) ; imagePath = la première. */
+  images?: string[];
+  /** Membres mentionnés (@Prénom Nom dans le texte). */
+  mentionIds?: string[];
+  /** Épinglée en tête du profil de l'auteur. */
+  pinnedAt?: string | null;
+  /** Commentaire épinglé par l'auteur. */
+  pinnedCommentId?: string | null;
 }
+
+/** Photos d'une publication (carrousel, ou l'image seule des anciennes publications). */
+export const postImages = (p: Post) =>
+  p.images?.length ? p.images : p.imagePath && !p.videoPath ? [p.imagePath] : [];
 
 export interface Reaction {
   userId: string;
@@ -60,6 +72,9 @@ export interface Comment {
   content: string;
   createdAt: string;
   reactions: Reaction[];
+  /** Réponse à ce commentaire (un seul niveau). */
+  parentId?: string | null;
+  mentionIds?: string[];
 }
 
 export interface Paged<T> {
@@ -126,11 +141,14 @@ export interface Message {
   /** Supprimé par l'expéditeur : contenu vide, affiché « Message supprimé ». */
   isDeleted?: boolean;
   attachment?: Attachment | null;
+  /** Publication envoyée dans la discussion. */
+  sharedPostId?: string | null;
 }
 
 /** Aperçu d'un message (liste des conversations). */
 export function messagePreview(m: Message) {
   if (m.isDeleted) return 'Message supprimé';
+  if (m.sharedPostId && !m.content) return '📰 Publication partagée';
   switch (m.attachment?.kind) {
     case 'Image': return m.content ? `📷 ${m.content}` : '📷 Photo';
     case 'Audio': return '🎤 Message vocal';
@@ -146,6 +164,9 @@ export interface ConversationSummary {
   unreadCount: number;
   /** L'un des deux a bloqué l'autre : plus aucun message possible. */
   isBlocked?: boolean;
+  /** Présence de l'autre membre (temps réel). */
+  otherOnline?: boolean;
+  otherLastSeenAt?: string | null;
 }
 
 export interface CommunityEvent {
@@ -175,6 +196,14 @@ export interface AppNotification {
   isRead: boolean;
   target: NotificationTarget;
   targetId: string | null;
+}
+
+export interface PostFilter {
+  authorId?: string;
+  communityId?: string;
+  search?: string;
+  /** Hashtag, sans #. */
+  tag?: string;
 }
 
 export interface EventFilter {
@@ -211,6 +240,8 @@ export interface UpdatePostRequest {
   imagePath: string | null;
   visibility: PostVisibility;
   videoPath?: string | null;
+  images?: string[];
+  mentions?: string[];
 }
 
 export interface CreatePostRequest {
@@ -219,6 +250,8 @@ export interface CreatePostRequest {
   imagePath: string | null;
   visibility: PostVisibility;
   videoPath?: string | null;
+  images?: string[];
+  mentions?: string[];
 }
 
 export interface CreateCommunityRequest {

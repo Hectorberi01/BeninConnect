@@ -20,11 +20,12 @@ import {
 } from '@/features/queries';
 import { blockUser, unblockUser, useIsBlocked } from '@/features/block';
 import { reportContent } from '@/features/report';
+import { sendTyping, useIsTyping } from '@/features/realtime';
 import { useVoiceRecorder } from '@/features/voice';
 
 export default function Conversation() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const query = useConversation(id);
+  const query = useConversation(id, true);
   return <Screen><QueryView query={query}>{(summary) => <Chat summary={summary} />}</QueryView></Screen>;
 }
 
@@ -56,6 +57,14 @@ function Chat({ summary }: { summary: ConversationSummary }) {
   const picker = useReactionPicker();
   const [draft, setDraft] = useState('');
   const list = useRef<FlatList<Row>>(null);
+  const typing = useIsTyping(id);
+  const status = typing ? "en train d'écrire…"
+    : summary.otherOnline ? 'En ligne'
+      : summary.otherLastSeenAt ? `Vu ${fmt.relative(summary.otherLastSeenAt).toLowerCase()}` : location(other);
+  const changeDraft = (text: string) => {
+    setDraft(text);
+    if (text.trim() && !editing) sendTyping(id);
+  };
 
   // Lu à l'ouverture et à chaque nouveau message reçu.
   const count = messages.data?.length ?? 0;
@@ -159,10 +168,13 @@ function Chat({ summary }: { summary: ConversationSummary }) {
         <IconButton name="arrow-left" label="Retour" onPress={() => router.back()} />
         <Pressable accessibilityRole="button" accessibilityLabel={`Profil de ${displayName(other)}`} style={styles.who}
           onPress={() => router.push(`/user/${other.id}`)}>
-          <Avatar initials={initials(other)} color={other.avatarColor} image={other.avatarImage} size={38} />
+          <View>
+            <Avatar initials={initials(other)} color={other.avatarColor} image={other.avatarImage} size={38} />
+            {summary.otherOnline && !locked && <View style={[styles.online, { backgroundColor: c.success, borderColor: c.surface }]} />}
+          </View>
           <View style={{ flex: 1 }}>
             <T v="label" style={{ fontSize: 15 }} lines={1}>{displayName(other)}</T>
-            <Muted lines={1}>{location(other)}</Muted>
+            <Muted lines={1} color={!locked && (typing || summary.otherOnline) ? c.primary : undefined}>{locked ? location(other) : status}</Muted>
           </View>
         </Pressable>
         <IconButton name="dots-vertical" label="Options de la discussion" onPress={openMenu} />
@@ -182,6 +194,7 @@ function Chat({ summary }: { summary: ConversationSummary }) {
                   (emoji) => reactTo(item.message.id, emoji), actionsFor(item.message))} />
             )}
           onContentSizeChange={() => list.current?.scrollToEnd({ animated: false })}
+          ListFooterComponent={typing && !locked ? <Muted style={styles.typing}>{`${other.firstName} est en train d'écrire…`}</Muted> : undefined}
           ListEmptyComponent={<EmptyState icon="hand-wave-outline" title="Dites bonjour !"
             message={`Envoyez votre premier message à ${other.firstName}.`} />}
           contentContainerStyle={{ paddingTop: 12, paddingBottom: 22, flexGrow: 1 }}
@@ -236,7 +249,7 @@ function Chat({ summary }: { summary: ConversationSummary }) {
                 <Icon name="paperclip" color={c.textSecondary} size={24} />
               </Pressable>
             )}
-            <TextInput value={draft} onChangeText={setDraft} placeholder="Votre message…" placeholderTextColor={c.textSecondary}
+            <TextInput value={draft} onChangeText={changeDraft} placeholder="Votre message…" placeholderTextColor={c.textSecondary}
               multiline maxLength={2000} accessibilityLabel="Votre message"
               style={[styles.input, { backgroundColor: c.surfaceVariant, color: c.text }]} />
             {draft.trim() || editing ? (
@@ -270,6 +283,8 @@ const styles = StyleSheet.create({
   tool: { width: 34, height: 42, alignItems: 'center', justifyContent: 'center' },
   recording: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dot: { width: 10, height: 10, borderRadius: 5 },
+  online: { position: 'absolute', right: -1, bottom: -1, width: 13, height: 13, borderRadius: 7, borderWidth: 2 },
+  typing: { paddingHorizontal: 16, paddingTop: 6, fontStyle: 'italic' },
   locked: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 12 },
   editing: { flexDirection: 'row', alignItems: 'center', gap: 10, borderLeftWidth: 3, paddingLeft: 10, marginBottom: 8 },
 });

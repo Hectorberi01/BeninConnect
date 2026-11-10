@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -33,7 +34,7 @@ export default function Splash() {
         <View style={[styles.band, { backgroundColor: benin.yellow }]} />
         <View style={[styles.band, { backgroundColor: benin.red }]} />
       </View>
-      <Text style={styles.version}>{data().kind === 'api' ? 'Version 1.0' : 'Version 1.0 · démonstration'}</Text>
+      <Text style={styles.version}>{`Version ${Constants.expoConfig?.version ?? '1.0'}${data().kind === 'api' ? '' : ' · démonstration'}`}</Text>
     </View>
   );
 }

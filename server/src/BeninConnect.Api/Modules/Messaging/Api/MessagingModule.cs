@@ -13,6 +13,9 @@ namespace BeninConnect.Modules.Messaging.Api;
 
 public sealed record StartConversationRequest(Guid OtherUserId);
 
+/// <summary>PostId : partager une publication (Content facultatif).</summary>
+public sealed record SendMessageRequest(string? Content, Guid? PostId = null);
+
 public sealed class MessagingModule : IModule
 {
     public string Name => "Messaging";
@@ -31,6 +34,8 @@ public sealed class MessagingModule : IModule
         services.AddSignalR().AddJsonProtocol(o => o.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         services.AddSingleton<IUserIdProvider, MemberIdProvider>();
         services.AddScoped<IChatNotifier, SignalRChatNotifier>();
+        services.AddSingleton<PresenceTracker>();
+        services.AddSingleton<IPresence>(sp => sp.GetRequiredService<PresenceTracker>());
     }
 
     public void MapEndpoints(IEndpointRouteBuilder app)
@@ -41,9 +46,9 @@ public sealed class MessagingModule : IModule
         conversations.MapPost("/direct", (StartConversationRequest r, ISender s, CancellationToken ct) => s.Send(new StartDirectConversationCommand(r.OtherUserId), ct));
         conversations.MapGet("/{id:guid}", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetConversationQuery(id), ct));
         conversations.MapGet("/{id:guid}/messages", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetMessagesQuery(id), ct));
-        conversations.MapPost("/{id:guid}/messages", async (Guid id, ContentRequest r, ISender s, CancellationToken ct) =>
+        conversations.MapPost("/{id:guid}/messages", async (Guid id, SendMessageRequest r, ISender s, CancellationToken ct) =>
         {
-            var message = await s.Send(new SendMessageCommand(id, r.Content), ct);
+            var message = await s.Send(new SendMessageCommand(id, r.Content ?? string.Empty, r.PostId), ct);
             return Results.Created($"/api/conversations/{id}/messages", message);
         });
         conversations.MapPost("/{id:guid}/messages/{messageId:guid}/reactions", (Guid id, Guid messageId, ReactionRequest r, ISender s, CancellationToken ct) =>

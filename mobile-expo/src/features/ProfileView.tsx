@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CommunityTile, PostCard, usePostContext } from '@/components/cards';
-import { Avatar, Button, Chip, Cover, EmptyState, Icon, IconButton, Muted, QueryView, SectionTitle, T } from '@/components/ui';
+import { Avatar, Button, Chip, Cover, EmptyState, Icon, IconButton, Muted, QueryView, SectionTitle, Segmented, T } from '@/components/ui';
+import { PostGrid } from '@/components/PostGrid';
 import { confirm } from '@/core/dialog';
 import * as fmt from '@/core/format';
 import { askPhotoSource, pickPhoto } from '@/core/photos';
@@ -17,7 +18,9 @@ import { toast } from '@/core/toast';
 import { data } from '@/data';
 import type { User } from '@/data/types';
 import { displayName, errorMessage, initials, location } from '@/data/types';
-import { useMemberCommunities, usePosts, useUpdateProfile, useUser } from './queries';
+import { useMemberCommunities, usePosts, useSavedPosts, useUpdateProfile, useUser } from './queries';
+
+type PostTab = 'grid' | 'list' | 'saved';
 
 export const RECENT_POSTS = 10;
 
@@ -46,6 +49,8 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
   const [starting, setStarting] = useState(false);
   const update = useUpdateProfile();
   const [changing, setChanging] = useState<'avatar' | 'cover' | null>(null);
+  const [tab, setTab] = useState<PostTab>('grid');
+  const saved = useSavedPosts(isMe && tab === 'saved');
 
   // Changement direct de la photo de profil ou de couverture (sans passer par « Modifier le profil »).
   const changeImage = async (kind: 'avatar' | 'cover') => {
@@ -77,7 +82,8 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
 
   const visiblePosts = (posts.data ?? []).filter((p) => isMe || p.visibility === 'Public');
   const recent = visiblePosts.slice(0, RECENT_POSTS);
-  const ctx = usePostContext(recent);
+  const listed = tab === 'saved' ? saved.data ?? [] : recent;
+  const ctx = usePostContext(listed);
   const shownCommunities = (communities.data ?? []).filter((x) => isMe || x.visibility === 'Public');
   const likes = visiblePosts.reduce((n, p) => n + p.likedBy.length, 0);
 
@@ -163,6 +169,9 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
           ) : (
             <Button title="Envoyer un message" icon="message-outline" loading={starting} onPress={message} style={{ flex: 1 }} />
           )}
+          <View style={[styles.qr, { borderColor: c.border }]}>
+            <IconButton name="qrcode" label="Code QR du profil" color={c.primary} onPress={() => router.push({ pathname: '/user/qr', params: { id: user.id } })} />
+          </View>
         </View>
       </View>
 
@@ -183,11 +192,22 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
         </ScrollView>
       ) : <Muted style={{ paddingHorizontal: 16, fontSize: 15 }}>Aucune communauté pour le moment.</Muted>}
 
-      <SectionTitle title="Publications récentes" />
-      {posts.isPending ? null : recent.length > 0
-        ? recent.map((p) => <PostCard key={p.id} post={p} author={ctx.users.get(p.authorId)} community={p.communityId ? ctx.communities.get(p.communityId) : undefined} />)
-        : <EmptyState icon="text-box-outline" title="Aucune publication" message={isMe ? 'Partagez votre première publication avec la communauté.' : undefined}
-          action={isMe ? 'Publier' : undefined} onAction={() => router.push('/post/new')} />}
+      <SectionTitle title="Publications" />
+      <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+        <Segmented value={tab} onChange={setTab} items={[
+          { key: 'grid', label: 'Grille' }, { key: 'list', label: 'Fil' }, ...(isMe ? [{ key: 'saved' as const, label: 'Enregistrés' }] : []),
+        ]} />
+      </View>
+      {tab === 'saved' ? (
+        saved.isPending ? <ActivityIndicator color={c.primary} style={{ marginTop: 16 }} />
+          : (saved.data ?? []).length > 0 ? <PostGrid posts={saved.data ?? []} />
+            : <EmptyState icon="bookmark-outline" title="Aucune publication enregistrée"
+              message="Touchez le signet sous une publication pour la retrouver ici. Vous seul voyez vos enregistrements." />
+      ) : posts.isPending ? null : visiblePosts.length === 0
+        ? <EmptyState icon="text-box-outline" title="Aucune publication" message={isMe ? 'Partagez votre première publication avec la communauté.' : undefined}
+          action={isMe ? 'Publier' : undefined} onAction={() => router.push('/post/new')} />
+        : tab === 'grid' ? <PostGrid posts={visiblePosts} />
+          : recent.map((p) => <PostCard key={p.id} post={p} author={ctx.users.get(p.authorId)} community={p.communityId ? ctx.communities.get(p.communityId) : undefined} />)}
 
       {isMe && <Button title="Se déconnecter" kind="danger" icon="logout" onPress={logout} style={{ marginHorizontal: 16, marginTop: 16 }} />}
     </ScrollView>
@@ -219,6 +239,7 @@ const styles = StyleSheet.create({
     position: 'absolute', right: 2, bottom: 4, width: 30, height: 30, borderRadius: 15, borderWidth: 2,
     alignItems: 'center', justifyContent: 'center',
   },
+  qr: { borderWidth: 1, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   round: { borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)' },
   avatarRing: { marginTop: -50, marginBottom: 10, alignSelf: 'flex-start', padding: 4, borderRadius: 52, borderWidth: 1 },
   metaLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },

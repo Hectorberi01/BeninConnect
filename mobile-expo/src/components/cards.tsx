@@ -11,13 +11,14 @@ import { depth, font, radius, type, useColors } from '@/core/theme';
 import type { AppNotification, Community, CommunityEvent, Message, Post, User } from '@/data/types';
 import { displayName, initials, isEventFull, location, membershipStatus } from '@/data/types';
 import {
-  useCommunitiesMap, useDeletePost, useJoinRequests, useMembership, useSharePost, useToggleLike, useToggleParticipation, useUsersMap,
+  useCommunitiesMap, useDeletePost, useJoinRequests, useMembership, usePinPost, useSavedIds, useSharePost, useToggleLike,
+  useToggleParticipation, useToggleSave, useUsersMap,
 } from '@/features/queries';
 import { blockUser } from '@/features/block';
 import { reportContent } from '@/features/report';
 import { AttachmentView } from './attachments';
 import { ReactionBar } from './reactions';
-import { PostVideo } from './video';
+import { PostMedia, RichText, SharedPostCard } from './social';
 import { Avatar, Button, Card, Cover, Icon, type IconName, Muted, T, Tag } from './ui';
 
 // --- Publications -------------------------------------------------------------------------
@@ -37,11 +38,15 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
   const like = useToggleLike();
   const share = useSharePost();
   const remove = useDeletePost();
+  const save = useToggleSave();
+  const pin = usePinPost();
+  const saved = useSavedIds().data?.has(post.id) ?? false;
   const mine = post.authorId === me.id;
   const liked = post.likedBy.includes(me.id);
   const likes = post.likedBy.length;
   const open = () => router.push(`/post/${post.id}`);
-  const source = imageSource(post.imagePath);
+  // Double appui : aime seulement (ne retire jamais le j'aime)
+  const likeOnce = () => { if (!liked) like.mutate(post); };
 
   const askDelete = async () => {
     if (!(await confirm('Supprimer la publication ?', 'Elle sera définitivement supprimée, avec ses commentaires et ses j\'aime.', 'Supprimer', true))) return;
@@ -50,6 +55,9 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
   const openMenu = () => Alert.alert('Publication', undefined, [
     ...(mine
       ? [
+        post.pinnedAt
+          ? { text: 'Désépingler du profil', onPress: () => pin.mutate({ post, pinned: false }) }
+          : { text: 'Épingler sur mon profil', onPress: () => pin.mutate({ post, pinned: true }) },
         { text: 'Modifier la publication', onPress: () => router.push({ pathname: '/post/new', params: { edit: post.id } }) },
         { text: 'Supprimer la publication', style: 'destructive' as const, onPress: askDelete },
       ]
@@ -76,6 +84,7 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
           <View style={styles.meta}>
             <Muted>{fmt.relative(post.createdAt)}</Muted>
             {post.editedAt && <Muted>· modifié</Muted>}
+            {post.pinnedAt && <Icon name="pin" size={14} color={c.primary} />}
             {community && (
               <>
                 <Muted>·</Muted>
@@ -93,10 +102,8 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
         </Pressable>
       </View>
 
-      <T style={styles.postContent} lines={detailed ? undefined : 6}>{post.content}</T>
-      {post.videoPath
-        ? <PostVideo videoPath={post.videoPath} posterPath={post.imagePath} />
-        : source && <Image source={source} style={styles.postImage} contentFit="cover" transition={150} accessibilityLabel="Image de la publication" />}
+      <RichText text={post.content} mentionIds={post.mentionIds} style={styles.postContent} lines={detailed ? undefined : 6} />
+      <PostMedia post={post} onSingleTap={detailed ? undefined : open} onDoubleTap={likeOnce} />
 
       {detailed && (
         <Muted style={{ paddingHorizontal: 16, paddingTop: 10 }}>
@@ -109,8 +116,12 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
           label={likes === 0 ? "J'aime" : String(likes)} a11y={liked ? "Je n'aime plus" : "J'aime"} onPress={() => like.mutate(post)} />
         <Action icon="comment-outline" label={post.commentCount === 0 ? 'Commenter' : String(post.commentCount)} a11y="Commenter"
           onPress={() => router.push({ pathname: '/post/[id]', params: { id: post.id, focus: '1' } })} />
-        <Action icon="share-variant-outline" label={post.shareCount === 0 ? 'Partager' : String(post.shareCount)} a11y="Partager"
+        <Action icon="share-variant-outline" label={post.shareCount === 0 ? '' : String(post.shareCount)} a11y="Partager hors de l'application"
           onPress={() => share.mutate({ post, authorName: author ? displayName(author) : 'Un membre' })} />
+        <Action icon="send-outline" label="" a11y="Envoyer à un membre"
+          onPress={() => router.push({ pathname: '/post/send', params: { id: post.id } })} />
+        <Action icon={saved ? 'bookmark' : 'bookmark-outline'} color={saved ? c.primary : undefined} label=""
+          a11y={saved ? 'Retirer des enregistrements' : 'Enregistrer'} onPress={() => save.mutate(post)} />
       </View>
     </Card>
   );
@@ -121,7 +132,7 @@ function Action({ icon, label, onPress, color, a11y }: { icon: IconName; label: 
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={a11y} onPress={onPress} style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}>
       <Icon name={icon} size={20} color={color ?? c.textSecondary} />
-      <Text style={[type.label, { color: c.textSecondary }]}>{label}</Text>
+      {!!label && <Text style={[type.label, { color: c.textSecondary }]}>{label}</Text>}
     </Pressable>
   );
 }
@@ -322,7 +333,8 @@ export function MessageBubble({ message, mine, me, onLongPress, onToggleReaction
         : (
           <>
             {message.attachment && <AttachmentView message={message} mine={mine} />}
-            {!!message.content && <T color={mine ? '#FFFFFF' : c.text}>{message.content}</T>}
+            {message.sharedPostId && <SharedPostCard postId={message.sharedPostId} mine={mine} />}
+            {!!message.content && <RichText text={message.content} color={mine ? '#FFFFFF' : undefined} />}
           </>
         )}
       <View style={[styles.rowCenter, { gap: 6, alignSelf: 'flex-end', marginTop: 2 }]}>
@@ -379,7 +391,6 @@ const styles = StyleSheet.create({
   menu: { padding: 4, marginRight: -4 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   postContent: { paddingHorizontal: 16, paddingBottom: 10 },
-  postImage: { width: '100%', aspectRatio: 4 / 3 },
   actions: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, marginTop: 8 },
   action: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 46 },
   rowCenter: { flexDirection: 'row', alignItems: 'center' },

@@ -12,6 +12,7 @@ public sealed class FeedDbContext(DbContextOptions<FeedDbContext> options) : Mod
 
     public DbSet<Post> Posts => Set<Post>();
     public DbSet<Comment> Comments => Set<Comment>();
+    public DbSet<SavedPost> SavedPosts => Set<SavedPost>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -25,6 +26,7 @@ public sealed class FeedDbContext(DbContextOptions<FeedDbContext> options) : Mod
             e.HasIndex(x => x.CreatedAt);
             e.HasIndex(x => x.AuthorId);
             e.HasIndex(x => x.CommunityId);
+            e.HasIndex(x => x.Tags).HasMethod("gin");
             e.HasMany(x => x.Likes).WithOne().HasForeignKey(l => l.PostId).OnDelete(DeleteBehavior.Cascade);
             e.Navigation(x => x.Likes).UsePropertyAccessMode(PropertyAccessMode.Field);
         });
@@ -42,9 +44,18 @@ public sealed class FeedDbContext(DbContextOptions<FeedDbContext> options) : Mod
             e.Property(x => x.Content).HasMaxLength(Comment.MaxLength);
             e.HasIndex(x => x.PostId);
             e.HasIndex(x => x.AuthorId);
+            e.HasIndex(x => x.ParentId);
             e.HasOne<Post>().WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Reactions).WithOne().HasForeignKey(r => r.CommentId).OnDelete(DeleteBehavior.Cascade);
             e.Navigation(x => x.Reactions).UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        b.Entity<SavedPost>(e =>
+        {
+            e.ToTable("saved_posts");
+            e.HasKey(x => new { x.UserId, x.PostId });
+            e.HasIndex(x => x.PostId);
+            e.HasOne<Post>().WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<CommentReaction>(e =>

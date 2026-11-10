@@ -15,6 +15,8 @@ public sealed class NotificationSubscribers(INotificationsDb db, IIdentityModule
     IIntegrationEventHandler<PostLiked>,
     IIntegrationEventHandler<PostCommented>,
     IIntegrationEventHandler<CommentReacted>,
+    IIntegrationEventHandler<CommentReplied>,
+    IIntegrationEventHandler<MembersMentioned>,
     IIntegrationEventHandler<MessageSent>,
     IIntegrationEventHandler<NotificationRequested>
 {
@@ -37,6 +39,18 @@ public sealed class NotificationSubscribers(INotificationsDb db, IIdentityModule
     public async Task Handle(CommentReacted e, CancellationToken ct) =>
         await AddAsync(ct, (e.CommentAuthorId, NotificationCategory.Social, $"{await NameAsync(e.ActorId, ct)} a réagi {e.Emoji} à votre commentaire",
             $"« {e.CommentExcerpt} »", NotificationTarget.Post, e.PostId));
+
+    public async Task Handle(CommentReplied e, CancellationToken ct) =>
+        await AddAsync(ct, (e.ParentAuthorId, NotificationCategory.Social, $"{await NameAsync(e.ActorId, ct)} a répondu à votre commentaire",
+            $"« {e.Excerpt} »", NotificationTarget.Post, e.PostId));
+
+    public async Task Handle(MembersMentioned e, CancellationToken ct)
+    {
+        var actor = await NameAsync(e.ActorId, ct);
+        var title = e.InComment ? $"{actor} vous a mentionné dans un commentaire" : $"{actor} vous a mentionné dans une publication";
+        await AddAsync(ct, e.UserIds.Where(id => id != e.ActorId)
+            .Select(id => (id, NotificationCategory.Social, title, $"« {e.Excerpt} »", NotificationTarget.Post, (Guid?)e.PostId)).ToArray());
+    }
 
     public async Task Handle(MessageSent e, CancellationToken ct)
     {

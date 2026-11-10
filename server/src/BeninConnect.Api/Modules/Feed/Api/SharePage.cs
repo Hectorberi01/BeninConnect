@@ -55,6 +55,39 @@ public static class SharePage
             })
             .AllowAnonymous()
             .ExcludeFromDescription();
+
+        // Profil (QR code) : prénom, initiale du nom, ville et photo seulement
+        app.MapGet("/user/{id:guid}", async (Guid id, IIdentityModule identity, IMediaModule media, ShareSettings share, CancellationToken ct) =>
+            {
+                var user = (await identity.GetUsersAsync([id], ct)).GetValueOrDefault(id);
+                var site = share.SiteUrl.TrimEnd('/');
+                if (user is null)
+                {
+                    return Results.Content(Layout(share, site, "Membre introuvable · BéninConnect", "Ce profil n'existe plus.", $"{site}/img/og.jpg",
+                        $"{share.AppScheme}://", """<div class="card empty"><h1>Membre introuvable</h1><p>Ce profil a été supprimé.</p></div>""", false),
+                        "text/html; charset=utf-8", statusCode: StatusCodes.Status404NotFound);
+                }
+
+                var e = HtmlEncoder.Default;
+                var name = $"{user.FirstName} {(user.LastName.Length > 0 ? user.LastName[0] + "." : "")}".Trim();
+                var avatar = user.AvatarImage is { } path && path.StartsWith("uploads/", StringComparison.Ordinal)
+                    ? media.PublicUrl(path) ?? $"{share.ApiUrl.TrimEnd('/')}/{path}"
+                    : null;
+                var initials = $"{user.FirstName.FirstOrDefault()}{user.LastName.FirstOrDefault()}";
+                var card = $"""
+                    <div class="card profile">
+                      {(avatar is null ? $"<span class=\"avatar big\" style=\"background:{e.Encode(user.AvatarColor)}\">{e.Encode(initials)}</span>" : $"<img class=\"avatar big\" src=\"{e.Encode(avatar)}\" alt=\"\">")}
+                      <h1>{e.Encode(name)}</h1>
+                      <p>{e.Encode(user.City)}{(user.Country.Length > 0 ? $", {e.Encode(user.Country)}" : "")}</p>
+                      <p class="muted">Membre de BéninConnect</p>
+                    </div>
+                    """;
+                return Results.Content(Layout(share, $"{site}/user/{id}", $"{name} sur BéninConnect",
+                    $"Retrouvez {user.FirstName} sur BéninConnect, la communauté de la diaspora béninoise.", avatar ?? $"{site}/img/og.jpg",
+                    $"{share.AppScheme}://user/{id}", card, false), "text/html; charset=utf-8");
+            })
+            .AllowAnonymous()
+            .ExcludeFromDescription();
     }
 
     private sealed record SharedPost(
@@ -89,6 +122,14 @@ public static class SharePage
               </article>
               """;
 
+        return Layout(s, url, title, description, image, deepLink, card, p?.Image is not null);
+    }
+
+    /// <summary>Gabarit commun : aperçu Open Graph, carte, bouton d'ouverture dans l'app et liens des stores.</summary>
+    private static string Layout(ShareSettings s, string url, string title, string description, string image, string deepLink, string card, bool largeImage)
+    {
+        var e = HtmlEncoder.Default;
+        var site = s.SiteUrl.TrimEnd('/');
         return $$"""
             <!doctype html>
             <html lang="fr">
@@ -105,7 +146,7 @@ public static class SharePage
             <meta property="og:title" content="{{e.Encode(title)}}">
             <meta property="og:description" content="{{e.Encode(description)}}">
             <meta property="og:image" content="{{e.Encode(image)}}">
-            <meta name="twitter:card" content="{{(p?.Image is null ? "summary" : "summary_large_image")}}">
+            <meta name="twitter:card" content="{{(largeImage ? "summary_large_image" : "summary")}}">
             <link rel="canonical" href="{{e.Encode(url)}}">
             <link rel="icon" href="{{site}}/img/icon-192.png">
             <style>
@@ -120,7 +161,9 @@ public static class SharePage
             .avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#087f5b;color:#fff;display:grid;place-items:center;font-weight:700}
             .content{font-size:17px;line-height:1.55;margin:0 0 14px;overflow-wrap:anywhere}
             .photo{width:100%;border-radius:12px;display:block}.video{color:#087f5b;font-weight:600}
-            .empty h1{font-size:22px;margin:0 0 8px}.empty p{color:#5b6b66;line-height:1.5}
+            .empty h1{font-size:22px;margin:0 0 8px}
+            .profile{text-align:center}.profile h1{margin:12px 0 4px;font-size:24px}.profile p{margin:4px 0;color:#5b6b66}
+            .avatar.big{width:96px;height:96px;font-size:32px;margin:0 auto;display:grid}.muted{font-size:14px}.empty p{color:#5b6b66;line-height:1.5}
             .actions{margin-top:20px;display:grid;gap:10px}
             .open{display:block;text-align:center;background:#087f5b;color:#fff;text-decoration:none;font-weight:700;padding:15px;border-radius:12px;font-size:16px}
             .stores{display:grid;grid-template-columns:1fr 1fr;gap:10px}

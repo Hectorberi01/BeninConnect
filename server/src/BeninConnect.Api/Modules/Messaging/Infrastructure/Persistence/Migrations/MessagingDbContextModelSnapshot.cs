@@ -84,6 +84,9 @@ namespace BeninConnect.Api.Modules.Messaging.Infrastructure.Persistence.Migratio
                     b.Property<DateTimeOffset>("SentAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("SharedPostId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ConversationId", "SentAt");

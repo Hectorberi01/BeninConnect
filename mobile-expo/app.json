@@ -2,7 +2,7 @@
   "expo": {
     "name": "BeninConnect",
     "slug": "beninconnect",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -38,6 +38,11 @@
               "scheme": "https",
               "host": "monbenin.com",
               "pathPrefix": "/post/"
+            },
+            {
+              "scheme": "https",
+              "host": "monbenin.com",
+              "pathPrefix": "/user/"
             }
           ],
           "category": [

@@ -1,3 +1,4 @@
+using BeninConnect.Modules.Feed.Contracts;
 using BeninConnect.Modules.Identity.Contracts;
 using BeninConnect.Modules.Messaging.Contracts;
 using BeninConnect.Modules.Media.Contracts;
@@ -22,7 +23,8 @@ public sealed record AttachmentDto(AttachmentKind Kind, string FileName, string 
 
 public sealed record MessageDto(
     Guid Id, Guid ConversationId, Guid SenderId, string Content, DateTimeOffset SentAt, bool IsRead, bool IsSimulated,
-    IReadOnlyList<ReactionDto> Reactions, DateTimeOffset? EditedAt = null, bool IsDeleted = false, AttachmentDto? Attachment = null);
+    IReadOnlyList<ReactionDto> Reactions, DateTimeOffset? EditedAt = null, bool IsDeleted = false, AttachmentDto? Attachment = null,
+    Guid? SharedPostId = null);
 
 /// <summary>Fichier d'une pièce jointe, après contrôle d'accès.</summary>
 public sealed record AttachmentDownload(Stream Content, long? Length, string ContentType, string FileName);
@@ -38,8 +40,18 @@ public interface IChatNotifier
     Task ConversationReadAsync(IReadOnlyCollection<Guid> userIds, Guid conversationId, Guid readerId, CancellationToken ct);
 }
 
-/// <summary>IsBlocked : l'un des deux a bloqué l'autre, plus aucun message possible.</summary>
-public sealed record ConversationSummaryDto(ConversationDto Conversation, UserDto OtherParticipant, MessageDto? LastMessage, int UnreadCount, bool IsBlocked = false);
+/// <summary>IsBlocked : l'un des deux a bloqué l'autre. OtherOnline / OtherLastSeenAt : présence de l'autre participant.</summary>
+public sealed record ConversationSummaryDto(
+    ConversationDto Conversation, UserDto OtherParticipant, MessageDto? LastMessage, int UnreadCount, bool IsBlocked = false,
+    bool OtherOnline = false, DateTimeOffset? OtherLastSeenAt = null);
+
+/// <summary>Membres connectés au temps réel (une ou plusieurs connexions) et dernière déconnexion.</summary>
+public interface IPresence
+{
+    bool IsOnline(Guid userId);
+
+    DateTimeOffset? LastSeen(Guid userId);
+}
 
 public static class MessagingMapping
 {
@@ -49,7 +61,7 @@ public static class MessagingMapping
     /// <summary>Nécessite l'inclusion de Reactions.</summary>
     public static MessageDto ToDto(this Message m) =>
         new(m.Id, m.ConversationId, m.SenderId, m.Content, m.SentAt, m.IsRead, m.IsSimulated, m.Reactions.ToDto(), m.EditedAt, m.IsDeleted,
-            m.Attachment is { } a ? new AttachmentDto(a.Kind, a.FileName, a.ContentType, a.Size, a.DurationMs) : null);
+            m.Attachment is { } a ? new AttachmentDto(a.Kind, a.FileName, a.ContentType, a.Size, a.DurationMs) : null, m.SharedPostId);
 
     /// <summary>Aperçu (notification, liste des conversations) : texte ou type de pièce jointe.</summary>
     public static string Preview(this Message m) => m.Attachment switch
@@ -57,6 +69,7 @@ public static class MessagingMapping
         { Kind: AttachmentKind.Image } => string.IsNullOrEmpty(m.Content) ? "📷 Photo" : $"📷 {m.Content}",
         { Kind: AttachmentKind.Audio } => "🎤 Message vocal",
         { } file => $"📄 {file.FileName}",
+        null when m.SharedPostId is not null => string.IsNullOrEmpty(m.Content) ? "📰 Publication partagée" : $"📰 {m.Content}",
         null => m.Content,
     };
 }
@@ -67,9 +80,12 @@ public sealed record GetConversationQuery(Guid Id) : IQuery<ConversationSummaryD
 
 public sealed record GetMessagesQuery(Guid ConversationId) : IQuery<IReadOnlyList<MessageDto>>;
 
-public sealed record SendMessageCommand(Guid ConversationId, string Content) : ICommand<MessageDto>, IValidatable
+/// <summary>PostId : publication partagée (texte facultatif).</summary>
+public sealed record SendMessageCommand(Guid ConversationId, string Content, Guid? PostId = null) : ICommand<MessageDto>, IValidatable
 {
-    public IEnumerable<(string, string)> Validate() => Rules.Length(nameof(Content), Content, "Le message", 1, Message.MaxLength);
+    public IEnumerable<(string, string)> Validate() => PostId is not null && string.IsNullOrWhiteSpace(Content)
+        ? []
+        : Rules.Length(nameof(Content), Content, "Le message", 1, Message.MaxLength);
 }
 
 /// <summary>Scénario de démonstration : réponse de l'autre participant, marquée comme simulée (environnement Development uniquement).</summary>
@@ -107,7 +123,8 @@ public sealed record StartDirectConversationCommand(Guid OtherUserId) : ICommand
 public sealed record GetUnreadMessageCountQuery : IQuery<CountDto>;
 
 public sealed class ConversationHandlers(
-    IMessagingDb db, IIdentityModule identity, IMediaModule media, IEventBus bus, IChatNotifier live, ICurrentUser me, TimeProvider clock) :
+    IMessagingDb db, IIdentityModule identity, IMediaModule media, IFeedModule feed, IPresence presence, IEventBus bus, IChatNotifier live,
+    ICurrentUser me, TimeProvider clock) :
     IRequestHandler<GetConversationsQuery, IReadOnlyList<ConversationSummaryDto>>,
     IRequestHandler<GetConversationQuery, ConversationSummaryDto>,
     IRequestHandler<GetMessagesQuery, IReadOnlyList<MessageDto>>,
@@ -150,7 +167,12 @@ public sealed class ConversationHandlers(
     {
         var conversation = await LoadMineAsync(request.ConversationId, ct);
         await EnsureNotBlockedAsync(conversation.Participants.Select(p => p.UserId), ct);
-        var message = conversation.Post(Guid.NewGuid(), me.Id, request.Content, clock.GetUtcNow());
+        if (request.PostId is { } postId && !await feed.CanSeePostAsync(postId, ct))
+        {
+            throw new NotFoundException("Publication");
+        }
+
+        var message = conversation.Post(Guid.NewGuid(), me.Id, request.Content, clock.GetUtcNow(), sharedPostId: request.PostId);
         db.Messages.Add(message);
         await db.SaveChangesAsync(ct);
 
@@ -345,7 +367,9 @@ public sealed class ConversationHandlers(
                 other,
                 list.MaxBy(m => m.SentAt)?.ToDto(),
                 list.Count(m => m.SenderId != me.Id && !m.IsRead),
-                blocked.Contains(otherId)));
+                blocked.Contains(otherId),
+                presence.IsOnline(otherId),
+                presence.LastSeen(otherId)));
         }
 
         return result;

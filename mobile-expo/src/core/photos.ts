@@ -46,6 +46,21 @@ export async function pickPhoto(source: PhotoSource, options: { aspect?: [number
   return { uri: asset.uri, mimeType: asset.mimeType, fileName: asset.fileName };
 }
 
+/** Plusieurs photos de la galerie (carrousel), dans l'ordre choisi ; [] si annulé ou refusé. */
+export async function pickPhotos(limit: number): Promise<LocalPhoto[]> {
+  if (limit <= 0) return [];
+  const permission = Platform.OS === 'web' ? { granted: true } : await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) {
+    await info('Accès aux photos refusé', 'Autorisez BéninConnect dans les Réglages de votre téléphone pour ajouter une photo.');
+    return [];
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'], allowsMultipleSelection: limit > 1, selectionLimit: limit, orderedSelection: true, quality: 0.7, exif: false,
+  });
+  if (result.canceled) return [];
+  return result.assets.slice(0, limit).map((a) => ({ uri: a.uri, mimeType: a.mimeType, fileName: a.fileName }));
+}
+
 /** Durée maximale d'une vidéo de publication. */
 export const MAX_VIDEO_SECONDS = 60;
 const MAX_VIDEO_BYTES = 60 * 1024 * 1024;

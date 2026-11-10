@@ -38,7 +38,7 @@ monbenin.com {
 	root * /var/www/monbenin
 
 	# Publications partagées (aperçu + boutons des stores) et fichiers d'ouverture dans l'app : servis par l'API
-	@api path /post/* /.well-known/apple-app-site-association /.well-known/assetlinks.json
+	@api path /post/* /user/* /.well-known/apple-app-site-association /.well-known/assetlinks.json
 	handle @api {
 		reverse_proxy 127.0.0.1:8080
 	}

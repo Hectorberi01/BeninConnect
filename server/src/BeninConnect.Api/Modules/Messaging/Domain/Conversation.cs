@@ -30,14 +30,15 @@ public sealed class Conversation
 
     public bool Includes(Guid userId) => _participants.Any(p => p.UserId == userId);
 
-    public Message Post(Guid id, Guid senderId, string content, DateTimeOffset now, bool isSimulated = false, MessageAttachment? attachment = null)
+    public Message Post(Guid id, Guid senderId, string content, DateTimeOffset now, bool isSimulated = false, MessageAttachment? attachment = null,
+        Guid? sharedPostId = null)
     {
         if (!Includes(senderId))
         {
             throw new ForbiddenException("Vous ne participez pas à cette conversation.");
         }
 
-        return Message.Create(id, Id, senderId, content, now, isSimulated, attachment: attachment);
+        return Message.Create(id, Id, senderId, content, now, isSimulated, attachment: attachment, sharedPostId: sharedPostId);
     }
 }
 
@@ -107,6 +108,9 @@ public sealed class Message
     public bool IsDeleted { get; private set; }
     public MessageAttachment? Attachment { get; private set; }
 
+    /// <summary>Publication partagée dans la discussion (aperçu chargé par l'application).</summary>
+    public Guid? SharedPostId { get; private set; }
+
     public IReadOnlyCollection<MessageReaction> Reactions => _reactions;
 
     /// <summary>Retourne true si le membre a désormais une réaction sur ce message.</summary>
@@ -115,10 +119,10 @@ public sealed class Message
 
     public static Message Create(
         Guid id, Guid conversationId, Guid senderId, string content, DateTimeOffset now, bool isSimulated = false, bool isRead = false,
-        MessageAttachment? attachment = null)
+        MessageAttachment? attachment = null, Guid? sharedPostId = null)
     {
-        // Avec une pièce jointe, le texte (légende) est facultatif.
-        var text = attachment is not null && string.IsNullOrWhiteSpace(content) ? string.Empty : Normalize(content);
+        // Avec une pièce jointe ou une publication partagée, le texte est facultatif.
+        var text = (attachment is not null || sharedPostId is not null) && string.IsNullOrWhiteSpace(content) ? string.Empty : Normalize(content);
         return new Message
         {
             Id = id,
@@ -128,7 +132,8 @@ public sealed class Message
             SentAt = now,
             IsSimulated = isSimulated,
             IsRead = isRead,
-            Attachment = attachment
+            Attachment = attachment,
+            SharedPostId = sharedPostId
         };
     }
 
@@ -143,7 +148,7 @@ public sealed class Message
             throw new DomainException("Un message ne peut plus être modifié 15 minutes après son envoi.");
         }
 
-        var text = Attachment is not null && string.IsNullOrWhiteSpace(content) ? string.Empty : Normalize(content);
+        var text = (Attachment is not null || SharedPostId is not null) && string.IsNullOrWhiteSpace(content) ? string.Empty : Normalize(content);
         if (text != Content)
         {
             Content = text;

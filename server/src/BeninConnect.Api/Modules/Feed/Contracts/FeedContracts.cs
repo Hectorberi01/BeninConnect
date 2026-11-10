@@ -36,10 +36,19 @@ public interface IFeedModule
     Task<FeedStats> GetStatsAsync(DateTimeOffset since, CancellationToken ct);
 
     Task<IReadOnlyList<DateTimeOffset>> GetCommentDatesAsync(DateTimeOffset since, CancellationToken ct);
+
+    /// <summary>Publication visible par le membre connecté (partage en message privé).</summary>
+    Task<bool> CanSeePostAsync(Guid postId, CancellationToken ct);
 }
 
 public sealed record PostLiked(Guid PostId, Guid PostAuthorId, Guid ActorId, string Excerpt) : IIntegrationEvent;
 
 public sealed record PostCommented(Guid PostId, Guid PostAuthorId, Guid ActorId, string CommentExcerpt) : IIntegrationEvent;
+
+/// <summary>Réponse à un commentaire : l'auteur du commentaire d'origine est prévenu.</summary>
+public sealed record CommentReplied(Guid PostId, Guid ParentAuthorId, Guid ActorId, string Excerpt) : IIntegrationEvent;
+
+/// <summary>Membres mentionnés (@) dans une publication ou un commentaire.</summary>
+public sealed record MembersMentioned(Guid PostId, Guid ActorId, IReadOnlyList<Guid> UserIds, string Excerpt, bool InComment) : IIntegrationEvent;
 
 public sealed record CommentReacted(Guid PostId, Guid CommentAuthorId, Guid ActorId, string Emoji, string CommentExcerpt) : IIntegrationEvent;
