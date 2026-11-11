@@ -14,5 +14,8 @@ app_image_tag: ""
 app_image_registry: ghcr.io/hectorberi01
 registry_user: ""
 registry_token: ""
+# API de revue Apple / Google (service api-review, docs/ENVIRONNEMENT_REVUE_APPLE.md) : .env.review requis
+review_enabled: false
+review_api_port: 8081
 # Images de l'API gardées sur le serveur (retour arrière sans téléchargement)
 keep_images: 5

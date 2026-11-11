@@ -42,7 +42,18 @@ foreach (var module in ModuleCatalog.All)
 }
 
 builder.Services.AddScoped<DemoDataSeeder>();
-builder.Services.AddScoped<IDemoDataReset, DemoDataReset>();
+if (builder.Environment.IsReview())
+{
+    // Revue Apple / Google : compte de revue, tables vidées (et non base supprimée), remise à zéro chaque nuit
+    var review = builder.Configuration.GetSection(ReviewSettings.Section).Get<ReviewSettings>()!;
+    builder.Services.AddSingleton(new DemoSeedAccount(review.AccountEmail!, review.AccountPassword!, SeedAdmins: false));
+    builder.Services.AddScoped<IDemoDataReset, ReviewDataReset>();
+    builder.Services.AddHostedService<ReviewResetWorker>();
+}
+else
+{
+    builder.Services.AddScoped<IDemoDataReset, DemoDataReset>();
+}
 
 var app = builder.Build();
 
@@ -61,6 +72,7 @@ if (migrateOnly)
 
 // --- Pipeline ---
 app.UseProductionPipeline();
+app.UseReviewRedirect(); // production : comptes de revue envoyés vers l'API de revue
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 

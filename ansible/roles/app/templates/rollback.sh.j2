@@ -4,7 +4,7 @@
 #   ./rollback.sh 1.1.0      cette version (ou sha-1a2b3c4), après confirmation
 #   ./rollback.sh 1.1.0 -y   sans confirmation
 #   ./rollback.sh --list     5 dernières versions
-# Ne touche ni à la console, ni au site, ni à Caddy : pour un retour complet, Actions > Deploy > previous.
+# API de production et API de revue (si active). Ni la console, ni le site, ni Caddy : Actions > Deploy > previous.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -21,6 +21,13 @@ env_value() { sed -n "s/^$1=//p" .env.deploy 2>/dev/null | tail -n 1; }
 REGISTRY=$(env_value API_REGISTRY); REGISTRY=${REGISTRY:-$DEFAULT_REGISTRY}
 REPO="$REGISTRY/beninconnect-api"
 CURRENT=$(env_value APP_VERSION)
+
+# API de revue en service : elle suit toujours la version de la production
+SERVICES=(api)
+if [ -n "$("${COMPOSE[@]}" --profile review ps -q api-review 2>/dev/null)" ]; then
+  COMPOSE+=(--profile review)
+  SERVICES+=(api-review)
+fi
 
 # Versions publiées sur GHCR, les plus récentes d'abord : « tag<TAB>date ».
 # API GitHub Packages avec le jeton de « docker login ghcr.io » (droit read:packages) ; vide si indisponible.
@@ -112,7 +119,7 @@ deploy() {
   fi
 
   set_version "$tag"
-  "${COMPOSE[@]}" up -d api
+  "${COMPOSE[@]}" up -d "${SERVICES[@]}"
   echo "Démarrage de l'API (migrations comprises)…"
   if healthy; then
     version=$(curl -fsS "http://127.0.0.1:$API_PORT/" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')
@@ -126,7 +133,7 @@ deploy() {
   if [ -n "$CURRENT" ] && [ "$CURRENT" != "$tag" ]; then
     echo "Retour automatique à $CURRENT…"
     set_version "$CURRENT"
-    "${COMPOSE[@]}" up -d api
+    "${COMPOSE[@]}" up -d "${SERVICES[@]}"
     healthy && echo "API revenue sur $CURRENT." || echo "L'API ne répond toujours pas : voir les journaux."
   fi
   exit 1

@@ -5,7 +5,7 @@ import { FormScroll } from '@/components/Form';
 import { Button, Header, Icon, Muted, Screen, T, TextField } from '@/components/ui';
 import { useColors } from '@/core/theme';
 import * as v from '@/core/validation';
-import { data } from '@/data';
+import { authRequest } from '@/data';
 import { errorMessage } from '@/data/types';
 
 export default function ForgotPassword() {
@@ -22,7 +22,7 @@ export default function ForgotPassword() {
     if (e) return;
     setBusy(true);
     try {
-      await data().forgotPassword(email.trim());
+      await authRequest(email, (d) => d.forgotPassword(email.trim()));
       setSent(true);
     } catch (err) {
       setError(errorMessage(err));

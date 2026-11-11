@@ -1,0 +1,32 @@
+# API de revue Apple / Google (service api-review). Déployé par Ansible (rôle web) seulement si review_enabled :
+# /etc/caddy/sites/beninconnect-review.caddy. Enregistrement DNS review-api.monbenin.com à créer avant.
+review-api.monbenin.com {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+
+	request_body {
+		max_size 70MB
+	}
+
+	reverse_proxy 127.0.0.1:8081 {
+		health_uri /health
+		health_interval 30s
+	}
+
+	log {
+		output file /var/log/caddy/review-api.log
+		format filter {
+			wrap json
+			fields {
+				request>uri query {
+					replace access_token REDACTED
+				}
+			}
+		}
+	}
+}

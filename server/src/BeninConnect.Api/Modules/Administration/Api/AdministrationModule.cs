@@ -115,7 +115,9 @@ public sealed class AdministrationModule : IModule
 
     public void MapEndpoints(IEndpointRouteBuilder app)
     {
-        var isDevelopment = app.ServiceProvider.GetRequiredService<IHostEnvironment>().IsDevelopment();
+        // Remise à zéro de la démo : développement et environnement de revue seulement
+        var hostEnv = app.ServiceProvider.GetRequiredService<IHostEnvironment>();
+        var isDevelopment = hostEnv.IsDevelopment() || hostEnv.IsEnvironment("Review");
         var admin = app.MapGroup("/api/admin").WithTags("Administration");
 
         admin.MapPost("/auth/login", (AdminLoginCommand c, ISender s, CancellationToken ct) => s.Send(c, ct)).AllowAnonymous()

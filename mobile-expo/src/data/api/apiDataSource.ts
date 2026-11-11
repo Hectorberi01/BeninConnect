@@ -1,4 +1,4 @@
-import { PRODUCTION_API_URL } from '@/core/config';
+import { DEV_TOOLS, PRODUCTION_API_URL } from '@/core/config';
 import type { DataSource } from '../repositories';
 import type {
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
@@ -6,7 +6,7 @@ import type {
   LocalPhoto, LocalVideo, OutgoingFile, Paged, Post, PostFilter, ReportReason, ReportTarget, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User,
 } from '../types';
 import { Platform } from 'react-native';
-import { AppError } from '../types';
+import { AppError, ReviewRedirectError } from '../types';
 import { xhrFetch } from './xhrFetch';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -20,6 +20,8 @@ export class ApiDataSource implements DataSource {
   readonly isProduction: boolean;
   readonly demoVerificationCode: string | null;
   readonly hasDemoAccount: boolean;
+  /** API de revue Apple / Google (après redirection du serveur). */
+  readonly isReview: boolean;
 
   constructor(
     private readonly baseUrl: string,
@@ -27,10 +29,13 @@ export class ApiDataSource implements DataSource {
     private readonly timeoutMs = 15_000,
     // Envois de fichiers : XMLHttpRequest sur mobile (expo/fetch ne lit pas les fichiers { uri }).
     private readonly uploadImpl: typeof fetch = Platform.OS === 'web' ? fetchImpl : xhrFetch,
+    options: { review?: boolean } = {},
   ) {
     this.isProduction = baseUrl.replace(/\/+$/, '') === PRODUCTION_API_URL;
+    this.isReview = !!options.review;
+    // Revue : pas de compte de démo public ; code de vérification fixe (indiqué dans les notes de revue)
     this.demoVerificationCode = this.isProduction ? null : '123456';
-    this.hasDemoAccount = !this.isProduction;
+    this.hasDemoAccount = !this.isProduction && !this.isReview;
   }
 
   /** Temps réel (SignalR) : adresse de l'API et jeton courant. */
@@ -78,11 +83,18 @@ export class ApiDataSource implements DataSource {
     }
 
     let detail: string | undefined;
+    let redirect: string | undefined;
     try {
-      const problem = (await response.json()) as { title?: string; detail?: string };
+      const problem = (await response.json()) as { title?: string; detail?: string; redirect?: string };
       detail = problem.detail || problem.title;
+      redirect = problem.redirect;
     } catch {
       // corps vide ou non JSON
+    }
+
+    // Compte de revue : API de revue en https (http accepté en développement)
+    if (response.status === 421 && redirect && (/^https:\/\/[^\s/]+/.test(redirect) || (DEV_TOOLS && /^http:\/\//.test(redirect)))) {
+      throw new ReviewRedirectError(redirect.replace(/\/+$/, ''), detail ?? 'Compte de démonstration.');
     }
 
     if (response.status === 401) throw new AppError('Votre session a expiré. Reconnectez-vous.', 401);

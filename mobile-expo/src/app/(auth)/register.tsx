@@ -7,7 +7,7 @@ import { Button, Checkbox, Header, Muted, PasswordField, Screen, T, TextField } 
 import { SITE_URL } from '@/core/config';
 import { useColors } from '@/core/theme';
 import * as v from '@/core/validation';
-import { data } from '@/data';
+import { authRequest, data } from '@/data';
 import { errorMessage } from '@/data/types';
 
 type Field = 'firstName' | 'lastName' | 'email' | 'country' | 'city' | 'password' | 'confirm' | 'terms';
@@ -39,7 +39,7 @@ export default function Register() {
     setBusy(true);
     try {
       const { confirm: _confirm, ...request } = form;
-      await data().register({ ...request, email: form.email.trim() });
+      await authRequest(form.email, (d) => d.register({ ...request, email: form.email.trim() }));
       router.replace({ pathname: '/verify-email', params: { email: form.email.trim() } });
     } catch (err) {
       setFormError(errorMessage(err));

@@ -304,6 +304,14 @@ export class AppError extends Error {
   }
 }
 
+/** Compte de revue Apple / Google : l'API de production indique l'API de revue à utiliser (HTTP 421). */
+export class ReviewRedirectError extends AppError {
+  constructor(readonly url: string, message: string) {
+    super(message, 421);
+    this.name = 'ReviewRedirectError';
+  }
+}
+
 export const errorMessage = (e: unknown) =>
   e instanceof AppError ? e.message : 'Une erreur inattendue est survenue. Réessayez.';
 

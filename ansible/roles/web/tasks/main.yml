@@ -33,6 +33,24 @@
     validate: caddy validate --adapter caddyfile --config %s
   notify: Recharger Caddy
 
+- name: Configuration Caddy de l'API de revue
+  when: review_enabled
+  ansible.builtin.copy:
+    src: "{{ repo_root }}/server/Caddyfile.review"
+    dest: "{{ caddy_review_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: caddy validate --adapter caddyfile --config %s
+  notify: Recharger Caddy
+
+- name: Pas d'API de revue publiée
+  when: not review_enabled
+  ansible.builtin.file:
+    path: "{{ caddy_review_file }}"
+    state: absent
+  notify: Recharger Caddy
+
 - name: Fichiers du site public
   ansible.posix.synchronize:
     src: "{{ repo_root }}/site/"

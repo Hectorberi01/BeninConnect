@@ -24,18 +24,20 @@ public static class Production
             return;
         }
 
+        // Revue Apple / Google : protections de production, avec code fixe, données de démo et emails journalisés
+        var review = env.IsReview();
         var errors = new List<string>();
         if (jwt.SigningKey == DevSigningKey)
         {
             errors.Add("Jwt__SigningKey : la clé de développement est interdite (générez-en une : openssl rand -base64 48).");
         }
 
-        if (auth.FixedVerificationCode is not null)
+        if (auth.FixedVerificationCode is not null && !review)
         {
             errors.Add("Auth__FixedVerificationCode doit être vide : un code fixe permet de valider n'importe quel email.");
         }
 
-        if (!email.IsSmtp && !email.IsResend && !config.GetValue("Email:AllowLogProvider", false))
+        if (!email.IsSmtp && !email.IsResend && !config.GetValue("Email:AllowLogProvider", false) && !review)
         {
             errors.Add("Email__Provider=resend (Email__ResendApiKey, Email__From) ou smtp requis : sinon aucun code n'est envoyé.");
         }
@@ -50,9 +52,21 @@ public static class Production
             errors.Add("Email__Host et Email__From sont obligatoires avec le fournisseur smtp.");
         }
 
-        if (config.GetValue("Database:SeedDemoData", true))
+        if (config.GetValue("Database:SeedDemoData", true) && !review)
         {
             errors.Add("Database__SeedDemoData doit valoir false (comptes de démonstration aux mots de passe publics).");
+        }
+
+        var reviewSettings = config.GetSection(ReviewSettings.Section).Get<ReviewSettings>() ?? new ReviewSettings();
+        if (review && (string.IsNullOrWhiteSpace(reviewSettings.AccountEmail) || (reviewSettings.AccountPassword?.Length ?? 0) < 12
+                       || reviewSettings.AccountPassword == DemoData.DemoDataSeeder.DemoPassword))
+        {
+            errors.Add("Review__AccountEmail et Review__AccountPassword (12 caractères au moins, pas celui de la démo publique) sont obligatoires en mode Review.");
+        }
+
+        if (!review && reviewSettings.ActiveEmails.Length > 0 && !Uri.TryCreate(reviewSettings.ApiUrl, UriKind.Absolute, out _))
+        {
+            errors.Add("Review__ApiUrl doit être l'adresse https de l'API de revue (ex. https://review-api.monbenin.com).");
         }
 
         var db = new NpgsqlConnectionStringBuilder(config.GetConnectionString("Database"));
@@ -62,7 +76,8 @@ public static class Production
             errors.Add("ConnectionStrings__Database : base distante, chiffrement obligatoire (SSL Mode=Require ou VerifyFull).");
         }
 
-        if (db.Host is "localhost" or "127.0.0.1" or "db")
+        // Database:AllowLocalhost : tests d'intégration seulement
+        if (db.Host is "localhost" or "127.0.0.1" or "db" && !config.GetValue("Database:AllowLocalhost", false))
         {
             errors.Add($"ConnectionStrings__Database pointe vers « {db.Host} » : indiquez l'hôte de la base hébergée.");
         }

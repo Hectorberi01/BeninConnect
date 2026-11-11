@@ -10,3 +10,8 @@ TestResults/
 server/src/BeninConnect.Api/media/
 mobile-expo/.claude
 mobile-expo/.expo
+
+# Secrets et configuration locale : seuls les modèles *.example sont versionnés
+.env
+.env.*
+!.env*.example

@@ -96,6 +96,30 @@
     group: "{{ deploy_user }}"
     mode: "0600"
 
+# API de revue : secrets dans .env.review, déposé à la main comme le .env
+- name: Vérifier la présence du .env.review
+  when: review_enabled
+  ansible.builtin.stat:
+    path: "{{ app_dir }}/server/.env.review"
+  register: review_env_file
+
+- name: Arrêter si le .env.review manque
+  when: review_enabled
+  ansible.builtin.assert:
+    that: review_env_file.stat.exists
+    fail_msg: >-
+      review_enabled=true mais {{ app_dir }}/server/.env.review est introuvable. Le créer à partir de
+      server/.env.review.example (droits 600), ou remettre review_enabled à false.
+    quiet: true
+
+- name: Droits du .env.review
+  when: review_enabled
+  ansible.builtin.file:
+    path: "{{ app_dir }}/server/.env.review"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0600"
+
 # Version à déployer (non secret), séparée du .env pour ne jamais toucher aux secrets.
 - name: Version de l'API (.env.deploy)
   ansible.builtin.copy:
@@ -126,6 +150,7 @@
     project_src: "{{ app_dir }}/server"
     files: [docker-compose.prod.yml]
     env_files: [.env, .env.deploy]
+    profiles: "{{ ['review'] if review_enabled else [] }}"
     state: present
     remove_orphans: true
     pull: "{{ 'always' if app_from_registry else 'missing' }}"
@@ -162,6 +187,39 @@
     - name: Échec du déploiement
       ansible.builtin.fail:
         msg: "L'API ne répond pas sur /health. Dernières lignes :\n{{ api_logs.stdout_lines[-40:] | join('\n') }}"
+
+- name: Santé de l'API de revue
+  when: review_enabled
+  block:
+    - name: Attendre que l'API de revue réponde
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ review_api_port }}/health"
+        status_code: 200
+      register: review_health
+      until: review_health.status == 200
+      retries: "{{ health_retries }}"
+      delay: 10
+  rescue:
+    - name: Journaux de l'API de revue
+      ansible.builtin.command:
+        cmd: docker compose --env-file .env --env-file .env.deploy -f docker-compose.prod.yml --profile review logs --no-color --tail 60 api-review
+        chdir: "{{ app_dir }}/server"
+      register: review_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Échec de l'API de revue
+      ansible.builtin.fail:
+        msg: "L'API de revue ne répond pas sur /health. Dernières lignes :\n{{ review_logs.stdout_lines[-40:] | join('\n') }}"
+
+# Revue désactivée : conteneur arrêté et supprimé s'il existait (la base de revue n'est pas touchée)
+- name: Arrêter l'API de revue
+  when: not review_enabled
+  ansible.builtin.command:
+    cmd: docker compose --env-file .env --env-file .env.deploy -f docker-compose.prod.yml --profile review rm --stop --force api-review
+    chdir: "{{ app_dir }}/server"
+  register: review_removed
+  changed_when: "'Removed' in review_removed.stderr"
 
 # Historique des déploiements : sert au retour arrière (Deploy « previous », ./rollback.sh)
 - name: Version qui tourne

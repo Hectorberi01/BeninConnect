@@ -4,6 +4,7 @@
     project_src: "{{ app_dir }}/server"
     files: [docker-compose.prod.yml]
     env_files: [.env, .env.deploy]
+    profiles: "{{ ['review'] if review_enabled else [] }}"
     build: always
     state: present
     remove_orphans: true

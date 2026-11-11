@@ -1,3 +1,4 @@
+import { activeReviewApi } from '@/data';
 import { DEV_TOOLS, PRODUCTION_API_URL } from './config';
 import { usePreferences } from './preferences';
 // Images embarquées (hors ligne). Les chemins sont ceux renvoyés par l'API et le mock (« Posts/post_01.jpg »).
@@ -58,7 +59,8 @@ const IMAGES: Record<string, number> = {
 export function mediaUri(path: string | null | undefined): string | undefined {
   if (!path) return undefined;
   if (path.startsWith('uploads/')) {
-    const base = DEV_TOOLS ? usePreferences.getState().apiUrl : PRODUCTION_API_URL;
+    const review = activeReviewApi();
+    const base = review ? review.url : DEV_TOOLS ? usePreferences.getState().apiUrl : PRODUCTION_API_URL;
     return `${base.replace(/\/+$/, '')}/${path}`;
   }
   return /^(file|https?|blob|data|ph|content):/.test(path) ? path : undefined;

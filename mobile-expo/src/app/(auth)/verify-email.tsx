@@ -6,7 +6,7 @@ import { Button, Header, Icon, Muted, Screen, T, TextField } from '@/components/
 import { useSession } from '@/core/session';
 import { useColors } from '@/core/theme';
 import { toast } from '@/core/toast';
-import { data } from '@/data';
+import { authRequest, data } from '@/data';
 import { errorMessage } from '@/data/types';
 
 export default function VerifyEmail() {
@@ -26,7 +26,7 @@ export default function VerifyEmail() {
     setError(null);
     setBusy(true);
     try {
-      const result = await data().verifyEmail(email, trimmed);
+      const result = await authRequest(email, (d) => d.verifyEmail(email, trimmed));
       await useSession.getState().signIn(result, true);
       toast('Adresse email vérifiée. Bienvenue !', 'success');
       router.replace('/home');
@@ -39,7 +39,7 @@ export default function VerifyEmail() {
 
   const resend = async () => {
     try {
-      await data().resendCode(email);
+      await authRequest(email, (d) => d.resendCode(email));
       toast(demoCode ? `Nouveau code simulé : ${demoCode} (aucun email n'est envoyé).` : `Un nouveau code a été envoyé à ${email}.`);
     } catch (err) {
       toast(errorMessage(err), 'error');

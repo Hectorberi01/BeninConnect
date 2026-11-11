@@ -9,7 +9,7 @@ import { usePreferences } from '@/core/preferences';
 import { useSession } from '@/core/session';
 import { font, useColors } from '@/core/theme';
 import * as v from '@/core/validation';
-import { data } from '@/data';
+import { authRequest, data } from '@/data';
 import { DEMO_EMAIL, DEMO_PASSWORD } from '@/data/repositories';
 import { errorMessage } from '@/data/types';
 
@@ -32,7 +32,7 @@ export default function Login() {
     if (Object.keys(e).length) return;
     setBusy(true);
     try {
-      const result = await data().login(email.trim(), password);
+      const result = await authRequest(email, (d) => d.login(email.trim(), password));
       prefs.set({ rememberMe: remember });
       await useSession.getState().signIn(result, remember);
       router.replace('/home');

@@ -31,7 +31,7 @@ namespace BeninConnect.Host.DemoData;
 public sealed class DemoDataSeeder(
     IdentityDbContext identity, CommunitiesDbContext communitiesDb, FeedDbContext feed, EventsDbContext eventsDb,
     MessagingDbContext messaging, NotificationsDbContext notifications, ModerationDbContext moderation, AdministrationDbContext administration,
-    IPasswordHasher hasher, TimeProvider clock)
+    IPasswordHasher hasher, TimeProvider clock, DemoSeedAccount? account = null)
 {
     public const string DemoEmail = "demo@beninconnect.test";
     public const string DemoPassword = "Demo123!";
@@ -63,11 +63,12 @@ public sealed class DemoDataSeeder(
     {
         var random = new Random(Seed);
         var now = clock.GetUtcNow();
-        var passwordHash = hasher.Hash(DemoPassword);
+        var demo = account ?? DemoSeedAccount.Default;
+        var passwordHash = hasher.Hash(demo.Password);
 
         var users = SeedUsers.All.Select((s, i) => User.CreateVerified(
             NextGuid(random), s.FirstName, s.LastName,
-            i == 0 ? DemoEmail : $"{Slug(s.FirstName)}.{Slug(s.LastName)}@exemple.test",
+            i == 0 ? demo.Email : $"{Slug(s.FirstName)}.{Slug(s.LastName)}@exemple.test",
             passwordHash, s.Profession, s.Country, s.City, s.OriginCity, s.Bio, s.Interests,
             IdentityCatalog.AvatarColors[i % IdentityCatalog.AvatarColors.Length], $"Profile/cover_{i % 6 + 1:00}.jpg",
             now.AddDays(-random.Next(30, 900)))).ToList();
@@ -79,7 +80,7 @@ public sealed class DemoDataSeeder(
         var conversations = SeedConversationsInto(random, now, users);
         var events = SeedEventsInto(random, now, users, communities);
         SeedNotificationsInto(random, now, users, posts, conversations, events, communities.Values.ToList());
-        SeedAdminsAndReports(now, users, posts);
+        SeedAdminsAndReports(now, users, posts, demo.SeedAdmins);
 
         await identity.SaveChangesAsync(ct);
         await communitiesDb.SaveChangesAsync(ct);
@@ -91,12 +92,16 @@ public sealed class DemoDataSeeder(
         await administration.SaveChangesAsync(ct);
     }
 
-    private void SeedAdminsAndReports(DateTimeOffset now, List<User> users, List<Post> posts)
+    private void SeedAdminsAndReports(DateTimeOffset now, List<User> users, List<Post> posts, bool seedAdmins)
     {
-        var adminHash = hasher.Hash(AdminPassword);
-        foreach (var (email, name, role) in DemoAdmins)
+        // Comptes de la console aux mots de passe publics : jamais en environnement de revue
+        if (seedAdmins)
         {
-            administration.AdminUsers.Add(AdminUser.Create(Guid.NewGuid(), email, name, adminHash, role, now.AddDays(-120)));
+            var adminHash = hasher.Hash(AdminPassword);
+            foreach (var (email, name, role) in DemoAdmins)
+            {
+                administration.AdminUsers.Add(AdminUser.Create(Guid.NewGuid(), email, name, adminHash, role, now.AddDays(-120)));
+            }
         }
 
         // File de modération : quelques signalements ouverts (aléatoire séparé).
@@ -407,4 +412,13 @@ public sealed class DemoDataSeeder(
 
         return builder.ToString();
     }
+}
+
+/// <summary>
+/// Compte principal du jeu de démonstration (index 0) ; mot de passe commun à tous les membres de démo.
+/// Environnement de revue : compte donné à Apple / Google, sans comptes de console.
+/// </summary>
+public sealed record DemoSeedAccount(string Email, string Password, bool SeedAdmins)
+{
+    public static DemoSeedAccount Default { get; } = new(DemoDataSeeder.DemoEmail, DemoDataSeeder.DemoPassword, true);
 }

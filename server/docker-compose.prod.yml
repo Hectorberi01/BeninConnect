@@ -66,9 +66,38 @@ services:
       Backups__Offsite__AccessKey: ${S3_ACCESS_KEY:-}
       Backups__Offsite__SecretKey: ${S3_SECRET_KEY:-}
       Backups__Offsite__RetentionDays: ${BACKUP_OFFSITE_RETENTION_DAYS:-90}
+      # Revue Apple / Google : ces comptes sont renvoyés vers l'API de revue (vide = désactivé).
+      # À remplir SEULEMENT quand la version de l'app qui suit la redirection est publiée.
+      Review__Emails__0: ${REVIEW_EMAIL_1:-}
+      Review__Emails__1: ${REVIEW_EMAIL_2:-}
+      Review__ApiUrl: ${REVIEW_API_URL:-}
     volumes:
       - media:/app/media
       - ./backups:/backups
+
+  # API de revue Apple / Google : même image, base séparée, données de démo remises à zéro chaque nuit.
+  # Démarrée avec --profile review ; secrets dans .env.review (voir .env.review.example).
+  api-review:
+    image: ${API_REGISTRY:-ghcr.io/hectorberi01}/beninconnect-api:${APP_VERSION:-local}
+    profiles: [review]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REVIEW_API_PORT:-8081}:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - path: .env.review
+        required: false
+    environment:
+      ASPNETCORE_ENVIRONMENT: Review
+      Database__SeedDemoData: "true"
+      Auth__FixedVerificationCode: ${REVIEW_VERIFICATION_CODE:-123456}
+      Email__Provider: log
+      Media__Provider: local
+      Backups__Automatic: "false"
+      Review__ResetDailyAtUtc: ${REVIEW_RESET_AT_UTC:-03:00}
+    volumes:
+      - media-review:/app/media
 
   # Copie quotidienne des photos (volume media) dans ./backups/media, 7 jours conservés.
   media-backup:
@@ -84,3 +113,4 @@ services:
 
 volumes:
   media:
+  media-review:

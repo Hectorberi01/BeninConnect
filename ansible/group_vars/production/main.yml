@@ -12,3 +12,6 @@ swap_size_mb: 2048
 app_dir: /opt/beninconnect
 api_domain: api.monbenin.com # servi par Caddy (installé sur le VPS) vers 127.0.0.1:api_port
 api_port: 8080 # doit correspondre à API_PORT du .env
+# API de revue Apple / Google (review-api.monbenin.com) : passer à true après avoir créé le DNS,
+# la base beninconnect_review et server/.env.review sur le serveur (docs/ENVIRONNEMENT_REVUE_APPLE.md)
+review_enabled: true

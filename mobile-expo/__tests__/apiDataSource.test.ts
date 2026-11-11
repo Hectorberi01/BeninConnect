@@ -50,3 +50,27 @@ describe('ApiDataSource', () => {
     expect(JSON.parse(f.calls[0].init.body as string)).toMatchObject({ content: 'Salut', visibility: 'Public' });
   });
 });
+
+describe('Compte de revue Apple / Google', () => {
+  it('421 avec redirection : erreur dédiée portant l\'adresse de revue', async () => {
+    const api = new ApiDataSource('https://api.monbenin.com', fakeFetch(421, {
+      title: 'Compte de démonstration', detail: 'Ce compte de démonstration nécessite la dernière version de l\'application.',
+      redirect: 'https://review-api.monbenin.com/',
+    }).impl);
+    await expect(api.login('appreview@monbenin.com', 'x')).rejects.toMatchObject({
+      name: 'ReviewRedirectError', url: 'https://review-api.monbenin.com', status: 421,
+    });
+  });
+
+  it('redirection non https refusée (message seulement)', async () => {
+    const api = new ApiDataSource('https://api.monbenin.com', fakeFetch(421, { detail: 'Mettez à jour.', redirect: 'ftp://ailleurs' }).impl);
+    await expect(api.login('a@b.co', 'x')).rejects.toMatchObject({ name: 'AppError', message: 'Mettez à jour.' });
+  });
+
+  it('API de revue : pas de compte de démo public, code fixe', () => {
+    const api = new ApiDataSource('https://review-api.monbenin.com', fakeFetch(200).impl, undefined, undefined, { review: true });
+    expect(api.isReview).toBe(true);
+    expect(api.hasDemoAccount).toBe(false);
+    expect(api.demoVerificationCode).toBe('123456');
+  });
+});
