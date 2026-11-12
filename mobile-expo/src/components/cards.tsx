@@ -116,8 +116,8 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
 
       <View style={[styles.actions, { borderColor: c.border }]}>
         <Action icon={liked ? 'heart' : 'heart-outline'} color={liked ? c.error : undefined}
-          label={likes === 0 ? "J'aime" : String(likes)} a11y={liked ? "Je n'aime plus" : "J'aime"} onPress={() => like.mutate(post)} />
-        <Action icon="comment-outline" label={post.commentCount === 0 ? 'Commenter' : String(post.commentCount)} a11y="Commenter"
+          label={likes === 0 ? '' : String(likes)} a11y={liked ? "Je n'aime plus" : "J'aime"} onPress={() => like.mutate(post)} />
+        <Action icon="comment-outline" label={post.commentCount === 0 ? '' : String(post.commentCount)} a11y="Commenter"
           onPress={() => router.push({ pathname: '/post/[id]', params: { id: post.id, focus: '1' } })} />
         <Action icon="share-variant-outline" label={post.shareCount === 0 ? '' : String(post.shareCount)} a11y="Partager hors de l'application"
           onPress={() => share.mutate({ post, authorName: author ? displayName(author) : 'Un membre' })} />
@@ -135,7 +135,7 @@ function Action({ icon, label, onPress, color, a11y }: { icon: IconName; label: 
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={a11y} onPress={onPress} style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}>
       <Icon name={icon} size={20} color={color ?? c.textSecondary} />
-      {!!label && <Text style={[type.label, { color: c.textSecondary }]}>{label}</Text>}
+      {!!label && <Text style={[type.label, { color: c.textSecondary, flexShrink: 1 }]} numberOfLines={1}>{label}</Text>}
     </Pressable>
   );
 }
