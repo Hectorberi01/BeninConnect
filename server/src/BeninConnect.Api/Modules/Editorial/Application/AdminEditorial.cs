@@ -2,6 +2,7 @@ using BeninConnect.Modules.Administration.Contracts;
 using BeninConnect.Modules.Communities.Contracts;
 using BeninConnect.Modules.Editorial.Domain;
 using BeninConnect.Modules.Feed.Contracts;
+using BeninConnect.Modules.Media.Contracts;
 using BeninConnect.Shared.Application;
 using BeninConnect.Shared.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -26,24 +27,37 @@ public sealed record GetEditorialOverviewQuery : IQuery<EditorialOverviewDto>;
 public sealed record GetCandidatesQuery(CandidateStatus? Status, int Skip = 0, int Take = 25) : IQuery<PagedResult<CandidateDto>>;
 
 /// <summary>Publication écrite dans la console (brouillon, à valider comme les autres).</summary>
-public sealed record CreateManualDraftCommand(string Content) : ICommand<CandidateDto>, IValidatable
+public sealed record CreateManualDraftCommand(string Content, IReadOnlyList<string>? Images = null) : ICommand<CandidateDto>, IValidatable
 {
-    public IEnumerable<(string, string)> Validate() => Rules.Length(nameof(Content), Content, "La publication", 3, FeedLimits.PostMaxLength);
+    public IEnumerable<(string, string)> Validate() => EditorialRules.Post(Content, Images);
 }
 
-public sealed record EditDraftCommand(Guid Id, string Content) : ICommand<CandidateDto>, IValidatable
+/// <summary>Images null : celles du brouillon sont gardées.</summary>
+public sealed record EditDraftCommand(Guid Id, string Content, IReadOnlyList<string>? Images = null) : ICommand<CandidateDto>, IValidatable
 {
-    public IEnumerable<(string, string)> Validate() => Rules.Length(nameof(Content), Content, "La publication", 3, FeedLimits.PostMaxLength);
+    public IEnumerable<(string, string)> Validate() => EditorialRules.Post(Content, Images);
+}
+
+/// <summary>Photo envoyée depuis la console (visuel dont BéninConnect détient les droits).</summary>
+public sealed record UploadEditorialImageCommand(Stream Content, long Length) : ICommand<UploadedImageDto>;
+
+public sealed record UploadedImageDto(string Path);
+
+public static class EditorialRules
+{
+    public const int MaxImages = 10;
+
+    public static IEnumerable<(string, string)> Post(string content, IReadOnlyList<string>? images) =>
+        Rules.Length("Content", content, "La publication", 3, FeedLimits.PostMaxLength)
+            .Concat((images ?? []).SelectMany(i => Rules.ImagePath("Images", i)))
+            .Concat((images?.Count ?? 0) > MaxImages ? [("Images", $"{MaxImages} photos au plus.")] : []);
 }
 
 /// <summary>Validation par un administrateur. ScheduledAt vide : dès que possible.</summary>
 public sealed record ApproveCandidateCommand(Guid Id, string Content, DateTimeOffset? ScheduledAt, Guid? CommunityId, IReadOnlyList<string>? Images)
     : ICommand<CandidateDto>, IValidatable
 {
-    public IEnumerable<(string, string)> Validate() =>
-        Rules.Length(nameof(Content), Content, "La publication", 3, FeedLimits.PostMaxLength)
-            .Concat((Images ?? []).SelectMany(i => Rules.ImagePath(nameof(Images), i)))
-            .Concat((Images?.Count ?? 0) > 10 ? [(nameof(Images), "10 photos au plus.")] : []);
+    public IEnumerable<(string, string)> Validate() => EditorialRules.Post(Content, Images);
 }
 
 public sealed record RejectCandidateCommand(Guid Id, string? Reason) : ICommand<CandidateDto>;
@@ -64,7 +78,7 @@ public sealed record DeleteSourceCommand(Guid Id) : ICommand<CountDto>;
 /// <summary>Console : file éditoriale du compte officiel et sources. Chaque validation est tracée (responsable éditorial).</summary>
 public sealed class AdminEditorialHandlers(
     IEditorialDb db, EditorialPipeline pipeline, ILlmClient llm, EditorialSettings settings, ICommunitiesModule communities,
-    IAdminSession admin, TimeProvider clock) :
+    IAdminSession admin, IMediaModule media, TimeProvider clock) :
     IRequestHandler<GetEditorialOverviewQuery, EditorialOverviewDto>,
     IRequestHandler<GetCandidatesQuery, PagedResult<CandidateDto>>,
     IRequestHandler<CreateManualDraftCommand, CandidateDto>,
@@ -76,7 +90,8 @@ public sealed class AdminEditorialHandlers(
     IRequestHandler<RunEditorialStepCommand, PipelineReport>,
     IRequestHandler<AddSourceCommand, SourceDto>,
     IRequestHandler<UpdateSourceCommand, SourceDto>,
-    IRequestHandler<DeleteSourceCommand, CountDto>
+    IRequestHandler<DeleteSourceCommand, CountDto>,
+    IRequestHandler<UploadEditorialImageCommand, UploadedImageDto>
 {
     public async Task<EditorialOverviewDto> Handle(GetEditorialOverviewQuery request, CancellationToken ct)
     {
@@ -113,7 +128,7 @@ public sealed class AdminEditorialHandlers(
 
     public async Task<CandidateDto> Handle(CreateManualDraftCommand request, CancellationToken ct)
     {
-        var candidate = ContentCandidate.CreateManual(request.Content, clock.GetUtcNow());
+        var candidate = ContentCandidate.CreateManual(request.Content, request.Images ?? [], clock.GetUtcNow());
         db.Candidates.Add(candidate);
         await db.SaveChangesAsync(ct);
         await admin.LogAsync("Brouillon éditorial créé", "Editorial", candidate.Id, candidate.SourceTitle, ct);
@@ -121,7 +136,10 @@ public sealed class AdminEditorialHandlers(
     }
 
     public Task<CandidateDto> Handle(EditDraftCommand request, CancellationToken ct) =>
-        UpdateAsync(request.Id, c => c.EditDraft(request.Content), null, ct);
+        UpdateAsync(request.Id, c => c.EditDraft(request.Content, request.Images), null, ct);
+
+    public async Task<UploadedImageDto> Handle(UploadEditorialImageCommand request, CancellationToken ct) =>
+        new(await media.SaveImageAsync(request.Content, request.Length, ct));
 
     public async Task<CandidateDto> Handle(ApproveCandidateCommand request, CancellationToken ct)
     {

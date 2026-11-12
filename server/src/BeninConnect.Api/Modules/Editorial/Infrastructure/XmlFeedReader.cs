@@ -8,6 +8,9 @@ namespace BeninConnect.Modules.Editorial.Infrastructure;
 public sealed class XmlFeedReader(IHttpClientFactory http) : IFeedReader
 {
     public const string ClientName = "editorial-feeds";
+
+    private const string NotAFeed =
+        "Cette adresse est une page web, pas un flux RSS ou Atom. Essayez l'adresse du flux (souvent /feed ou /rss).";
     private const long MaxBytes = 5 * 1024 * 1024;
 
     public async Task<IReadOnlyList<FeedItem>> ReadAsync(string url, int max, CancellationToken ct)
@@ -24,13 +27,27 @@ public sealed class XmlFeedReader(IHttpClientFactory http) : IFeedReader
         {
             Async = true, DtdProcessing = DtdProcessing.Ignore, XmlResolver = null, MaxCharactersInDocument = MaxBytes
         });
-        var doc = await XDocument.LoadAsync(reader, LoadOptions.None, ct);
+        XDocument doc;
+        try
+        {
+            doc = await XDocument.LoadAsync(reader, LoadOptions.None, ct);
+        }
+        catch (XmlException)
+        {
+            throw new InvalidOperationException(NotAFeed);
+        }
+
         return Parse(doc, url, max);
     }
 
     public static IReadOnlyList<FeedItem> Parse(XDocument doc, string feedUrl, int max)
     {
         var root = doc.Root ?? throw new InvalidOperationException("Flux vide.");
+        if (root.Name.LocalName is not ("rss" or "feed" or "RDF"))
+        {
+            throw new InvalidOperationException(NotAFeed);
+        }
+
         // RSS : <item> (avec ou sans espace de noms RSS 1.0) ; Atom : <entry>
         var entries = root.Descendants().Where(e => e.Name.LocalName is "item" or "entry");
         var items = new List<FeedItem>();

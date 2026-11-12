@@ -194,6 +194,54 @@ public sealed class EditorialTests(EditorialFactory factory) : IClassFixture<Edi
     }
 
     [Fact]
+    public async Task Official_posts_can_carry_photos_uploaded_from_the_console()
+    {
+        var admin = await AdminAsync();
+        string[] paths = new string[2];
+        for (var i = 0; i < 2; i++)
+        {
+            // Signature PNG suivie de données : suffisant pour le contrôle du format
+            var png = new ByteArrayContent([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 1, 2, 3]);
+            png.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+            using var form = new MultipartFormDataContent { { png, "file", $"photo{i}.png" } };
+            var upload = await admin.PostAsync("api/admin/editorial/images", form);
+            Assert.Equal(HttpStatusCode.OK, upload.StatusCode);
+            paths[i] = (await upload.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("path").GetString()!;
+            Assert.StartsWith("uploads/", paths[i]);
+        }
+
+        using var notImage = new MultipartFormDataContent { { new StringContent("pas une image"), "file", "x.txt" } };
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsync("api/admin/editorial/images", notImage)).StatusCode);
+        var accountant = await AdminAsync("compta@beninconnect.test");
+        using var form2 = new MultipartFormDataContent { { new ByteArrayContent([1, 2, 3]), "file", "x.png" } };
+        Assert.Equal(HttpStatusCode.Forbidden, (await accountant.PostAsync("api/admin/editorial/images", form2)).StatusCode);
+
+        var draft = await (await admin.PostAsJsonAsync("api/admin/editorial/candidates", new { content = "Nos plus belles photos de la semaine 📸 #Bénin", images = paths }))
+            .Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(2, draft.GetProperty("images").GetArrayLength());
+
+        var id = draft.GetProperty("id").GetGuid();
+        (await admin.PostAsJsonAsync($"api/admin/editorial/candidates/{id}/approve", new { content = "Nos plus belles photos de la semaine 📸 #Bénin", images = paths }))
+            .EnsureSuccessStatusCode();
+        await RunAsync(admin, "publish");
+        var published = (await ListAsync(admin, "Published")).Single(c => c.Id == id);
+
+        var member = factory.CreateClient();
+        var token = await (await member.PostAsJsonAsync("api/auth/login", new { email = "demo@beninconnect.test", password = "Demo123!" })).Content.ReadFromJsonAsync<TokenBody>();
+        member.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token!.Token);
+        var post = await member.GetFromJsonAsync<JsonElement>($"api/posts/{published.PublishedPostId}");
+        Assert.Equal(paths, post.GetProperty("images").EnumerateArray().Select(e => e.GetString()!).ToArray());
+    }
+
+    [Fact]
+    public void A_web_page_is_not_accepted_as_a_feed()
+    {
+        var html = XDocument.Parse("<html><head><title>Mon entreprise</title></head><body><a href='/a'>Lien</a></body></html>");
+        var error = Assert.Throws<InvalidOperationException>(() => XmlFeedReader.Parse(html, "https://monentreprise.bj/", 10));
+        Assert.Contains("pas un flux RSS", error.Message);
+    }
+
+    [Fact]
     public void Feed_parsing_handles_rss_atom_relative_links_and_entities()
     {
         var rss = XDocument.Parse("""

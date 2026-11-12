@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BadgeCheck, CalendarClock, ExternalLink, Newspaper, PenLine, Plus, Rss, Send, Sparkles, Trash2 } from 'lucide-react'
+import {
+  BadgeCheck, CalendarClock, ChevronLeft, ChevronRight, ExternalLink, ImagePlus, Newspaper, PenLine, Plus, Rss, Send, Sparkles, Trash2, X,
+} from 'lucide-react'
 import { useState } from 'react'
 import { useToast } from '@/components/toast'
 import { Badge, Button, Card, ConfirmDialog, cx, Empty, ErrorBox, Input, Loading, Modal, PageHeader, Pagination, Select, Textarea } from '@/components/ui'
-import { api, errorMessage, qs } from '@/lib/api'
+import { api, apiUrl, errorMessage, qs } from '@/lib/api'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import type { AdminCommunity, CandidateStatus, EditorialCandidate, EditorialOverview, Paged, PipelineReport } from '@/lib/types'
 
@@ -17,6 +19,7 @@ const TABS: { key: CandidateStatus; label: string; hint: string }[] = [
   { key: 'Failed', label: 'Échecs', hint: 'Publication impossible après plusieurs essais.' },
 ]
 const TAKE = 15
+const MAX_IMAGES = 10
 const SITE = 'https://monbenin.com'
 
 type Editor = { mode: 'new' } | { mode: 'draft' | 'approve'; candidate: EditorialCandidate }
@@ -122,6 +125,7 @@ export function EditorialPage() {
                     {c.draftContent
                       ? <p className="mt-2 whitespace-pre-wrap rounded-lg bg-surface-2 px-3 py-2 text-sm">{c.draftContent}</p>
                       : c.sourceExcerpt && <p className="mt-1 line-clamp-3 text-sm text-muted">{c.sourceExcerpt}</p>}
+                    {c.images.length > 0 && <Thumbnails paths={c.images} />}
                     {!c.isManual && (
                       <a href={c.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-brand hover:underline">
                         Article source <ExternalLink className="size-3" />
@@ -181,6 +185,8 @@ function EditorModal({ editor, maxLength, publishNow, onClose, onDone }: {
   const [content, setContent] = useState(candidate?.draftContent ?? '')
   const [communityId, setCommunityId] = useState(candidate?.targetCommunityId ?? '')
   const [when, setWhen] = useState(toLocalInput(candidate?.scheduledAt ?? null))
+  const [images, setImages] = useState<string[]>(candidate?.images ?? [])
+  const [uploading, setUploading] = useState(0)
   const communities = useQuery({
     queryKey: ['communities', ''], enabled: approving,
     queryFn: () => api<AdminCommunity[]>('api/admin/communities'),
@@ -189,16 +195,16 @@ function EditorModal({ editor, maxLength, publishNow, onClose, onDone }: {
   const save = useMutation({
     mutationFn: async () => {
       if (editor.mode === 'new') {
-        await api('api/admin/editorial/candidates', { method: 'POST', body: { content } })
+        await api('api/admin/editorial/candidates', { method: 'POST', body: { content, images } })
         return 'Drafted' as const
       }
       if (editor.mode === 'draft') {
-        await api(`api/admin/editorial/candidates/${editor.candidate.id}/draft`, { method: 'PUT', body: { content } })
+        await api(`api/admin/editorial/candidates/${editor.candidate.id}/draft`, { method: 'PUT', body: { content, images } })
         return 'Drafted' as const
       }
       await api(`api/admin/editorial/candidates/${editor.candidate.id}/approve`, {
         method: 'POST',
-        body: { content, communityId: communityId || null, scheduledAt: when ? new Date(when).toISOString() : null, images: editor.candidate.images },
+        body: { content, communityId: communityId || null, scheduledAt: when ? new Date(when).toISOString() : null, images },
       })
       // Sans tâches automatiques : publication immédiate depuis la console
       if (!when && publishNow) {
@@ -217,8 +223,33 @@ function EditorModal({ editor, maxLength, publishNow, onClose, onDone }: {
     onError: (e) => toast(errorMessage(e), 'error'),
   })
 
+  // Photos envoyées une à une, dans l'ordre choisi (la première sert de couverture)
+  const addImages = async (files: FileList | null) => {
+    const list = Array.from(files ?? []).slice(0, MAX_IMAGES - images.length)
+    if ((files?.length ?? 0) > list.length) toast(`${MAX_IMAGES} photos au plus par publication.`, 'error')
+    for (const file of list) {
+      setUploading((n) => n + 1)
+      try {
+        const form = new FormData()
+        form.append('file', file)
+        const { path } = await api<{ path: string }>('api/admin/editorial/images', { method: 'POST', body: form })
+        setImages((old) => [...old, path])
+      } catch (e) {
+        toast(`${file.name} : ${errorMessage(e)}`, 'error')
+      } finally {
+        setUploading((n) => n - 1)
+      }
+    }
+  }
+  const move = (from: number, to: number) => setImages((old) => {
+    const next = [...old]
+    const [item] = next.splice(from, 1)
+    next.splice(to, 0, item)
+    return next
+  })
+
   const length = content.trim().length
-  const invalid = length < 3 || length > maxLength
+  const invalid = length < 3 || length > maxLength || uploading > 0
   return (
     <Modal open wide title={approving ? 'Relire et programmer' : editor.mode === 'new' ? 'Nouvelle publication' : 'Rédiger'} onClose={onClose} footer={
       <>
@@ -240,6 +271,33 @@ function EditorModal({ editor, maxLength, publishNow, onClose, onDone }: {
       <Textarea label="Texte publié" rows={9} value={content} onChange={(e) => setContent(e.target.value)}
         placeholder="Texte de la publication. Citez la source et ajoutez son lien pour un article repris." />
       <p className={cx('mt-1 text-right text-xs', length > maxLength ? 'text-danger' : 'text-muted')}>{length} / {maxLength}</p>
+
+      <div className="mt-2">
+        <span className="mb-1.5 block text-sm font-medium">Photos <span className="font-normal text-muted">({images.length} / {MAX_IMAGES}, la première sert de couverture)</span></span>
+        <div className="flex flex-wrap gap-2">
+          {images.map((path, i) => (
+            <div key={path} className="group relative size-24 overflow-hidden rounded-lg border border-line bg-surface-2">
+              <img src={imageUrl(path)} alt={`Photo ${i + 1}`} className="size-full object-cover" />
+              <div className="absolute inset-x-0 bottom-0 flex justify-between bg-black/55 px-1 py-0.5 text-white opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+                <button type="button" aria-label="Avancer la photo" disabled={i === 0} onClick={() => move(i, i - 1)} className="px-1 disabled:opacity-30"><ChevronLeft className="size-4" /></button>
+                <button type="button" aria-label="Retirer la photo" onClick={() => setImages((old) => old.filter((p) => p !== path))} className="px-1"><X className="size-4" /></button>
+                <button type="button" aria-label="Reculer la photo" disabled={i === images.length - 1} onClick={() => move(i, i + 1)} className="px-1 disabled:opacity-30"><ChevronRight className="size-4" /></button>
+              </div>
+            </div>
+          ))}
+          {Array.from({ length: uploading }, (_, i) => (
+            <div key={`u${i}`} className="grid size-24 place-items-center rounded-lg border border-dashed border-line text-xs text-muted">Envoi…</div>
+          ))}
+          {images.length + uploading < MAX_IMAGES && (
+            <label className="grid size-24 cursor-pointer place-items-center rounded-lg border border-dashed border-line text-muted hover:border-brand hover:text-brand">
+              <span className="flex flex-col items-center gap-1 text-xs"><ImagePlus className="size-5" />Ajouter</span>
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/heic" multiple className="sr-only"
+                onChange={(e) => { void addImages(e.target.files); e.target.value = '' }} />
+            </label>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-muted">JPEG, PNG, WebP ou HEIC, 10 Mo au plus. Uniquement des visuels dont BéninConnect détient les droits.</p>
+      </div>
       {approving && (
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <Select label="Communauté (facultatif)" value={communityId} onChange={(e) => setCommunityId(e.target.value)}>
@@ -251,6 +309,18 @@ function EditorModal({ editor, maxLength, publishNow, onClose, onDone }: {
       )}
       {approving && <p className="mt-3 text-xs text-muted">Vous validez ce texte en tant que responsable éditorial : votre nom figure au journal d'audit.</p>}
     </Modal>
+  )
+}
+
+/** Photo publiée (uploads/…) : servie par l'API, sur le même domaine que la console. */
+const imageUrl = (path: string) => apiUrl(path)
+
+function Thumbnails({ paths }: { paths: string[] }) {
+  return (
+    <div className="mt-2 flex gap-1.5">
+      {paths.slice(0, 5).map((p) => <img key={p} src={imageUrl(p)} alt="" className="size-14 rounded-md border border-line object-cover" />)}
+      {paths.length > 5 && <span className="grid size-14 place-items-center rounded-md bg-surface-2 text-xs text-muted">+{paths.length - 5}</span>}
+    </div>
   )
 }
 

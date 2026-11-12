@@ -35,27 +35,34 @@ public sealed record StoreImageCommand(Stream Content, long Length) : ICommand<M
 
 public sealed class StoreImageHandler(IMediaStorage storage) : IRequestHandler<StoreImageCommand, MediaResponse>
 {
-    public async Task<MediaResponse> Handle(StoreImageCommand request, CancellationToken ct)
+    public async Task<MediaResponse> Handle(StoreImageCommand request, CancellationToken ct) =>
+        new(await ImageUpload.SaveAsync(storage, request.Content, request.Length, ct));
+}
+
+/// <summary>Photo publique (uploads/…) : taille et format contrôlés. Le contenu doit permettre la relecture (Seek).</summary>
+public static class ImageUpload
+{
+    public static async Task<string> SaveAsync(IMediaStorage storage, Stream content, long length, CancellationToken ct)
     {
-        if (request.Length == 0)
+        if (length == 0)
         {
             throw new DomainException("Aucune image reçue.");
         }
 
-        if (request.Length > ImageFile.MaxBytes)
+        if (length > ImageFile.MaxBytes)
         {
             throw new DomainException("L'image ne doit pas dépasser 10 Mo.");
         }
 
         var header = new byte[12];
-        await request.Content.ReadAtLeastAsync(header, header.Length, throwOnEndOfStream: false, ct);
-        request.Content.Position = 0;
+        await content.ReadAtLeastAsync(header, header.Length, throwOnEndOfStream: false, ct);
+        content.Position = 0;
 
         var extension = ImageFile.DetectExtension(header)
                         ?? throw new DomainException("Format non pris en charge : utilisez une photo JPEG, PNG, WebP ou HEIC.");
         var name = ImageFile.NewName(extension);
-        await storage.SaveAsync(name, request.Content, ImageFile.ContentType(name), ct);
-        return new MediaResponse(ImageFile.PathPrefix + name);
+        await storage.SaveAsync(name, content, ImageFile.ContentType(name), ct);
+        return ImageFile.PathPrefix + name;
     }
 }
 

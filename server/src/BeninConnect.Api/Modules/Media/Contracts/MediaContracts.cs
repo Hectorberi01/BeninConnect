@@ -23,6 +23,12 @@ public interface IMediaModule
     /// <summary>null : fichier absent. L'appelant vérifie au préalable le droit d'accès.</summary>
     Task<AttachmentContent?> OpenAttachmentAsync(string name, CancellationToken ct);
 
+    /// <summary>
+    /// Enregistre une photo publique (JPEG, PNG, WebP, HEIC ; 10 Mo) et renvoie son chemin (uploads/…).
+    /// Le contenu doit permettre la relecture (Seek). Lève une DomainException si le fichier est refusé.
+    /// </summary>
+    Task<string> SaveImageAsync(Stream content, long length, CancellationToken ct);
+
     /// <summary>URL publique directe d'une photo (domaine du bucket) ; null si les fichiers passent par l'API.</summary>
     string? PublicUrl(string path);
 }

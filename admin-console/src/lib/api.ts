@@ -44,10 +44,10 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
       headers: {
         Accept: 'application/json',
         'ngrok-skip-browser-warning': '1',
-        ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(init.body !== undefined && !(init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
         ...(session.token ? { Authorization: `Bearer ${session.token}` } : {}),
       },
-      body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+      body: init.body instanceof FormData ? init.body : init.body !== undefined ? JSON.stringify(init.body) : undefined,
     })
   } catch {
     throw new ApiError("Impossible de joindre l'API. Vérifiez qu'elle est démarrée.", 0)

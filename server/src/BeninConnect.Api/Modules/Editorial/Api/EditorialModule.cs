@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using BeninConnect.Modules.Administration.Contracts;
 using BeninConnect.Modules.Editorial.Application;
 using BeninConnect.Modules.Editorial.Contracts;
@@ -10,7 +11,7 @@ using BeninConnect.Shared.Infrastructure;
 
 namespace BeninConnect.Modules.Editorial.Api;
 
-public sealed record DraftRequest(string Content);
+public sealed record DraftRequest(string Content, IReadOnlyList<string>? Images = null);
 
 public sealed record ApproveRequest(string Content, DateTimeOffset? ScheduledAt, Guid? CommunityId, IReadOnlyList<string>? Images);
 
@@ -62,9 +63,20 @@ public sealed class EditorialModule : IModule
         admin.MapGet("/candidates", (CandidateStatus? status, int? skip, int? take, ISender s, CancellationToken ct) =>
             s.Send(new GetCandidatesQuery(status, skip ?? 0, take ?? 25), ct)).RequirePermission(Permission.EditorialManage);
         admin.MapPost("/candidates", (DraftRequest r, ISender s, CancellationToken ct) =>
-            s.Send(new CreateManualDraftCommand(r.Content), ct)).RequirePermission(Permission.EditorialManage);
+            s.Send(new CreateManualDraftCommand(r.Content, r.Images), ct)).RequirePermission(Permission.EditorialManage);
         admin.MapPut("/candidates/{id:guid}/draft", (Guid id, DraftRequest r, ISender s, CancellationToken ct) =>
-            s.Send(new EditDraftCommand(id, r.Content), ct)).RequirePermission(Permission.EditorialManage);
+            s.Send(new EditDraftCommand(id, r.Content, r.Images), ct)).RequirePermission(Permission.EditorialManage);
+
+        // Photos des publications officielles (même stockage et mêmes contrôles que l'application)
+        admin.MapPost("/images", async (IFormFile? file, ISender s, CancellationToken ct) =>
+            {
+                await using var content = file?.OpenReadStream() ?? Stream.Null;
+                return await s.Send(new UploadEditorialImageCommand(content, file?.Length ?? 0), ct);
+            })
+            .RequirePermission(Permission.EditorialManage)
+            .RequireRateLimiting(RateLimits.Uploads)
+            .DisableAntiforgery()
+            .WithMetadata(new RequestSizeLimitAttribute(11 * 1024 * 1024));
         admin.MapPost("/candidates/{id:guid}/approve", (Guid id, ApproveRequest r, ISender s, CancellationToken ct) =>
             s.Send(new ApproveCandidateCommand(id, r.Content, r.ScheduledAt, r.CommunityId, r.Images), ct)).RequirePermission(Permission.EditorialManage);
         admin.MapPost("/candidates/{id:guid}/reject", (Guid id, RejectRequest r, ISender s, CancellationToken ct) =>

@@ -78,13 +78,14 @@ public sealed class ContentCandidate
     };
 
     /// <summary>Publication écrite directement dans la console : brouillon, à valider comme les autres.</summary>
-    public static ContentCandidate CreateManual(string content, DateTimeOffset now) => new()
+    public static ContentCandidate CreateManual(string content, IEnumerable<string> images, DateTimeOffset now) => new()
     {
         Id = Guid.CreateVersion7(),
         SourceName = "BéninConnect",
         SourceTitle = Cut(FirstLine(content), 500),
         CollectedAt = now,
         DraftContent = Required(content),
+        Images = images.ToList(),
         Status = CandidateStatus.Drafted
     };
 
@@ -97,10 +98,15 @@ public sealed class ContentCandidate
     }
 
     /// <summary>Texte écrit ou corrigé par un administrateur (y compris un candidat écarté qu'il repêche).</summary>
-    public void EditDraft(string content)
+    public void EditDraft(string content, IEnumerable<string>? images = null)
     {
         EnsureStatus(CandidateStatus.Collected, CandidateStatus.Drafted, CandidateStatus.Skipped, CandidateStatus.Rejected);
         DraftContent = Required(content);
+        if (images is not null)
+        {
+            Images = images.ToList();
+        }
+
         Reason = null;
         Status = CandidateStatus.Drafted;
     }
