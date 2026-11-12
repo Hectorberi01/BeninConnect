@@ -5,6 +5,7 @@ export type AdminRole = 'SuperAdmin' | 'Admin' | 'Moderator' | 'Accountant' | 'D
 export type Permission =
   | 'DashboardView' | 'MembersView' | 'MembersSuspend' | 'ContentModerate' | 'ReportsManage' | 'CommunitiesManage'
   | 'EventsManage' | 'ExportsDownload' | 'AdminsManage' | 'AuditView' | 'SystemView' | 'SystemReset' | 'BackupsManage'
+  | 'EditorialManage'
 
 export interface AdminMe {
   id: string
@@ -275,4 +276,60 @@ export interface SystemInfo {
   mediaBytes: number
   tables: LabelCount[]
   canResetDemo: boolean
+}
+
+// --- Compte officiel (module éditorial) ---
+
+export type CandidateStatus = 'Collected' | 'Drafted' | 'Approved' | 'Published' | 'Rejected' | 'Skipped' | 'Failed'
+
+export interface EditorialCandidate {
+  id: string
+  status: CandidateStatus
+  isManual: boolean
+  sourceName: string
+  sourceUrl: string
+  sourceTitle: string
+  sourceExcerpt: string
+  draftContent: string | null
+  targetCommunityId: string | null
+  targetCommunityName: string | null
+  images: string[]
+  collectedAt: string
+  scheduledAt: string | null
+  reviewedAt: string | null
+  reason: string | null
+  publishedPostId: string | null
+  publishedAt: string | null
+  publishAttempts: number
+  lastError: string | null
+}
+
+export interface EditorialSource {
+  id: string
+  name: string
+  url: string
+  isEnabled: boolean
+  createdAt: string
+  lastFetchedAt: string | null
+  lastError: string | null
+  collectedCount: number
+}
+
+export interface EditorialOverview {
+  automationEnabled: boolean
+  llmConfigured: boolean
+  llmModel: string
+  officialAccountId: string
+  officialName: string
+  maxLength: number
+  counts: LabelCount[]
+  sources: EditorialSource[]
+}
+
+export interface PipelineReport {
+  collected: number
+  drafted: number
+  skipped: number
+  published: number
+  failed: number
 }

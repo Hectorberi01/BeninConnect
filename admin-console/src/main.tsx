@@ -17,6 +17,7 @@ const AuditPage = lazy(() => import('@/pages/Audit').then((m) => ({ default: m.A
 const CommunitiesPage = lazy(() => import('@/pages/Communities').then((m) => ({ default: m.CommunitiesPage })))
 const DashboardPage = lazy(() => import('@/pages/Dashboard').then((m) => ({ default: m.DashboardPage })))
 const EventsPage = lazy(() => import('@/pages/Events').then((m) => ({ default: m.EventsPage })))
+const EditorialPage = lazy(() => import('@/pages/Editorial').then((m) => ({ default: m.EditorialPage })))
 const ExportsPage = lazy(() => import('@/pages/Exports').then((m) => ({ default: m.ExportsPage })))
 const ForbiddenPage = lazy(() => import('@/pages/Errors').then((m) => ({ default: m.ForbiddenPage })))
 const NotFoundPage = lazy(() => import('@/pages/Errors').then((m) => ({ default: m.NotFoundPage })))
@@ -46,6 +47,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="posts" element={<Guard permission="ContentModerate"><PostsPage /></Guard>} />
                 <Route path="communities" element={<Guard permission="CommunitiesManage"><CommunitiesPage /></Guard>} />
                 <Route path="events" element={<Guard permission="EventsManage"><EventsPage /></Guard>} />
+                <Route path="editorial" element={<Guard permission="EditorialManage"><EditorialPage /></Guard>} />
                 <Route path="exports" element={<Guard permission="ExportsDownload"><ExportsPage /></Guard>} />
                 <Route path="admins" element={<Guard permission="AdminsManage"><AdminsPage /></Guard>} />
                 <Route path="audit" element={<Guard permission="AuditView"><AuditPage /></Guard>} />

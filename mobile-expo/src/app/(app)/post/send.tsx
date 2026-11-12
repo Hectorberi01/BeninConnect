@@ -32,7 +32,7 @@ export default function SendPost() {
     const seen = new Set<string>();
     const q = search.trim();
     return [...recent, ...(users.data ?? [])].filter((u) => {
-      if (hidden.has(u.id) || seen.has(u.id)) return false;
+      if (hidden.has(u.id) || seen.has(u.id) || u.isOfficial) return false;
       seen.add(u.id);
       return !q || matches(displayName(u), q) || matches(u.city, q);
     });

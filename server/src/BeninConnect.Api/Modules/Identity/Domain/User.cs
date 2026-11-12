@@ -31,6 +31,9 @@ public sealed class User
     public DateTimeOffset? PasswordResetExpiresAt { get; private set; }
     public int PasswordResetAttempts { get; private set; }
     public bool IsSuspended { get; private set; }
+
+    /// <summary>Compte officiel BéninConnect (publications éditoriales) : badge vérifié, aucune connexion possible.</summary>
+    public bool IsOfficial { get; private set; }
     public string? SuspensionReason { get; private set; }
     public DateTimeOffset? SuspendedAt { get; private set; }
 
@@ -84,6 +87,23 @@ public sealed class User
             CoverImage = coverImage,
             JoinedAt = joinedAt,
             IsEmailVerified = true
+        };
+
+    /// <summary>Compte officiel : vérifié, mot de passe aléatoire jamais communiqué (aucune connexion).</summary>
+    public static User CreateOfficial(Guid id, string name, string email, string passwordHash, string bio, DateTimeOffset now) =>
+        new()
+        {
+            Id = id,
+            FirstName = name.Trim(),
+            LastName = string.Empty,
+            Email = NormalizeEmail(email),
+            PasswordHash = passwordHash,
+            Bio = bio,
+            AvatarColor = "#087F5B",
+            CoverImage = "Profile/cover_01.jpg",
+            JoinedAt = now,
+            IsEmailVerified = true,
+            IsOfficial = true
         };
 
     public static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();

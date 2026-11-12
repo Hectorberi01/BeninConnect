@@ -29,6 +29,8 @@ export interface User {
   coverImage: string | null;
   joinedAt: string;
   isEmailVerified: boolean;
+  /** Compte officiel BéninConnect : badge vérifié, ne reçoit pas de messages. */
+  isOfficial?: boolean;
 }
 
 export interface Post {

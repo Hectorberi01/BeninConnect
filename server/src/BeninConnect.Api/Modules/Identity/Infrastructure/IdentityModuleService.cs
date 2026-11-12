@@ -1,5 +1,6 @@
 using BeninConnect.Modules.Identity.Application;
 using BeninConnect.Modules.Identity.Contracts;
+using BeninConnect.Modules.Identity.Domain;
 using BeninConnect.Modules.Identity.Infrastructure.Persistence;
 using BeninConnect.Shared.Application;
 using BeninConnect.Shared.Domain;
@@ -8,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace BeninConnect.Modules.Identity.Infrastructure;
 
 /// <summary>Implémentation du contrat public (appel direct en monolithe, client HTTP/gRPC après découpage).</summary>
-public sealed class IdentityModuleService(IdentityDbContext db, TimeProvider clock) : IIdentityModule, IModuleStatistics
+public sealed class IdentityModuleService(IdentityDbContext db, TimeProvider clock, IPasswordHasher hasher) : IIdentityModule, IModuleStatistics
 {
     public Task<bool> ExistsAsync(Guid userId, CancellationToken ct) => db.Users.AnyAsync(u => u.Id == userId, ct);
 
@@ -63,6 +64,25 @@ public sealed class IdentityModuleService(IdentityDbContext db, TimeProvider clo
             .Select(b => b.BlockerId == userId ? b.BlockedId : b.BlockerId)
             .ToListAsync(ct);
         return ids.ToHashSet();
+    }
+
+    public async Task<Guid> EnsureOfficialAccountAsync(string name, string email, string bio, CancellationToken ct)
+    {
+        var normalized = User.NormalizeEmail(email);
+        var existing = await db.Users.FirstOrDefaultAsync(u => u.Email == normalized, ct);
+        if (existing is not null)
+        {
+            return existing.IsOfficial
+                ? existing.Id
+                : throw new DomainException($"{normalized} est déjà le compte d'un membre : choisissez une autre adresse pour le compte officiel.");
+        }
+
+        // Mot de passe aléatoire jamais communiqué : la connexion est de toute façon refusée
+        var password = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        var user = User.CreateOfficial(Guid.NewGuid(), name, normalized, hasher.Hash(password), bio, clock.GetUtcNow());
+        db.Users.Add(user);
+        await db.SaveChangesAsync(ct);
+        return user.Id;
     }
 
     public async Task<IReadOnlyList<LabelCount>> CountTablesAsync(CancellationToken ct) => [new("Membres", await db.Users.CountAsync(ct))];

@@ -50,5 +50,5 @@ public static class UserMapping
 {
     public static UserDto ToDto(this User u) => new(
         u.Id, u.FirstName, u.LastName, u.Email, u.Profession, u.Country, u.City, u.OriginCity, u.Bio,
-        u.Interests.ToList(), u.AvatarColor, u.CoverImage, u.JoinedAt, u.IsEmailVerified, u.AvatarImage);
+        u.Interests.ToList(), u.AvatarColor, u.CoverImage, u.JoinedAt, u.IsEmailVerified, u.AvatarImage, u.IsOfficial);
 }

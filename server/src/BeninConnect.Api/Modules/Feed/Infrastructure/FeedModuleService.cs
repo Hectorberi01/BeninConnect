@@ -1,5 +1,7 @@
 using BeninConnect.Modules.Feed.Application;
+using BeninConnect.Modules.Communities.Contracts;
 using BeninConnect.Modules.Feed.Contracts;
+using BeninConnect.Modules.Feed.Domain;
 using BeninConnect.Modules.Feed.Infrastructure.Persistence;
 using BeninConnect.Shared.Application;
 using BeninConnect.Shared.Domain;
@@ -7,8 +9,28 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BeninConnect.Modules.Feed.Infrastructure;
 
-public sealed class FeedModuleService(FeedDbContext db, AdminPostReader reader, PostAccess access) : IFeedModule, IModuleStatistics
+public sealed class FeedModuleService(FeedDbContext db, AdminPostReader reader, PostAccess access, ICommunitiesModule communities, TimeProvider clock)
+    : IFeedModule, IModuleStatistics
 {
+    public async Task<Guid> PublishAsAsync(Guid authorId, string content, Guid? communityId, IReadOnlyList<string> images, CancellationToken ct)
+    {
+        var errors = PostRules.Images(images).ToList();
+        if (errors.Count > 0)
+        {
+            throw new DomainException(errors[0].Item2);
+        }
+
+        if (communityId is { } id && !(await communities.GetInfosAsync([id], ct)).ContainsKey(id))
+        {
+            throw new NotFoundException("Communauté");
+        }
+
+        var post = Post.Create(Guid.NewGuid(), authorId, communityId, content, null, PostVisibility.Public, clock.GetUtcNow(), images: images);
+        db.Posts.Add(post);
+        await db.SaveChangesAsync(ct);
+        return post.Id;
+    }
+
     public async Task<IReadOnlyDictionary<Guid, ContentPreview>> GetPostPreviewsAsync(IEnumerable<Guid> ids, CancellationToken ct)
     {
         var list = ids.Distinct().ToList();

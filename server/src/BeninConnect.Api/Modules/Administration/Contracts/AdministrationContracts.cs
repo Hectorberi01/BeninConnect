@@ -17,7 +17,8 @@ public enum Permission
     AuditView,
     SystemView,
     SystemReset,
-    BackupsManage
+    BackupsManage,
+    EditorialManage
 }
 
 public sealed record AdminInfo(Guid Id, string DisplayName, string Role);

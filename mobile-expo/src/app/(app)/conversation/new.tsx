@@ -18,7 +18,7 @@ export default function NewConversation() {
   const subtitle = (u: User) => [u.profession, u.city].filter(Boolean).join(' · ');
   const people = useMemo(() => {
     const q = search.trim();
-    return (query.data ?? []).filter((u) => u.id !== me.id && (!q || matches(displayName(u), q) || matches(subtitle(u), q)));
+    return (query.data ?? []).filter((u) => u.id !== me.id && !u.isOfficial && (!q || matches(displayName(u), q) || matches(subtitle(u), q)));
   }, [query.data, search, me.id]);
 
   const start = async (user: User) => {

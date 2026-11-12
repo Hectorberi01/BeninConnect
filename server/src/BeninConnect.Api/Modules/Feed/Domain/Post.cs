@@ -31,7 +31,7 @@ public static partial class SocialText
 
 public sealed class Post
 {
-    public const int MaxLength = 2000;
+    public const int MaxLength = Contracts.FeedLimits.PostMaxLength;
     public const int MaxImages = 10;
     public const int MaxPinned = 3;
 

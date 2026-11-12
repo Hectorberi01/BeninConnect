@@ -118,3 +118,13 @@ describe('MockDataSource : suppressions', () => {
     expect((await source.getConversations()).some((s) => s.conversation.id === id && s.lastMessage?.senderId === me.id)).toBe(true);
   });
 });
+
+describe('Liens dans le texte', () => {
+  it('détecte les liens sans la ponctuation finale', () => {
+    const parts = parseSocialText('📰 Média : https://media.bj/article?id=2. Et #Bénin');
+    expect(parts).toContainEqual({ kind: 'link', text: 'https://media.bj/article?id=2', url: 'https://media.bj/article?id=2' });
+    expect(parts).toContainEqual({ kind: 'tag', text: '#Bénin', tag: 'bénin' });
+    expect(parseSocialText('voir (https://a.bj/x)')).toContainEqual({ kind: 'link', text: 'https://a.bj/x', url: 'https://a.bj/x' });
+    expect(parseSocialText('ahttps://pas-un-lien.bj').some((p) => p.kind === 'link')).toBe(false);
+  });
+});

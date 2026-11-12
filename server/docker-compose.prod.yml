@@ -71,6 +71,11 @@ services:
       Review__Emails__0: ${REVIEW_EMAIL_1:-}
       Review__Emails__1: ${REVIEW_EMAIL_2:-}
       Review__ApiUrl: ${REVIEW_API_URL:-}
+      # Compte officiel (Modules/Editorial) : collecte RSS, brouillons rédigés par Claude, publication après validation dans la console
+      Editorial__Enabled: ${EDITORIAL_ENABLED:-false}
+      Editorial__OfficialEmail: ${EDITORIAL_OFFICIAL_EMAIL:-officiel@monbenin.com}
+      Editorial__Llm__ApiKey: ${ANTHROPIC_API_KEY:-}
+      Editorial__Llm__Model: ${EDITORIAL_LLM_MODEL:-claude-haiku-5-5}
     volumes:
       - media:/app/media
       - ./backups:/backups

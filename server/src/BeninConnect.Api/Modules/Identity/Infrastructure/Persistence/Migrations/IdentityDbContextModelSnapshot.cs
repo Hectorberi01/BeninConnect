@@ -73,6 +73,9 @@ namespace BeninConnect.Api.Modules.Identity.Infrastructure.Persistence.Migration
                     b.Property<bool>("IsEmailVerified")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsOfficial")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsSuspended")
                         .HasColumnType("boolean");
 

@@ -13,9 +13,14 @@ export const extractTags = (text: string) => [...new Set([...text.matchAll(TAG)]
 export type TextPart =
   | { kind: 'text'; text: string }
   | { kind: 'tag'; text: string; tag: string }
-  | { kind: 'mention'; text: string; userId: string };
+  | { kind: 'mention'; text: string; userId: string }
+  | { kind: 'link'; text: string; url: string };
 
-/** Découpe un texte en morceaux : texte, #hashtag, @Prénom Nom (membres connus). */
+/** Lien http(s) jusqu'au prochain espace, sans la ponctuation finale (« … voir https://x.bj/a. »). */
+const LINK = /^https?:\/\/[^\s<>"]+/i;
+const trimLink = (url: string) => url.replace(/[.,;:!?)\]»"'…]+$/u, '');
+
+/** Découpe un texte en morceaux : texte, lien, #hashtag, @Prénom Nom (membres connus). */
 export function parseSocialText(text: string, mentioned: User[] = []): TextPart[] {
   const names = mentioned
     .map((u) => ({ id: u.id, label: `@${displayName(u)}` }))
@@ -37,6 +42,16 @@ export function parseSocialText(text: string, mentioned: User[] = []): TextPart[
         flush();
         parts.push({ kind: 'mention', text: hit.label, userId: hit.id });
         i += hit.label.length;
+        continue;
+      }
+    }
+    if ((c === 'h' || c === 'H') && boundary) {
+      const m = LINK.exec(text.slice(i));
+      if (m) {
+        const url = trimLink(m[0]);
+        flush();
+        parts.push({ kind: 'link', text: url, url });
+        i += url.length;
         continue;
       }
     }

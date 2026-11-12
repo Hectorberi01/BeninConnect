@@ -39,6 +39,18 @@ public interface IFeedModule
 
     /// <summary>Publication visible par le membre connecté (partage en message privé).</summary>
     Task<bool> CanSeePostAsync(Guid postId, CancellationToken ct);
+
+    /// <summary>
+    /// Publication publique au nom d'un compte (compte officiel, hors requête d'un membre).
+    /// Communauté facultative, sans adhésion requise. Renvoie l'identifiant de la publication.
+    /// </summary>
+    Task<Guid> PublishAsAsync(Guid authorId, string content, Guid? communityId, IReadOnlyList<string> images, CancellationToken ct);
+}
+
+/// <summary>Limites des publications, partagées avec les autres modules.</summary>
+public static class FeedLimits
+{
+    public const int PostMaxLength = 2000;
 }
 
 public sealed record PostLiked(Guid PostId, Guid PostAuthorId, Guid ActorId, string Excerpt) : IIntegrationEvent;

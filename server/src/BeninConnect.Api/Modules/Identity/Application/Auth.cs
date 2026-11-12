@@ -19,7 +19,8 @@ public sealed class LoginHandler(IIdentityDb db, IPasswordHasher hasher, IMember
     {
         var email = User.NormalizeEmail(request.Email);
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
-        if (user is null || !hasher.Verify(user.PasswordHash, request.Password))
+        // Compte officiel : jamais de connexion (publie seulement via le module éditorial)
+        if (user is null || user.IsOfficial || !hasher.Verify(user.PasswordHash, request.Password))
         {
             throw new DomainException("Email ou mot de passe incorrect.");
         }
@@ -159,7 +160,7 @@ public sealed class AccountEmailHandlers(IIdentityDb db, IPasswordHasher hasher,
     {
         var normalized = User.NormalizeEmail(request.Email);
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == normalized, ct);
-        if (user is { IsSuspended: false })
+        if (user is { IsSuspended: false, IsOfficial: false })
         {
             var code = AuthEmails.NewCode(settings);
             user.RequestPasswordReset(code, clock.GetUtcNow().AddMinutes(settings.PasswordResetMinutes));

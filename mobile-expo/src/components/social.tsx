@@ -1,7 +1,9 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useRef, useState } from 'react';
 import { Animated, FlatList, Pressable, type StyleProp, StyleSheet, Text, type TextStyle, View } from 'react-native';
+import { SITE_URL } from '@/core/config';
 import { imageSource } from '@/core/images';
 import { depth, radius, type, useColors } from '@/core/theme';
 import { parseSocialText, mentionQuery } from '@/data/social';
@@ -26,16 +28,43 @@ export function RichText({ text, mentionIds, lines, color, style }: {
       {parts.map((p, i) => {
         if (p.kind === 'text') return p.text;
         const link = { color: color ? undefined : c.primary, fontWeight: '600' as const, textDecorationLine: color ? 'underline' as const : 'none' as const };
+        const open = () => {
+          if (p.kind === 'tag') router.push({ pathname: '/tag/[tag]', params: { tag: p.tag } });
+          else if (p.kind === 'mention') router.push(`/user/${p.userId}`);
+          else openLink(p.url);
+        };
         return (
-          <Text key={i} style={link} suppressHighlighting
-            onPress={() => (p.kind === 'tag'
-              ? router.push({ pathname: '/tag/[tag]', params: { tag: p.tag } })
-              : router.push(`/user/${p.userId}`))}>
-            {p.text}
+          <Text key={i} style={[link, p.kind === 'link' && { textDecorationLine: 'underline', fontWeight: '400' }]} suppressHighlighting
+            accessibilityRole={p.kind === 'link' ? 'link' : undefined} onPress={open}>
+            {p.kind === 'link' ? shortUrl(p.url) : p.text}
           </Text>
         );
       })}
     </T>
+  );
+}
+
+/** Lien de publication BéninConnect : ouvert dans l'app ; autre lien : navigateur intégré. */
+function openLink(url: string) {
+  const prefix = `${SITE_URL}/post/`;
+  const id = url.toLowerCase().startsWith(prefix) ? url.slice(prefix.length).split(/[/?#]/)[0] : '';
+  if (/^[0-9a-f-]{36}$/i.test(id)) router.push(`/post/${id}`);
+  else WebBrowser.openBrowserAsync(url).catch(() => undefined);
+}
+
+/** Lien affiché sans « https:// » ni « www. », raccourci au-delà de 40 caractères. */
+export const shortUrl = (url: string) => {
+  const bare = url.replace(/^https?:\/\/(www\.)?/i, '');
+  return bare.length > 40 ? `${bare.slice(0, 39)}…` : bare;
+};
+
+/** Badge du compte officiel BéninConnect. */
+export function OfficialBadge({ size = 16 }: { size?: number }) {
+  const c = useColors();
+  return (
+    <View accessible accessibilityLabel="Compte officiel">
+      <Icon name="check-decagram" size={size} color={c.primary} />
+    </View>
   );
 }
 

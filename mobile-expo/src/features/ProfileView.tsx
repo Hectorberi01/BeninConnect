@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CommunityTile, PostCard, usePostContext } from '@/components/cards';
 import { Avatar, Button, Chip, Cover, EmptyState, Icon, IconButton, Muted, QueryView, SectionTitle, Segmented, T } from '@/components/ui';
 import { PostGrid } from '@/components/PostGrid';
+import { OfficialBadge } from '@/components/social';
 import { confirm } from '@/core/dialog';
 import * as fmt from '@/core/format';
 import { askPhotoSource, pickPhoto } from '@/core/photos';
@@ -140,12 +141,18 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
             </View>
           )}
         </View>
-        <T v="h2">{displayName(shownUser)}</T>
-        {!!shownUser.profession && <T style={{ marginTop: 2 }}>{shownUser.profession}</T>}
-        <View style={styles.metaLine}>
-          <Icon name="map-marker-outline" size={16} color={c.textSecondary} />
-          <Muted>{location(shownUser)}</Muted>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <T v="h2">{displayName(shownUser)}</T>
+          {shownUser.isOfficial && <OfficialBadge size={22} />}
         </View>
+        {shownUser.isOfficial && <Muted style={{ marginTop: 2 }}>Compte officiel · publications vérifiées par l'équipe BéninConnect</Muted>}
+        {!!shownUser.profession && <T style={{ marginTop: 2 }}>{shownUser.profession}</T>}
+        {!!location(shownUser) && (
+          <View style={styles.metaLine}>
+            <Icon name="map-marker-outline" size={16} color={c.textSecondary} />
+            <Muted>{location(shownUser)}</Muted>
+          </View>
+        )}
         {!!shownUser.originCity && (
           <View style={styles.metaLine}>
             <Icon name="home-heart" size={16} color={c.textSecondary} />
@@ -166,6 +173,8 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
         <View style={{ flexDirection: 'row', gap: 10 }}>
           {isMe ? (
             <Button title="Modifier le profil" icon="pencil-outline" onPress={() => router.push('/profile/edit')} style={{ flex: 1 }} />
+          ) : shownUser.isOfficial ? (
+            <View style={{ flex: 1 }} />
           ) : (
             <Button title="Envoyer un message" icon="message-outline" loading={starting} onPress={message} style={{ flex: 1 }} />
           )}

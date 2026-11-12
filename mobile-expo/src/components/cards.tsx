@@ -18,7 +18,7 @@ import { blockUser } from '@/features/block';
 import { reportContent } from '@/features/report';
 import { AttachmentView } from './attachments';
 import { ReactionBar } from './reactions';
-import { PostMedia, RichText, SharedPostCard } from './social';
+import { OfficialBadge, PostMedia, RichText, SharedPostCard } from './social';
 import { Avatar, Button, Card, Cover, Icon, type IconName, Muted, T, Tag } from './ui';
 
 // --- Publications -------------------------------------------------------------------------
@@ -78,9 +78,12 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
           ? <Avatar initials={initials(author)} color={author.avatarColor} image={author.avatarImage} onPress={() => router.push(`/user/${author.id}`)} />
           : <Avatar initials="…" color={c.border} />}
         <View style={{ flex: 1 }}>
-          <T v="label" style={{ fontSize: 15 }} lines={1} onPress={author ? () => router.push(`/user/${author.id}`) : undefined}>
-            {author ? displayName(author) : 'Membre'}
-          </T>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <T v="label" style={{ fontSize: 15, flexShrink: 1 }} lines={1} onPress={author ? () => router.push(`/user/${author.id}`) : undefined}>
+              {author ? displayName(author) : 'Membre'}
+            </T>
+            {author?.isOfficial && <OfficialBadge />}
+          </View>
           <View style={styles.meta}>
             <Muted lines={1} style={{ flexShrink: 0 }}>{fmt.relative(post.createdAt)}</Muted>
             {post.editedAt && <Muted lines={1} style={{ flexShrink: 0 }}>· modifié</Muted>}

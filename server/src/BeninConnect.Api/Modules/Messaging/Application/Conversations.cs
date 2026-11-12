@@ -305,9 +305,11 @@ public sealed class ConversationHandlers(
 
     public async Task<ConversationDto> Handle(StartDirectConversationCommand request, CancellationToken ct)
     {
-        if (!await identity.ExistsAsync(request.OtherUserId, ct))
+        var other = (await identity.GetUsersAsync([request.OtherUserId], ct)).GetValueOrDefault(request.OtherUserId)
+                    ?? throw new NotFoundException("Membre");
+        if (other.IsOfficial)
         {
-            throw new NotFoundException("Membre");
+            throw new DomainException("Le compte officiel BéninConnect ne reçoit pas de messages.");
         }
 
         await EnsureNotBlockedAsync([request.OtherUserId], ct);

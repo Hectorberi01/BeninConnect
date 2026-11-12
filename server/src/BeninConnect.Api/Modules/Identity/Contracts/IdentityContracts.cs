@@ -7,7 +7,7 @@ namespace BeninConnect.Modules.Identity.Contracts;
 public sealed record UserDto(
     Guid Id, string FirstName, string LastName, string Email, string Profession, string Country, string City,
     string OriginCity, string Bio, IReadOnlyList<string> Interests, string AvatarColor, string? CoverImage,
-    DateTimeOffset JoinedAt, bool IsEmailVerified, string? AvatarImage);
+    DateTimeOffset JoinedAt, bool IsEmailVerified, string? AvatarImage, bool IsOfficial = false);
 
 public sealed record MemberStats(int Total, int Verified, int Suspended, IReadOnlyList<DateTimeOffset> JoinedSince, IReadOnlyList<LabelCount> TopCountries);
 
@@ -34,6 +34,9 @@ public interface IIdentityModule
 
     /// <summary>Membres que userId a bloqués ou qui l'ont bloqué : contenus et messages masqués dans les deux sens.</summary>
     Task<IReadOnlySet<Guid>> GetBlockedRelationsAsync(Guid userId, CancellationToken ct);
+
+    /// <summary>Compte officiel (publications éditoriales) : créé s'il n'existe pas, renvoie son identifiant.</summary>
+    Task<Guid> EnsureOfficialAccountAsync(string name, string email, string bio, CancellationToken ct);
 }
 
 /// <summary>Email vérifié pour la première fois (message de bienvenue).</summary>

@@ -1,5 +1,6 @@
 using BeninConnect.Modules.Administration.Api;
 using BeninConnect.Modules.Communities.Api;
+using BeninConnect.Modules.Editorial.Api;
 using BeninConnect.Modules.Events.Api;
 using BeninConnect.Modules.Feed.Api;
 using BeninConnect.Modules.Identity.Api;
@@ -24,6 +25,7 @@ public static class ModuleCatalog
         new NotificationsModule(),
         new ModerationModule(),
         new AdministrationModule(),
-        new MediaModule()
+        new MediaModule(),
+        new EditorialModule()
     ];
 }

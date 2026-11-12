@@ -1,6 +1,9 @@
 import { Loader2, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+import {
+  type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes, useEffect, useState,
+} from 'react'
 import { apiUrl } from '@/lib/api'
 import { initials } from '@/lib/format'
 import { AnimatedNumber, revealItem, Sparkline, Tilt } from './motion'
@@ -40,11 +43,11 @@ export function Input({ label, error, className, ...rest }: InputHTMLAttributes<
   )
 }
 
-export function Textarea({ label, ...rest }: InputHTMLAttributes<HTMLTextAreaElement> & { label?: string }) {
+export function Textarea({ label, rows = 3, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string }) {
   return (
     <label className="block">
       {label && <span className="mb-1.5 block text-sm font-medium">{label}</span>}
-      <textarea {...rest} rows={3} className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none placeholder:text-muted focus:border-brand focus:ring-2 focus:ring-brand/20" />
+      <textarea {...rest} rows={rows} className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none placeholder:text-muted focus:border-brand focus:ring-2 focus:ring-brand/20" />
     </label>
   )
 }
@@ -167,7 +170,8 @@ export function Modal({ open, title, onClose, children, footer, wide }: {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
-  return (
+  // Rendue à la racine de la page : les animations de page (transform) ne la confinent pas à la zone de contenu
+  return createPortal(
     <AnimatePresence>
     {open && (
     <motion.div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={onClose}
@@ -185,7 +189,8 @@ export function Modal({ open, title, onClose, children, footer, wide }: {
       </motion.div>
     </motion.div>
     )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
 
