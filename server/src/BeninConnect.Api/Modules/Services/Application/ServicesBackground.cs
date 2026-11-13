@@ -40,22 +40,9 @@ public sealed class DeleteMemberServices(IServicesDb db, IEventBus bus) : IInteg
     {
         var images = new List<string>();
         var files = new List<string>();
-        if (await db.Providers.FirstOrDefaultAsync(p => p.UserId == e.UserId, ct) is { } profile)
+        if (await db.Providers.AsNoTracking().FirstOrDefaultAsync(p => p.UserId == e.UserId, ct) is { } profile)
         {
-            var offerings = await db.Offerings.Where(o => o.ProviderId == profile.Id).ToListAsync(ct);
-            images.AddRange(offerings.SelectMany(o => o.Images));
-            if (profile.PhotoPath is { } photo)
-            {
-                images.Add(photo);
-            }
-
-            files.AddRange(await db.Documents.Where(d => d.ProviderId == profile.Id).Select(d => d.FileName).ToListAsync(ct));
-            await db.Documents.Where(d => d.ProviderId == profile.Id).ExecuteDeleteAsync(ct);
-            await db.Reviews.Where(r => r.ProviderId == profile.Id).ExecuteDeleteAsync(ct);
-            await db.Requests.Where(r => r.ProviderId == profile.Id).ExecuteDeleteAsync(ct);
-            await db.Favorites.Where(f => f.ProviderId == profile.Id).ExecuteDeleteAsync(ct);
-            await db.Offerings.Where(o => o.ProviderId == profile.Id).ExecuteDeleteAsync(ct);
-            await db.Providers.Where(p => p.Id == profile.Id).ExecuteDeleteAsync(ct);
+            (images, files) = await ServicesData.DeleteProviderAsync(db, profile, ct);
         }
 
         var rated = await db.Reviews.Where(r => r.AuthorId == e.UserId).Select(r => r.ProviderId).Distinct().ToListAsync(ct);

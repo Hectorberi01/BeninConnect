@@ -86,6 +86,9 @@ public sealed record ReinstateProviderCommand(Guid Id) : ICommand<AdminProviderD
 
 public sealed record RevokeVerificationCommand(Guid Id) : ICommand<AdminProviderDetailDto>;
 
+/// <summary>Suppression définitive (SuperAdmin) : profil, offres, demandes, avis, justificatifs et favoris.</summary>
+public sealed record DeleteProviderCommand(Guid Id, string Reason) : ICommand<bool>;
+
 public sealed record GetAdminOfferingsQuery(ModerationView View, string? Q, int Skip = 0, int Take = 25) : IQuery<PagedResult<AdminOfferingDto>>;
 
 public sealed record SetOfferingVisibilityCommand(Guid Id, bool Visible, string? Reason) : ICommand<AdminOfferingDto>;
@@ -123,6 +126,7 @@ public sealed class AdminServiceHandlers(IServicesDb db, IIdentityModule identit
     IRequestHandler<SuspendProviderCommand, AdminProviderDetailDto>,
     IRequestHandler<ReinstateProviderCommand, AdminProviderDetailDto>,
     IRequestHandler<RevokeVerificationCommand, AdminProviderDetailDto>,
+    IRequestHandler<DeleteProviderCommand, bool>,
     IRequestHandler<GetAdminOfferingsQuery, PagedResult<AdminOfferingDto>>,
     IRequestHandler<SetOfferingVisibilityCommand, AdminOfferingDto>,
     IRequestHandler<GetAdminReviewsQuery, PagedResult<AdminReviewDto>>,
@@ -238,6 +242,36 @@ public sealed class AdminServiceHandlers(IServicesDb db, IIdentityModule identit
 
     public Task<AdminProviderDetailDto> Handle(RevokeVerificationCommand request, CancellationToken ct) =>
         DecideProviderAsync(request.Id, p => p.RevokeVerification(), "Vérification du prestataire retirée", _ => Task.CompletedTask, ct);
+
+    public async Task<bool> Handle(DeleteProviderCommand request, CancellationToken ct)
+    {
+        var reason = RequireReason(request.Reason);
+        var provider = await db.Providers.AsNoTracking().FirstOrDefaultAsync(p => p.Id == request.Id, ct) ?? throw new NotFoundException("Prestataire");
+        // Clients ayant une demande en cours : prévenus avant l'effacement
+        var clients = await db.Requests.Where(r => r.ProviderId == provider.Id
+                && (r.Status == RequestStatus.Sent || r.Status == RequestStatus.Viewed || r.Status == RequestStatus.Accepted))
+            .Select(r => r.ClientId).Distinct().ToListAsync(ct);
+        var (images, files) = await ServicesData.DeleteProviderAsync(db, provider, ct);
+        await admin.LogAsync("Prestataire supprimé", "ProviderProfile", provider.Id, $"{provider.DisplayName} : {reason}", ct);
+        await ServicesData.NotifyAsync(bus, provider.UserId, "Votre profil prestataire a été supprimé", reason, null, ct);
+        foreach (var client in clients)
+        {
+            await ServicesData.NotifyAsync(bus, client, "Demande de service annulée",
+                $"Le prestataire {provider.DisplayName} n'est plus disponible sur BeninConnect.", null, ct);
+        }
+
+        if (images.Count > 0)
+        {
+            await bus.PublishAsync(new ImagesReleased(images), ct);
+        }
+
+        if (files.Count > 0)
+        {
+            await bus.PublishAsync(new AttachmentsReleased(files), ct);
+        }
+
+        return true;
+    }
 
     // --- Offres ------------------------------------------------------------------------------
 

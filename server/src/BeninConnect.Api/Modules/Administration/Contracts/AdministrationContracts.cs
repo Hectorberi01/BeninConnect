@@ -20,7 +20,8 @@ public enum Permission
     BackupsManage,
     EditorialManage,
     JobsManage,
-    ServicesManage
+    ServicesManage,
+    ServicesDelete // SuperAdmin uniquement
 }
 
 public sealed record AdminInfo(Guid Id, string DisplayName, string Role);

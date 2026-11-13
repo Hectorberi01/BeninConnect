@@ -1,5 +1,24 @@
 # Audit de sécurité — BéninConnect (API .NET + app mobile Expo)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+£
 Date : 13/11/2026 · Périmètre : `server/` (API, Caddy, docker-compose, Ansible) et `mobile-expo/` (app client React Native).
 Méthode : relecture du code source (pas de test d'intrusion sur la production).
 

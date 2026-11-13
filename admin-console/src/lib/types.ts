@@ -5,7 +5,7 @@ export type AdminRole = 'SuperAdmin' | 'Admin' | 'Moderator' | 'Accountant' | 'D
 export type Permission =
   | 'DashboardView' | 'MembersView' | 'MembersSuspend' | 'ContentModerate' | 'ReportsManage' | 'CommunitiesManage'
   | 'EventsManage' | 'ExportsDownload' | 'AdminsManage' | 'AuditView' | 'SystemView' | 'SystemReset' | 'BackupsManage'
-  | 'EditorialManage' | 'JobsManage' | 'ServicesManage'
+  | 'EditorialManage' | 'JobsManage' | 'ServicesManage' | 'ServicesDelete'
 
 export interface AdminMe {
   id: string

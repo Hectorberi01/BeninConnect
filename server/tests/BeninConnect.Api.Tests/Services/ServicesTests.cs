@@ -192,6 +192,36 @@ public sealed class ServicesTests(ServicesFactory factory) : IClassFixture<Servi
     }
 
     [Fact]
+    public async Task Only_super_admin_deletes_a_provider()
+    {
+        var provider = await ProviderAsync("Yawa Couture", 48.85, 2.35, "Paris", "couture");
+        var client = await MemberAsync("Codjo");
+        var request = await Ok<Request>(client.PostAsJsonAsync("api/services/requests",
+            new { offeringId = provider.OfferingId, message = "Bonjour, pouvez-vous reprendre un ourlet ?", city = "Paris" }));
+        (await client.PostAsync($"api/services/providers/{provider.ProviderId}/favorite", null)).EnsureSuccessStatusCode();
+        var url = $"api/admin/services/providers/{provider.ProviderId}/delete";
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await (await AdminAsync("admin@beninconnect.test")).PostAsJsonAsync(url, new { reason = "Fraude avérée" })).StatusCode);
+        var super = await AdminAsync();
+        Assert.Equal(HttpStatusCode.BadRequest, (await super.PostAsJsonAsync(url, new { reason = "" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await super.PostAsJsonAsync(url, new { reason = "Fraude avérée" })).StatusCode);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await super.GetAsync($"api/admin/services/providers/{provider.ProviderId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"api/services/providers/{provider.ProviderId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"api/services/requests/{request.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await super.PostAsJsonAsync(url, new { reason = "Fraude avérée" })).StatusCode);
+        var notified = false;
+        for (var i = 0; i < 40 && !notified; i++, await Task.Delay(100))
+        {
+            notified = (await client.GetStringAsync("api/notifications")).Contains("Demande de service annulée");
+        }
+
+        Assert.True(notified);
+        // Le membre garde son compte et peut recréer un profil
+        Assert.Equal(HttpStatusCode.OK, (await provider.Http.PutAsJsonAsync("api/services/me", Profile("Yawa Couture", 48.85, 2.35, "Paris"))).StatusCode);
+    }
+
+    [Fact]
     public async Task Moderation_alert_keywords_reports_documents_and_daily_limit()
     {
         var admin = await AdminAsync();

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BadgeCheck, Ban, Check, FileText, MapPin, RotateCcw, ShieldAlert, ShieldOff, X } from 'lucide-react'
+import { BadgeCheck, Ban, Check, FileText, MapPin, RotateCcw, ShieldAlert, ShieldOff, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
+import { useAuth } from '@/auth'
 import { useToast } from '@/components/toast'
 import { Badge, Button, ConfirmDialog, ErrorBox, Loading, Modal } from '@/components/ui'
 import { api, apiUrl, errorMessage } from '@/lib/api'
@@ -84,7 +85,7 @@ export function OfferingCard({ o, actions }: { o: ServiceOffering; actions?: Rea
   )
 }
 
-type Action = { verb: 'approve' | 'reject' | 'suspend' | 'reinstate' | 'revoke-verification'; title: string; label: string; danger?: boolean; reason?: boolean }
+type Action = { verb: 'approve' | 'reject' | 'suspend' | 'reinstate' | 'revoke-verification' | 'delete'; title: string; label: string; danger?: boolean; reason?: boolean }
 
 const ACTIONS: Record<Action['verb'], Action> = {
   approve: { verb: 'approve', title: 'Valider ce profil', label: 'Valider et publier' },
@@ -92,12 +93,14 @@ const ACTIONS: Record<Action['verb'], Action> = {
   suspend: { verb: 'suspend', title: 'Suspendre ce prestataire', label: 'Suspendre', danger: true, reason: true },
   reinstate: { verb: 'reinstate', title: 'Rétablir ce prestataire', label: 'Rétablir' },
   'revoke-verification': { verb: 'revoke-verification', title: 'Retirer la vérification', label: 'Retirer le badge', danger: true },
+  delete: { verb: 'delete', title: 'Supprimer définitivement ce prestataire', label: 'Supprimer', danger: true, reason: true },
 }
 
 /** Fiche complète d'un prestataire avec les décisions de modération. */
 export function ProviderModal({ id, onClose }: { id: string; onClose: () => void }) {
   const toast = useToast()
   const qc = useQueryClient()
+  const { can } = useAuth()
   const [action, setAction] = useState<Action | null>(null)
   const detail = useQuery({ queryKey: ['services-provider', id], queryFn: () => api<AdminProviderDetail>(`api/admin/services/providers/${id}`) })
   const decide = useMutation({
@@ -111,12 +114,27 @@ export function ProviderModal({ id, onClose }: { id: string; onClose: () => void
     },
     onError: (e) => toast(errorMessage(e), 'error'),
   })
+  // SuperAdmin uniquement : la fiche n'existe plus, on ferme la fenêtre
+  const remove = useMutation({
+    mutationFn: (reason?: string) => api<void>(`api/admin/services/providers/${id}/delete`, { method: 'POST', body: { reason } }),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: ['services-provider', id] })
+      ;['services', 'services-providers', 'services-reports', 'services-offerings', 'services-reviews', 'services-documents']
+        .forEach((k) => qc.invalidateQueries({ queryKey: [k] }))
+      setAction(null)
+      toast('Prestataire supprimé.', 'success')
+      onClose()
+    },
+    onError: (e) => toast(errorMessage(e), 'error'),
+  })
   const d = detail.data
   const p = d?.provider
 
   return (
     <Modal open wide title={p?.displayName ?? 'Prestataire'} onClose={onClose}
       footer={p && <>
+        {can('ServicesDelete') &&
+          <Button variant="dangerSoft" className="mr-auto" icon={<Trash2 className="size-4" />} onClick={() => setAction(ACTIONS.delete)}>Supprimer</Button>}
         {p.status === 'PendingReview' && <>
           <Button variant="dangerSoft" icon={<X className="size-4" />} onClick={() => setAction(ACTIONS.reject)}>Demander des corrections</Button>
           <Button variant="primary" icon={<Check className="size-4" />} onClick={() => setAction(ACTIONS.approve)}>Valider et publier</Button>
@@ -202,13 +220,17 @@ export function ProviderModal({ id, onClose }: { id: string; onClose: () => void
           )}
         </div>
       )}
-      <ConfirmDialog open={!!action} title={action?.title ?? ''} confirmLabel={action?.label ?? ''} danger={action?.danger} busy={decide.isPending}
+      <ConfirmDialog open={!!action} title={action?.title ?? ''} confirmLabel={action?.label ?? ''} danger={action?.danger} busy={decide.isPending || remove.isPending}
         message={action?.verb === 'approve' ? 'Le profil et ses offres deviennent visibles dans les recherches. Le prestataire est prévenu.'
           : action?.verb === 'reject' ? 'Le profil repasse en brouillon : le prestataire voit votre message et peut corriger puis renvoyer.'
             : action?.verb === 'suspend' ? 'Le prestataire disparaît des recherches et ne reçoit plus de demandes.'
-              : action?.verb === 'reinstate' ? 'Le prestataire redevient visible (signalements remis à zéro).' : 'Le badge de vérification est retiré.'}
-        reason={action?.reason ? { label: 'Message au prestataire', required: true, placeholder: 'Ex. : ajoutez des photos de vos réalisations…' } : undefined}
-        onClose={() => setAction(null)} onConfirm={(reason) => action && decide.mutate({ verb: action.verb, reason })} />
+              : action?.verb === 'reinstate' ? 'Le prestataire redevient visible (signalements remis à zéro).'
+                : action?.verb === 'delete' ? 'IRRÉVERSIBLE : profil, offres, photos, justificatifs, demandes, avis et favoris sont effacés. Le compte membre est conservé ; le prestataire et les clients ayant une demande en cours sont prévenus.'
+                  : 'Le badge de vérification est retiré.'}
+        reason={action?.reason ? { label: action.verb === 'delete' ? 'Motif (envoyé au prestataire et journalisé)' : 'Message au prestataire', required: true,
+          placeholder: action.verb === 'delete' ? 'Ex. : fraude avérée, usurpation d’identité…' : 'Ex. : ajoutez des photos de vos réalisations…' } : undefined}
+        onClose={() => setAction(null)}
+        onConfirm={(reason) => action && (action.verb === 'delete' ? remove.mutate(reason) : decide.mutate({ verb: action.verb, reason }))} />
     </Modal>
   )
 }

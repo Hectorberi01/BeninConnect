@@ -128,6 +128,11 @@ public sealed class ServicesModule : IModule
         admin.MapPost("/providers/{id:guid}/reinstate", (Guid id, ISender s, CancellationToken ct) => s.Send(new ReinstateProviderCommand(id), ct)).RequirePermission(p);
         admin.MapPost("/providers/{id:guid}/revoke-verification", (Guid id, ISender s, CancellationToken ct) =>
             s.Send(new RevokeVerificationCommand(id), ct)).RequirePermission(p);
+        admin.MapPost("/providers/{id:guid}/delete", async (Guid id, DecisionBody r, ISender s, CancellationToken ct) =>
+        {
+            await s.Send(new DeleteProviderCommand(id, r.Reason ?? ""), ct);
+            return Results.NoContent();
+        }).RequirePermission(Permission.ServicesDelete);
 
         admin.MapGet("/offerings", (ModerationView? view, string? q, int? skip, int? take, ISender s, CancellationToken ct) =>
             s.Send(new GetAdminOfferingsQuery(view ?? ModerationView.Review, q, skip ?? 0, take ?? 25), ct)).RequirePermission(p);

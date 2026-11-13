@@ -95,6 +95,31 @@ public static class ServicesData
         bus.PublishAsync(new NotificationRequested(userId, "System", title, Text.Excerpt(body, 160),
             conversationId is null ? "None" : "Conversation", conversationId), ct);
 
+    /// <summary>Efface le prestataire et tout ce qui s'y rattache. Renvoie les images et justificatifs à libérer.</summary>
+    public static async Task<(List<string> Images, List<string> Files)> DeleteProviderAsync(IServicesDb db, ProviderProfile profile, CancellationToken ct)
+    {
+        var offerings = await db.Offerings.Where(o => o.ProviderId == profile.Id).Select(o => new { o.Id, o.Images }).ToListAsync(ct);
+        var images = offerings.SelectMany(o => o.Images).ToList();
+        if (profile.PhotoPath is { } photo)
+        {
+            images.Add(photo);
+        }
+
+        var files = await db.Documents.Where(d => d.ProviderId == profile.Id).Select(d => d.FileName).ToListAsync(ct);
+        var offeringIds = offerings.Select(o => o.Id).ToList();
+        var reviewIds = await db.Reviews.Where(r => r.ProviderId == profile.Id).Select(r => r.Id).ToListAsync(ct);
+        await db.Reports.Where(r => (r.TargetType == ReportTarget.Profile && r.TargetId == profile.Id)
+            || (r.TargetType == ReportTarget.Offering && offeringIds.Contains(r.TargetId))
+            || (r.TargetType == ReportTarget.Review && reviewIds.Contains(r.TargetId))).ExecuteDeleteAsync(ct);
+        await db.Documents.Where(d => d.ProviderId == profile.Id).ExecuteDeleteAsync(ct);
+        await db.Reviews.Where(r => r.ProviderId == profile.Id).ExecuteDeleteAsync(ct);
+        await db.Requests.Where(r => r.ProviderId == profile.Id).ExecuteDeleteAsync(ct);
+        await db.Favorites.Where(f => f.ProviderId == profile.Id).ExecuteDeleteAsync(ct);
+        await db.Offerings.Where(o => o.ProviderId == profile.Id).ExecuteDeleteAsync(ct);
+        await db.Providers.Where(p => p.Id == profile.Id).ExecuteDeleteAsync(ct);
+        return (images, files);
+    }
+
     public static string EscapeLike(string q) => $"%{q.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_")}%";
 
     /// <summary>Taux de réponse et délai médian, recalculés à chaque réponse du prestataire.</summary>
