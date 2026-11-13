@@ -206,7 +206,7 @@ function Chat({ summary }: { summary: ConversationSummary }) {
           ListEmptyComponent={<EmptyState icon="hand-wave-outline" title="Dites bonjour !"
             message={`Envoyez votre premier message à ${other.firstName}.`} />}
           contentContainerStyle={{ paddingTop: 12, paddingBottom: 22, flexGrow: 1 }}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
         />
       )}
 

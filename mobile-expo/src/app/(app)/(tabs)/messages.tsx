@@ -44,6 +44,7 @@ export default function Messages() {
       <QueryView query={query} loadingLabel="Chargement des conversations…">
         {() => (
           <FlatList
+            keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
             data={items}
             keyExtractor={(s) => s.conversation.id}
             renderItem={({ item: s }) => (

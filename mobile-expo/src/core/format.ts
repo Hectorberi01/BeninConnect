@@ -19,6 +19,17 @@ export function relative(isoDate: string, now = new Date()) {
   return shortDate(isoDate, now);
 }
 
+/** Date courte des commentaires : « 35 min », « 2 h », « 3 j », « 2 sem ». */
+export function compact(isoDate: string, now = new Date()) {
+  const minutes = (now.getTime() - new Date(isoDate).getTime()) / 60_000;
+  if (minutes < 1) return 'maintenant';
+  if (minutes < 60) return `${Math.floor(minutes)} min`;
+  if (minutes < 1440) return `${Math.floor(minutes / 60)} h`;
+  if (minutes < 10080) return `${Math.floor(minutes / 1440)} j`;
+  if (minutes < 40320) return `${Math.floor(minutes / 10080)} sem`;
+  return shortDate(isoDate, now);
+}
+
 export function shortDate(isoDate: string, now = new Date()) {
   const d = new Date(isoDate);
   const base = `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]}`;

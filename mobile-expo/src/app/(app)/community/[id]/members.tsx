@@ -29,7 +29,7 @@ export default function CommunityMembers() {
       </View>
       <QueryView query={query}>
         {() => (
-          <FlatList data={items} keyExtractor={(m) => m.user.id} keyboardShouldPersistTaps="handled"
+          <FlatList data={items} keyExtractor={(m) => m.user.id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
             renderItem={({ item }) => <UserRow user={item.user} subtitle={subtitle(item.user)} badge={roleLabel(item.role)} />}
             ListEmptyComponent={<EmptyState icon="account-search-outline" title="Aucun membre trouvé" />} />
         )}

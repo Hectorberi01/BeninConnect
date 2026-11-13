@@ -423,3 +423,248 @@ const COUNTRY_NAMES: Record<string, string> = {
 };
 
 export const countryName = (code: string) => COUNTRY_NAMES[code] ?? code;
+
+// --- Services entre membres (mise en relation, aucun paiement dans l'application) --------
+
+export type ProviderStatus = 'Draft' | 'PendingReview' | 'Active' | 'Suspended';
+export type VerificationLevel = 'None' | 'Identity' | 'Pro';
+export type LegalStatus = 'Individual' | 'MicroEntrepreneur' | 'Company';
+export type ContactPreference = 'InApp' | 'Phone' | 'WhatsApp';
+export type PriceType = 'Fixed' | 'From' | 'Hourly' | 'Quote';
+export type ServiceRequestStatus = 'Sent' | 'Viewed' | 'Accepted' | 'Declined' | 'Completed' | 'Cancelled';
+export type ServiceHiddenReason = 'None' | 'AlertKeyword' | 'Reports' | 'Admin';
+export type DocumentKind = 'Identity' | 'Qualification' | 'Registration';
+export type DocumentStatus = 'Pending' | 'Approved' | 'Rejected';
+export type ServiceReportTarget = 'Profile' | 'Offering' | 'Review';
+export type ServiceSort = 'Relevance' | 'Distance' | 'Rating' | 'Recent';
+
+export interface ServiceCategory {
+  id: string;
+  slug: string;
+  name: string;
+  icon: string;
+  parentId: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  requiresQualification: boolean;
+  activeProviders: number;
+  children: ServiceCategory[];
+}
+
+export interface ServiceOffering {
+  id: string;
+  categoryId: string;
+  categoryName: string;
+  requiresQualification: boolean;
+  title: string;
+  description: string;
+  priceType: PriceType;
+  priceAmount: number | null;
+  currency: string;
+  durationMinutes: number | null;
+  images: string[];
+  isActive: boolean;
+  hiddenReason: ServiceHiddenReason;
+  alertKeyword: string | null;
+}
+
+export interface ProviderCard {
+  id: string;
+  userId: string;
+  displayName: string;
+  photoPath: string | null;
+  city: string;
+  country: string;
+  categoryName: string;
+  categoryIcon: string;
+  ratingAverage: number;
+  ratingCount: number;
+  priceFrom: number | null;
+  currency: string;
+  verificationLevel: VerificationLevel;
+  servesAtHome: boolean;
+  hasPremises: boolean;
+  distanceKm: number | null;
+  responseRate: number;
+  isFavorite: boolean;
+}
+
+export interface ProviderPage {
+  items: ProviderCard[];
+  nextCursor: string | null;
+  total: number;
+}
+
+export interface ServiceReview {
+  id: string;
+  authorId: string;
+  authorName: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  providerReply: string | null;
+  repliedAt: string | null;
+  verified: boolean;
+  canEdit: boolean;
+}
+
+export interface ReviewPage {
+  items: ServiceReview[];
+  nextCursor: string | null;
+  total: number;
+}
+
+export interface ProviderDetail {
+  id: string;
+  userId: string;
+  displayName: string;
+  bio: string | null;
+  photoPath: string | null;
+  city: string;
+  country: string;
+  serviceRadiusKm: number;
+  servesAtHome: boolean;
+  hasPremises: boolean;
+  legalStatus: LegalStatus;
+  verificationLevel: VerificationLevel;
+  ratingAverage: number;
+  ratingCount: number;
+  responseRate: number;
+  medianResponseMinutes: number | null;
+  contactPreference: ContactPreference;
+  phone: string | null;
+  memberSince: string | null;
+  isFavorite: boolean;
+  isMine: boolean;
+  hasRegulatedServices: boolean;
+  offerings: ServiceOffering[];
+  reviews: ReviewPage;
+}
+
+export interface ProviderDocument {
+  id: string;
+  kind: DocumentKind;
+  originalName: string;
+  contentType: string;
+  size: number;
+  status: DocumentStatus;
+  reviewNote: string | null;
+  uploadedAt: string;
+  reviewedAt: string | null;
+}
+
+/** Données du profil saisies par le prestataire. */
+export interface ProviderInput {
+  displayName: string;
+  bio: string | null;
+  photoPath: string | null;
+  phone: string | null;
+  phoneIsPublic: boolean;
+  contactPreference: ContactPreference;
+  legalStatus: LegalStatus;
+  siret: string | null;
+  ifu: string | null;
+  country: string;
+  city: string;
+  postalCode: string | null;
+  latitude: number;
+  longitude: number;
+  serviceRadiusKm: number;
+  servesAtHome: boolean;
+  hasPremises: boolean;
+}
+
+export interface MyProvider extends ProviderInput {
+  id: string;
+  status: ProviderStatus;
+  reviewNote: string | null;
+  qualificationDeclared: boolean;
+  verificationLevel: VerificationLevel;
+  hiddenReason: ServiceHiddenReason;
+  ratingAverage: number;
+  ratingCount: number;
+  responseRate: number;
+  medianResponseMinutes: number | null;
+  currency: string;
+  offerings: ServiceOffering[];
+  documents: ProviderDocument[];
+}
+
+export interface OfferingInput {
+  categoryId: string;
+  title: string;
+  description: string | null;
+  priceType: PriceType;
+  priceAmount: number | null;
+  durationMinutes: number | null;
+  images: string[];
+  isActive: boolean;
+}
+
+export interface ServiceRequestItem {
+  id: string;
+  status: ServiceRequestStatus;
+  offeringId: string;
+  offeringTitle: string;
+  providerId: string;
+  providerName: string;
+  providerPhoto: string | null;
+  clientId: string;
+  clientName: string;
+  message: string;
+  preferredDate: string | null;
+  city: string | null;
+  conversationId: string | null;
+  declineReason: string | null;
+  createdAt: string;
+  viewedAt: string | null;
+  respondedAt: string | null;
+  completedAt: string | null;
+  providerPhone: string | null;
+  isProvider: boolean;
+  canReview: boolean;
+  reviewId: string | null;
+}
+
+export interface ServicesInfo {
+  intermediation: string;
+  qualifications: string;
+  reviews: string;
+  taxNotice: string;
+  taxLinks: { label: string; url: string }[];
+}
+
+export interface ServiceSearch {
+  categoryId?: string;
+  q?: string;
+  lat?: number;
+  lng?: number;
+  radiusKm?: number;
+  city?: string;
+  atHome?: boolean;
+  minRating?: number;
+  priceMax?: number;
+  verifiedOnly?: boolean;
+  sort?: ServiceSort;
+}
+
+export const LEGAL_STATUS_LABELS: Record<LegalStatus, string> = {
+  Individual: 'Particulier', MicroEntrepreneur: 'Micro-entrepreneur', Company: 'Société',
+};
+
+export const REQUEST_STATUS_LABELS: Record<ServiceRequestStatus, string> = {
+  Sent: 'Envoyée', Viewed: 'Vue', Accepted: 'Acceptée', Declined: 'Refusée', Completed: 'Terminée', Cancelled: 'Annulée',
+};
+
+export const DOCUMENT_KIND_LABELS: Record<DocumentKind, string> = {
+  Identity: "Pièce d'identité", Qualification: 'Diplôme ou qualification', Registration: 'Inscription au registre (Kbis, Sirene, IFU)',
+};
+
+/** « à partir de 60 € », « 15 €/h », « Sur devis ». */
+export function servicePrice(o: { priceType: PriceType; priceAmount: number | null; currency: string }) {
+  if (o.priceType === 'Quote' || o.priceAmount == null) return 'Sur devis';
+  const amount = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: o.currency, maximumFractionDigits: o.currency === 'XOF' ? 0 : 2 })
+    .format(o.priceAmount);
+  return o.priceType === 'From' ? `à partir de ${amount}` : o.priceType === 'Hourly' ? `${amount} / h` : amount;
+}

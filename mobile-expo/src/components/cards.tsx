@@ -15,6 +15,7 @@ import {
   useToggleParticipation, useToggleSave, useUsersMap,
 } from '@/features/queries';
 import { blockUser } from '@/features/block';
+import { openComments } from '@/features/comments/CommentsSheet';
 import { reportContent } from '@/features/report';
 import { AttachmentView } from './attachments';
 import { ReactionBar } from './reactions';
@@ -118,7 +119,7 @@ export const PostCard = memo(function PostCard({ post, author, community, detail
         <Action icon={liked ? 'heart' : 'heart-outline'} color={liked ? c.error : undefined}
           label={likes === 0 ? '' : String(likes)} a11y={liked ? "Je n'aime plus" : "J'aime"} onPress={() => like.mutate(post)} />
         <Action icon="comment-outline" label={post.commentCount === 0 ? '' : String(post.commentCount)} a11y="Commenter"
-          onPress={() => router.push({ pathname: '/post/[id]', params: { id: post.id, focus: '1' } })} />
+          onPress={() => (detailed ? router.setParams({ focus: String(Date.now()) }) : openComments(post.id))} />
         <Action icon="share-variant-outline" label={post.shareCount === 0 ? '' : String(post.shareCount)} a11y="Partager hors de l'application"
           onPress={() => share.mutate({ post, authorName: author ? displayName(author) : 'Un membre' })} />
         <Action icon="send-outline" label="" a11y="Envoyer à un membre"

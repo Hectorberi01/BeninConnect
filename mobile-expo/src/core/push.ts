@@ -3,7 +3,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { data } from '@/data';
 import type { AppNotification, NotificationCategory } from '@/data/types';
 import { notificationHref } from '@/features/rules';
@@ -79,10 +79,29 @@ export async function registerForPush(): Promise<string | null> {
 
 /** Déconnexion : à appeler AVANT d'effacer le jeton de session (la route est authentifiée). */
 export async function unregisterFromPush() {
+  if (Platform.OS !== 'web') Notifications.setBadgeCountAsync(0).catch(() => undefined);
   if (!currentToken) return;
   const token = currentToken;
   currentToken = null;
   await data().unregisterPushDevice(token).catch(() => undefined);
+}
+
+/**
+ * Pastille de l'icône = notifications non lues de l'appli.
+ * Le serveur la fixe à l'envoi d'une notification ; on la remet à jour après lecture et au retour dans l'appli.
+ */
+export function useAppBadge(unread: number | undefined) {
+  useEffect(() => {
+    if (Platform.OS === 'web' || unread === undefined) return;
+    Notifications.setBadgeCountAsync(unread).catch(() => undefined);
+  }, [unread]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') queryClient.invalidateQueries({ queryKey: ['unreadNotifications'] }).catch(() => undefined);
+    });
+    return () => sub.remove();
+  }, []);
 }
 
 /** Notifications déjà ouvertes : une seule ouverture par notification. */

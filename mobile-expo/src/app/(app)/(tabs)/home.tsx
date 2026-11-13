@@ -4,12 +4,13 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Sty
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CommunityTile, EventTile, PostCard, usePostContext } from '@/components/cards';
 import { JobTile } from '@/components/jobs';
+import { CategoryGrid } from '@/components/services';
 import { Avatar, EmptyState, ErrorState, Icon, IconButton, Loading, Muted, Screen, SectionTitle, T } from '@/components/ui';
 import { useTabBarSpace } from '@/components/glass';
 import { useMe } from '@/core/session';
 import { depth, useColors } from '@/core/theme';
 import { initials } from '@/data/types';
-import { useCommunities, useEvents, useFeed, useJobs, useUnreadNotifications } from '@/features/queries';
+import { useCommunities, useEvents, useFeed, useJobs, useServiceCategories, useUnreadNotifications } from '@/features/queries';
 import { errorMessage } from '@/data/types';
 
 export default function Home() {
@@ -20,6 +21,7 @@ export default function Home() {
   const communities = useCommunities();
   const events = useEvents({});
   const jobs = useJobs({});
+  const serviceCategories = useServiceCategories().data ?? [];
   const unread = useUnreadNotifications().data ?? 0;
   const [refreshing, setRefreshing] = useState(false);
   const bottom = useTabBarSpace();
@@ -56,6 +58,14 @@ export default function Home() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hList}>
             {upcoming.map((e) => <EventTile key={e.id} event={e} />)}
           </ScrollView>
+        </>
+      )}
+
+      {serviceCategories.length > 0 && (
+        <>
+          <SectionTitle title="Services entre membres" action="Voir tout" onAction={() => router.push('/services')} />
+          <CategoryGrid categories={serviceCategories}
+            onSelect={(cat) => router.push({ pathname: '/services/search', params: { categoryId: cat.id } })} />
         </>
       )}
 

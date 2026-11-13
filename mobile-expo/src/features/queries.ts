@@ -9,6 +9,7 @@ import type {
   AppNotification, Comment, ConversationSummary, Message,
   Community, CommunityEvent, CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, NotificationCategory,
   OutgoingFile, Paged, Post, PostFilter, UpdatePostRequest, UpdateProfileRequest, JobFilter, JobOffer, JobPage,
+  DocumentKind, OfferingInput, ProviderDetail, ProviderInput, ProviderPage, ServiceReportTarget, ServiceRequestItem, ServiceSearch,
 } from '@/data/types';
 import { errorMessage, toggleReaction } from '@/data/types';
 
@@ -531,6 +532,170 @@ export function useReportJob() {
       qc.setQueryData<JobOffer>(['job', id], (old) => (old ? { ...old, reportedByMe: true } : old));
       toast('Merci. Notre équipe va vérifier cette offre.', 'success');
     },
+    onError,
+  });
+}
+
+// --- Services entre membres ----------------------------------------------------------------
+
+export const useServiceCategories = () =>
+  useQuery({ queryKey: ['service-categories'], queryFn: () => data().getServiceCategories(), staleTime: 10 * 60_000 });
+
+export const useServicesInfo = () => useQuery({ queryKey: ['services-info'], queryFn: () => data().getServicesInfo(), staleTime: 60 * 60_000 });
+
+export const useServiceSearch = (filter: ServiceSearch, enabled = true) =>
+  useInfiniteQuery({
+    queryKey: ['service-search', filter],
+    queryFn: ({ pageParam }) => data().searchServices(filter, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last: ProviderPage) => last.nextCursor,
+    enabled,
+  });
+
+export const useProvider = (id: string) => useQuery({ queryKey: ['provider', id], queryFn: () => data().getProvider(id) });
+
+export const useFavoriteProviders = () => useQuery({ queryKey: ['provider-favorites'], queryFn: () => data().getFavoriteProviders() });
+
+export function useToggleProviderFavorite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, favorite }: { id: string; favorite: boolean }) => data().setProviderFavorite(id, favorite),
+    onMutate: ({ id, favorite }) => {
+      qc.setQueryData<ProviderDetail>(['provider', id], (old) => (old ? { ...old, isFavorite: favorite } : old));
+      qc.setQueriesData<InfiniteData<ProviderPage>>({ queryKey: ['service-search'] }, (old) =>
+        old && { ...old, pages: old.pages.map((p) => ({ ...p, items: p.items.map((x) => (x.id === id ? { ...x, isFavorite: favorite } : x)) })) });
+    },
+    onSuccess: (_, { favorite }) => {
+      qc.invalidateQueries({ queryKey: ['provider-favorites'] });
+      toast(favorite ? 'Prestataire ajouté à vos favoris.' : 'Prestataire retiré de vos favoris.', 'success');
+    },
+    onError: (e, { id }) => {
+      qc.invalidateQueries({ queryKey: ['provider', id] });
+      qc.invalidateQueries({ queryKey: ['service-search'] });
+      onError(e);
+    },
+  });
+}
+
+export const useMyProvider = () => useQuery({ queryKey: ['my-provider'], queryFn: () => data().getMyProvider() });
+
+/** Après une modification de l'espace prestataire : profil, recherche et fiche publique rafraîchis. */
+function refreshProvider(qc: QueryClient) {
+  ['my-provider', 'service-search', 'provider', 'service-categories'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+}
+
+export function useSaveMyProvider() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ input, declared }: { input: ProviderInput; declared: boolean }) => data().saveMyProvider(input, declared),
+    onSuccess: (p) => { qc.setQueryData(['my-provider'], p); refreshProvider(qc); },
+    onError,
+  });
+}
+
+export function useSubmitMyProvider() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => data().submitMyProvider(),
+    onSuccess: (p) => {
+      qc.setQueryData(['my-provider'], p);
+      toast(p.status === 'Active' ? 'Votre profil est en ligne.' : 'Profil envoyé : notre équipe le vérifie, vous serez prévenu.', 'success');
+    },
+    onError,
+  });
+}
+
+export function useSaveOffering() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string | null; input: OfferingInput }) => data().saveOffering(id, input),
+    onSuccess: (o) => {
+      refreshProvider(qc);
+      toast(o.hiddenReason === 'AlertKeyword' ? 'Offre enregistrée : elle sera vérifiée par notre équipe avant publication.' : 'Offre enregistrée.',
+        o.hiddenReason === 'AlertKeyword' ? 'info' : 'success');
+    },
+    onError,
+  });
+}
+
+export function useDeleteOffering() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => data().deleteOffering(id), onSuccess: () => refreshProvider(qc), onError });
+}
+
+export function useUploadProviderDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ kind, file }: { kind: DocumentKind; file: OutgoingFile }) => data().uploadProviderDocument(kind, file),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['my-provider'] }); toast('Justificatif envoyé : notre équipe le vérifie.', 'success'); },
+    onError,
+  });
+}
+
+export function useDeleteProviderDocument() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => data().deleteProviderDocument(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['my-provider'] }), onError });
+}
+
+export const useServiceRequests = (role: 'Client' | 'Provider') =>
+  useQuery({ queryKey: ['service-requests', role], queryFn: () => data().getServiceRequests(role) });
+
+export function useCreateServiceRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (r: { offeringId: string; message: string; preferredDate: string | null; city: string | null }) =>
+      data().createServiceRequest(r.offeringId, r.message, r.preferredDate, r.city),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['service-requests'] });
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+      toast('Demande envoyée : retrouvez l’échange dans vos messages.', 'success');
+    },
+    onError,
+  });
+}
+
+const RESPONSE_TOASTS = { accept: 'Demande acceptée.', decline: 'Demande refusée.', complete: 'Prestation marquée comme terminée.', cancel: 'Demande annulée.' };
+
+export function useRespondServiceRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, action, reason }: { id: string; action: 'accept' | 'decline' | 'complete' | 'cancel'; reason?: string }) =>
+      data().respondServiceRequest(id, action, reason),
+    onSuccess: (r, { action }) => {
+      qc.setQueriesData<ServiceRequestItem[]>({ queryKey: ['service-requests'] }, (old) => old?.map((x) => (x.id === r.id ? r : x)));
+      qc.invalidateQueries({ queryKey: ['provider', r.providerId] });
+      toast(RESPONSE_TOASTS[action], 'success');
+    },
+    onError,
+  });
+}
+
+export function useReviewService() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ requestId, reviewId, rating, comment }: { requestId?: string; reviewId?: string; rating: number; comment: string | null }) =>
+      reviewId ? data().editServiceReview(reviewId, rating, comment) : data().reviewServiceRequest(requestId!, rating, comment),
+    onSuccess: () => {
+      ['service-requests', 'provider'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+      toast('Merci pour votre avis !', 'success');
+    },
+    onError,
+  });
+}
+
+export function useReplyServiceReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reply }: { id: string; reply: string }) => data().replyServiceReview(id, reply),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['provider'] }); toast('Réponse publiée.', 'success'); },
+    onError,
+  });
+}
+
+export function useReportService() {
+  return useMutation({
+    mutationFn: ({ target, id, reason }: { target: ServiceReportTarget; id: string; reason: string }) => data().reportService(target, id, reason),
+    onSuccess: () => toast('Merci. Notre équipe va examiner ce signalement.', 'success'),
     onError,
   });
 }

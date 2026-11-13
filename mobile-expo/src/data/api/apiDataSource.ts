@@ -2,7 +2,9 @@ import { DEV_TOOLS, PRODUCTION_API_URL } from '@/core/config';
 import type { DataSource } from '../repositories';
 import type {
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
-  CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, JobFilter, JobFilters, JobOffer, JobOfferSummary, JobPage, MembershipStatus, Message, NotificationCategory,
+  CreateCommunityRequest, CreateEventRequest, CreatePostRequest, DocumentKind, EventFilter, JobFilter, JobFilters, JobOffer, JobOfferSummary, JobPage,
+  MembershipStatus, Message, MyProvider, NotificationCategory, OfferingInput, ProviderCard, ProviderDetail, ProviderDocument, ProviderInput, ProviderPage,
+  ReviewPage, ServiceCategory, ServiceOffering, ServiceReportTarget, ServiceRequestItem, ServiceReview, ServiceSearch, ServicesInfo,
   LocalPhoto, LocalVideo, OutgoingFile, Paged, Post, PostFilter, ReportReason, ReportTarget, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User,
 } from '../types';
 import { Platform } from 'react-native';
@@ -268,6 +270,60 @@ export class ApiDataSource implements DataSource {
   getFavoriteJobs = () => this.get<JobOfferSummary[]>('api/jobs/favorites');
   setJobFavorite = async (id: string, favorite: boolean) => { await this.request<unknown>(favorite ? 'POST' : 'DELETE', `api/jobs/${id}/favorite`); };
   reportJob = async (id: string, reason: string) => { await this.post<unknown>(`api/jobs/${id}/report`, { reason }); };
+
+  // Services entre membres
+  getServiceCategories = () => this.get<ServiceCategory[]>('api/services/categories');
+  getServicesInfo = () => this.get<ServicesInfo>('api/services/info');
+  searchServices = (f: ServiceSearch, cursor?: string | null) =>
+    this.get<ProviderPage>(`api/services/search${this.q({
+      categoryId: f.categoryId, q: f.q, lat: f.lat?.toString(), lng: f.lng?.toString(), radiusKm: f.radiusKm?.toString(), city: f.city,
+      atHome: f.atHome ? 'true' : undefined, minRating: f.minRating?.toString(), priceMax: f.priceMax?.toString(),
+      verifiedOnly: f.verifiedOnly ? 'true' : undefined, sort: f.sort, cursor: cursor ?? undefined, take: '20',
+    })}`);
+  getProvider = (id: string) => this.get<ProviderDetail>(`api/services/providers/${id}`);
+  getProviderReviews = (id: string, cursor?: string | null) =>
+    this.get<ReviewPage>(`api/services/providers/${id}/reviews${this.q({ cursor: cursor ?? undefined })}`);
+  setProviderFavorite = async (id: string, favorite: boolean) => {
+    await this.request<unknown>(favorite ? 'POST' : 'DELETE', `api/services/providers/${id}/favorite`);
+  };
+  getFavoriteProviders = () => this.get<ProviderCard[]>('api/services/favorites');
+  getMyProvider = async () => (await this.get<{ hasProfile: boolean; profile: MyProvider | null }>('api/services/me')).profile;
+  saveMyProvider = (profile: ProviderInput, qualificationDeclared: boolean) =>
+    this.request<MyProvider>('PUT', 'api/services/me', { profile, qualificationDeclared });
+  submitMyProvider = () => this.post<MyProvider>('api/services/me/submit');
+  saveOffering = (id: string | null, input: OfferingInput) =>
+    id ? this.request<ServiceOffering>('PUT', `api/services/me/offerings/${id}`, input) : this.post<ServiceOffering>('api/services/me/offerings', input);
+  deleteOffering = async (id: string) => { await this.request<unknown>('DELETE', `api/services/me/offerings/${id}`); };
+  async uploadServiceImage(photo: LocalPhoto) {
+    const type = photo.mimeType || 'image/jpeg';
+    const form = new FormData();
+    const name = photo.fileName || `photo.${type.split('/')[1] ?? 'jpg'}`;
+    if (Platform.OS === 'web') form.append('file', await (await fetch(photo.uri)).blob(), name);
+    else form.append('file', { uri: photo.uri, name, type } as unknown as Blob);
+    return (await this.request<{ path: string }>('POST', 'api/services/images', form, 90_000)).path;
+  }
+  async uploadProviderDocument(kind: DocumentKind, file: OutgoingFile) {
+    const form = new FormData();
+    if (Platform.OS === 'web') form.append('file', await (await fetch(file.uri)).blob(), file.name);
+    else form.append('file', { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob);
+    form.append('kind', kind);
+    return this.request<ProviderDocument>('POST', 'api/services/me/documents', form, 120_000);
+  }
+  deleteProviderDocument = async (id: string) => { await this.request<unknown>('DELETE', `api/services/me/documents/${id}`); };
+  createServiceRequest = (offeringId: string, message: string, preferredDate: string | null, city: string | null) =>
+    this.post<ServiceRequestItem>('api/services/requests', { offeringId, message, preferredDate, city });
+  getServiceRequests = (role: 'Client' | 'Provider') => this.get<ServiceRequestItem[]>(`api/services/requests?role=${role}`);
+  getServiceRequest = (id: string) => this.get<ServiceRequestItem>(`api/services/requests/${id}`);
+  respondServiceRequest = (id: string, action: 'accept' | 'decline' | 'complete' | 'cancel', reason?: string) =>
+    this.post<ServiceRequestItem>(`api/services/requests/${id}/${action}`, action === 'decline' ? { reason: reason ?? null } : {});
+  reviewServiceRequest = (requestId: string, rating: number, comment: string | null) =>
+    this.post<ServiceReview>(`api/services/requests/${requestId}/review`, { rating, comment });
+  editServiceReview = (id: string, rating: number, comment: string | null) =>
+    this.request<ServiceReview>('PUT', `api/services/reviews/${id}`, { rating, comment });
+  replyServiceReview = (id: string, reply: string) => this.post<ServiceReview>(`api/services/reviews/${id}/reply`, { reply });
+  reportService = async (targetType: ServiceReportTarget, targetId: string, reason: string) => {
+    await this.post<unknown>('api/services/reports', { targetType, targetId, reason });
+  };
 
   // Notifications
   getNotifications = (category?: NotificationCategory) => this.get<AppNotification[]>(`api/notifications${this.q({ category })}`);

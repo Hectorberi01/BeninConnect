@@ -77,7 +77,7 @@ export default function Jobs() {
               onEndReachedThreshold={0.5}
               refreshControl={<RefreshControl refreshing={query.isRefetching && !query.isFetchingNextPage} onRefresh={() => { query.refetch(); }} tintColor={c.primary} />}
               contentContainerStyle={{ paddingBottom: 24 }}
-              keyboardShouldPersistTaps="handled" />
+              keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" />
           )}
     </Screen>
   );

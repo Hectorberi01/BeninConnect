@@ -246,10 +246,12 @@ export function SwitchRow({ label, description, value, onChange, icon }: {
   );
 }
 
-export function ListRow({ label, value, icon, onPress, danger }: { label: string; value?: string; icon?: IconName; onPress?: () => void; danger?: boolean }) {
+export function ListRow({ label, value, icon, onPress, danger, last }: {
+  label: string; value?: string; icon?: IconName; onPress?: () => void; danger?: boolean; last?: boolean;
+}) {
   const c = useColors();
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.listRow, { borderColor: c.border }, pressed && { opacity: 0.6 }]}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.listRow, { borderColor: c.border }, last && { borderBottomWidth: 0 }, pressed && { opacity: 0.6 }]}>
       {icon && <Icon name={icon} color={danger ? c.error : c.textSecondary} />}
       <T style={{ flex: 1 }} color={danger ? c.error : undefined}>{label}</T>
       {!!value && <Muted>{value}</Muted>}

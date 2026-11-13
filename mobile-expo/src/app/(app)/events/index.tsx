@@ -70,7 +70,7 @@ export default function Events() {
             ListEmptyComponent={<EmptyState icon="calendar-search" title="Aucun événement trouvé" message="Modifiez vos filtres pour élargir la recherche."
               action="Effacer les filtres" onAction={clear} />}
             refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { query.refetch(); }} tintColor={c.primary} />}
-            contentContainerStyle={{ paddingBottom: 24 }} keyboardShouldPersistTaps="handled" />
+            contentContainerStyle={{ paddingBottom: 24 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" />
         )}
       </QueryView>
     </Screen>

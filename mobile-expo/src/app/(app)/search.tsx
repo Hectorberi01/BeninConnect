@@ -58,7 +58,7 @@ export default function Search() {
         : query.error || !r ? <ErrorState message={errorMessage(query.error)} onRetry={() => query.refetch()} />
           : r.total === 0 ? <EmptyState icon="magnify-close" title="Aucun résultat" message={`Rien ne correspond à « ${q} ».`} />
             : (
-              <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 32 }}>
+              <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 32 }}>
                 <Muted style={{ paddingHorizontal: 16, marginTop: 8 }}>{r.total === 1 ? '1 résultat' : `${r.total} résultats`}</Muted>
                 {r.people.length > 0 && <SectionTitle title="Membres" />}
                 {r.people.map((u) => <UserRow key={u.id} user={u} />)}

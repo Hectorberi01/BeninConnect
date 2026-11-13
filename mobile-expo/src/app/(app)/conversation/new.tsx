@@ -38,7 +38,7 @@ export default function NewConversation() {
       </View>
       <QueryView query={query}>
         {() => (
-          <FlatList data={people} keyExtractor={(u) => u.id} keyboardShouldPersistTaps="handled"
+          <FlatList data={people} keyExtractor={(u) => u.id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
             renderItem={({ item }) => <UserRow user={item} subtitle={subtitle(item)} onPress={() => start(item)} />}
             ListEmptyComponent={<EmptyState icon="account-search-outline" title="Aucun membre trouvé" />} />
         )}

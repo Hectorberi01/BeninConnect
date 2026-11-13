@@ -1,6 +1,8 @@
 import type {
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
-  CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, JobFilter, JobFilters, JobOffer, JobOfferSummary, JobPage, MembershipStatus, Message,
+  CreateCommunityRequest, CreateEventRequest, CreatePostRequest, DocumentKind, EventFilter, JobFilter, JobFilters, JobOffer, JobOfferSummary, JobPage,
+  MembershipStatus, Message, MyProvider, OfferingInput, ProviderCard, ProviderDetail, ProviderDocument, ProviderInput, ProviderPage, ReviewPage,
+  ServiceCategory, ServiceOffering, ServiceReportTarget, ServiceRequestItem, ServiceReview, ServiceSearch, ServicesInfo,
   NotificationCategory, OutgoingFile, Paged, Post, ReportReason, ReportTarget, PostFilter, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User, LocalPhoto, LocalVideo } from './types';
 
 /**
@@ -123,6 +125,34 @@ export interface DataSource {
   setJobFavorite(id: string, favorite: boolean): Promise<void>;
   /** Un signalement par membre et par offre. */
   reportJob(id: string, reason: string): Promise<void>;
+
+  // Services entre membres (mise en relation, aucun paiement)
+  getServiceCategories(): Promise<ServiceCategory[]>;
+  getServicesInfo(): Promise<ServicesInfo>;
+  searchServices(filter: ServiceSearch, cursor?: string | null): Promise<ProviderPage>;
+  getProvider(id: string): Promise<ProviderDetail>;
+  getProviderReviews(id: string, cursor?: string | null): Promise<ReviewPage>;
+  setProviderFavorite(id: string, favorite: boolean): Promise<void>;
+  getFavoriteProviders(): Promise<ProviderCard[]>;
+  /** null : pas encore de profil prestataire. */
+  getMyProvider(): Promise<MyProvider | null>;
+  saveMyProvider(input: ProviderInput, qualificationDeclared: boolean): Promise<MyProvider>;
+  submitMyProvider(): Promise<MyProvider>;
+  saveOffering(id: string | null, input: OfferingInput): Promise<ServiceOffering>;
+  deleteOffering(id: string): Promise<void>;
+  /** Photo de profil ou de portfolio (5 Mo, métadonnées retirées par le serveur). */
+  uploadServiceImage(photo: LocalPhoto): Promise<string>;
+  uploadProviderDocument(kind: DocumentKind, file: OutgoingFile): Promise<ProviderDocument>;
+  deleteProviderDocument(id: string): Promise<void>;
+  createServiceRequest(offeringId: string, message: string, preferredDate: string | null, city: string | null): Promise<ServiceRequestItem>;
+  getServiceRequests(role: 'Client' | 'Provider'): Promise<ServiceRequestItem[]>;
+  /** Ouverte par le prestataire : passe en « vue ». */
+  getServiceRequest(id: string): Promise<ServiceRequestItem>;
+  respondServiceRequest(id: string, action: 'accept' | 'decline' | 'complete' | 'cancel', reason?: string): Promise<ServiceRequestItem>;
+  reviewServiceRequest(requestId: string, rating: number, comment: string | null): Promise<ServiceReview>;
+  editServiceReview(id: string, rating: number, comment: string | null): Promise<ServiceReview>;
+  replyServiceReview(id: string, reply: string): Promise<ServiceReview>;
+  reportService(target: ServiceReportTarget, id: string, reason: string): Promise<void>;
 
   // Notifications
   getNotifications(category?: NotificationCategory): Promise<AppNotification[]>;

@@ -62,7 +62,7 @@ export default function SendPost() {
       </View>
       <QueryView query={users}>
         {() => (
-          <FlatList data={people} keyExtractor={(u) => u.id} keyboardShouldPersistTaps="handled"
+          <FlatList data={people} keyExtractor={(u) => u.id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
             renderItem={({ item }) => {
               const done = sent.has(item.id);
               return (

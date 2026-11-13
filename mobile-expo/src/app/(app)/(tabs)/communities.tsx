@@ -55,7 +55,7 @@ export default function Communities() {
               onAction={() => { setSearch(''); setCategory('*'); }} />}
             refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { query.refetch(); }} tintColor={c.primary} />}
             contentContainerStyle={{ paddingBottom: bottom }}
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
           />
         )}
       </QueryView>

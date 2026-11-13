@@ -3,6 +3,7 @@ import type { DataSource } from '../repositories';
 import { INTERESTS, REACTIONS } from '../repositories';
 import type {
   AppNotification, Comment, Community, CommunityEvent, CommunityMember, Conversation, CreateEventRequest, EventFilter, JobFilter, JobFilters, JobOffer, JobPage,
+  DocumentKind, OfferingInput, ProviderInput, ServiceReportTarget, ServiceSearch,
   MembershipStatus, Message, NotificationCategory, OutgoingFile, Paged, Post, PostFilter, User, LocalPhoto, LocalVideo, ReportReason, ReportTarget,
 } from '../types';
 import { AppError, displayName, isEventFull, membershipStatus, toggleReaction } from '../types';
@@ -11,6 +12,7 @@ import { extractTags, normalizeTag } from '../social';
 import { createMockStore, type MockStore } from './factory';
 import { newId } from './random';
 import { createMockJobs } from './jobs';
+import { MockServices } from './services';
 
 const checkReaction = (emoji: string) => {
   if (!REACTIONS.includes(emoji.trim())) throw new AppError("Cette réaction n'est pas disponible.", 400);
@@ -809,6 +811,40 @@ export class MockDataSource implements DataSource {
     if (job.reportedByMe) throw new AppError('Vous avez déjà signalé cette offre.', 409);
     if (reason.trim().length < 3) throw new AppError('Indiquez le motif du signalement.', 400);
     this.jobs = this.jobs.map((j) => (j.id === job.id ? { ...j, reportedByMe: true } : j));
+  }
+
+  // --- Services entre membres (exemples hors ligne) -----------------------------------------
+
+  private services = new MockServices(() => this.userId);
+
+  async getServiceCategories() { await this.net(); return this.services.categories(); }
+  async getServicesInfo() { return this.services.info(); }
+  async searchServices(f: ServiceSearch) { await this.net(); return this.services.search(f); }
+  async getProvider(id: string) { await this.net(); return this.services.detail(id); }
+  async getProviderReviews(id: string) { await this.net(); return this.services.reviewPage(id); }
+  async setProviderFavorite(id: string, favorite: boolean) { await this.net(); this.services.favorite(id, favorite); }
+  async getFavoriteProviders() { await this.net(); return this.services.favoriteCards(); }
+  async getMyProvider() { await this.net(); return this.services.myProvider(); }
+  async saveMyProvider(input: ProviderInput, declared: boolean) { await this.net(); return this.services.saveMine(input, declared); }
+  async submitMyProvider() { await this.net(); return this.services.submitMine(); }
+  async saveOffering(id: string | null, input: OfferingInput) { await this.net(); return this.services.saveOffering(id, input); }
+  async deleteOffering(id: string) { await this.net(); this.services.deleteOffering(id); }
+  async uploadServiceImage(photo: LocalPhoto) { await this.net(); return photo.uri; }
+  async uploadProviderDocument(kind: DocumentKind, file: OutgoingFile) { await this.net(); return this.services.addDocument(kind, file); }
+  async deleteProviderDocument(id: string) { await this.net(); this.services.deleteDocument(id); }
+  async createServiceRequest(offeringId: string, message: string, preferredDate: string | null, city: string | null) {
+    await this.net();
+    return this.services.createRequest(offeringId, message, preferredDate, city);
+  }
+  async getServiceRequests(role: 'Client' | 'Provider') { await this.net(); return this.services.requestsFor(role); }
+  async getServiceRequest(id: string) { await this.net(); return this.services.request(id); }
+  async respondServiceRequest(id: string, action: 'accept' | 'decline' | 'complete' | 'cancel') { await this.net(); return this.services.respond(id, action); }
+  async reviewServiceRequest(id: string, rating: number, comment: string | null) { await this.net(); return this.services.review(id, rating, comment); }
+  async editServiceReview(id: string, rating: number, comment: string | null) { await this.net(); return this.services.editReview(id, rating, comment); }
+  async replyServiceReview(): Promise<never> { throw new AppError('Indisponible en mode démonstration.', 400); }
+  async reportService(_target: ServiceReportTarget, _id: string, reason: string) {
+    await this.net();
+    if (reason.trim().length < 3) throw new AppError('Indiquez le motif du signalement.', 400);
   }
 
   // --- Notifications ------------------------------------------------------------------------

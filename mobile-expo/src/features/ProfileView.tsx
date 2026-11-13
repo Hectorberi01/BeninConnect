@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CommunityTile, PostCard, usePostContext } from '@/components/cards';
-import { Avatar, Button, Chip, Cover, EmptyState, Icon, IconButton, Muted, QueryView, SectionTitle, Segmented, T } from '@/components/ui';
+import { Avatar, Button, Card, Chip, Cover, EmptyState, Icon, IconButton, ListRow, Muted, QueryView, SectionTitle, Segmented, T } from '@/components/ui';
 import { PostGrid } from '@/components/PostGrid';
 import { OfficialBadge } from '@/components/social';
 import { confirm } from '@/core/dialog';
@@ -184,6 +184,18 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
         </View>
       </View>
 
+      {isMe && (
+        <>
+          <SectionTitle title="Mes activités" />
+          <Card style={styles.activities}>
+            <ListRow icon="briefcase-outline" label="Mon espace prestataire" onPress={() => router.push('/services/me')} />
+            <ListRow icon="clipboard-text-outline" label="Mes demandes de services" onPress={() => router.push('/services/requests')} />
+            <ListRow icon="heart-outline" label="Prestataires favoris" onPress={() => router.push('/services/favorites')} />
+            <ListRow icon="bookmark-multiple-outline" label="Offres d'emploi favorites" onPress={() => router.push('/jobs/favorites')} last />
+          </Card>
+        </>
+      )}
+
       <SectionTitle title="À propos" />
       <View style={{ paddingHorizontal: 16 }}>
         {shownUser.bio.trim()
@@ -239,6 +251,7 @@ function RoundButton({ icon, label, onPress }: { icon: 'arrow-left' | 'cog-outli
 }
 
 const styles = StyleSheet.create({
+  activities: { marginHorizontal: 16, paddingHorizontal: 16, paddingVertical: 2 },
   coverBar: { position: 'absolute', left: 8, right: 8, flexDirection: 'row', justifyContent: 'space-between' },
   coverButton: {
     position: 'absolute', right: 12, bottom: 12, flexDirection: 'row', alignItems: 'center', gap: 6,
