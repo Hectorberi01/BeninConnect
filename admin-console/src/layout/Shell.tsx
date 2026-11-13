@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  BriefcaseBusiness, CalendarDays, DatabaseBackup, Download, FileText, Flag, KeyRound, LayoutDashboard, LogOut, Menu, Newspaper, ScrollText, Server, ShieldCheck, Users, UsersRound, X,
+  BriefcaseBusiness, CalendarDays, ListChecks, Smartphone, DatabaseBackup, Download, FileText, Flag, KeyRound, LayoutDashboard, LogOut, Menu, Newspaper, ScrollText, Server, ShieldCheck, Users, UsersRound, X,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ComponentType, useState } from 'react'
@@ -29,7 +29,14 @@ export const NAV: { section: string; items: Item[] }[] = [
       { to: '/communities', label: 'Communautés', icon: UsersRound, permission: 'CommunitiesManage' },
       { to: '/events', label: 'Événements', icon: CalendarDays, permission: 'EventsManage' },
       { to: '/editorial', label: 'Compte officiel', icon: Newspaper, permission: 'EditorialManage' },
-      { to: '/jobs', label: 'Emploi', icon: BriefcaseBusiness, permission: 'JobsManage' },
+    ],
+  },
+  {
+    section: 'Emploi',
+    items: [
+      { to: '/jobs', label: 'Sources et réglages', icon: BriefcaseBusiness, permission: 'JobsManage' },
+      { to: '/jobs/offers', label: 'Offres importées', icon: ListChecks, permission: 'JobsManage' },
+      { to: '/jobs/preview', label: 'Aperçu membres', icon: Smartphone, permission: 'JobsManage' },
     ],
   },
   { section: 'Finance', items: [{ to: '/exports', label: 'Exports', icon: Download, permission: 'ExportsDownload' }] },
@@ -72,7 +79,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <div key={group.section} className="mt-4 first:mt-0">
               <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">{group.section}</p>
               {items.map(({ to, label, icon: Icon }) => (
-                <NavLink key={to} to={to} end={to === '/'} onClick={onNavigate}
+                <NavLink key={to} to={to} end={to === '/' || to === '/jobs'} onClick={onNavigate}
                   className={({ isActive }) => cx('group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                     isActive ? 'text-brand' : 'text-muted hover:bg-surface-2 hover:text-fg')}>
                   {({ isActive }) => (

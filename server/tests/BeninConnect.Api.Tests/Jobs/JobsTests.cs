@@ -217,6 +217,12 @@ public sealed class JobsTests(JobsFactory factory) : IClassFixture<JobsFactory>
 
         Assert.Equal(159, ids.Count);
         Assert.Equal(ids.Count, ids.Distinct().Count());
+        var filters = await member.GetFromJsonAsync<JsonElement>("api/jobs/filters");
+        Assert.True(filters.GetProperty("total").GetInt32() >= 159);
+        Assert.Contains(filters.GetProperty("departments").EnumerateArray(), d => d.GetProperty("label").GetString() == "75");
+        Assert.Contains(filters.GetProperty("countries").EnumerateArray(), d => d.GetProperty("label").GetString() == "FR");
+        var adminFilters = await admin.GetFromJsonAsync<JsonElement>("api/admin/jobs/preview/filters");
+        Assert.Equal(filters.GetProperty("total").GetInt32(), adminFilters.GetProperty("total").GetInt32());
         var cdi = await member.GetFromJsonAsync<PageView>($"api/jobs?q={factory.Apis.Tag}&contract=Cdi&take=50");
         Assert.All(cdi!.Items, i => Assert.Equal("Cdi", i.ContractType));
 
@@ -315,6 +321,18 @@ public sealed class JobsTests(JobsFactory factory) : IClassFixture<JobsFactory>
         var list = (await member.GetFromJsonAsync<PageView>($"api/jobs?q={factory.Apis.Tag}"))!.Items;
         Assert.Equal(3, list.Count);
         Assert.All(list, i => Assert.Equal("France Travail", i.SourceLabel));
+
+        // Aperçu de la console : la même liste que les membres
+        var preview = (await admin.GetFromJsonAsync<PageView>($"api/admin/jobs/preview?q={factory.Apis.Tag}"))!.Items;
+        Assert.Equal(list.Select(i => i.Id), preview.Select(i => i.Id));
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync($"api/admin/jobs/preview/{list[0].Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await (await AdminAsync("compta@beninconnect.test")).GetAsync("api/admin/jobs/preview")).StatusCode);
+
+        // Offres importées : le doublon ReliefWeb est visible côté console, avec son offre d'origine
+        var duplicate = Assert.Single((await admin.GetFromJsonAsync<AdminPage>($"api/admin/jobs/offers?view=Duplicates&q={factory.Apis.Tag}"))!.Items);
+        var detail = await admin.GetFromJsonAsync<JsonElement>($"api/admin/jobs/offers/{duplicate.Id}");
+        Assert.Equal($"Développeur {factory.Apis.Tag} 0", detail.GetProperty("duplicateOfTitle").GetString());
+        Assert.Equal(3, (await admin.GetFromJsonAsync<AdminPage>($"api/admin/jobs/offers?view=Visible&q={factory.Apis.Tag}"))!.TotalCount);
 
         var overview = await admin.GetFromJsonAsync<Overview>("api/admin/jobs");
         Assert.Contains(overview!.Sources, s => s.Source == "ReliefWeb" && s.IsEnabled && s.LastError is null);

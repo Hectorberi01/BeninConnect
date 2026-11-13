@@ -28,14 +28,24 @@ public sealed record JobReportDto(string Reason, DateTimeOffset CreatedAt, bool 
 public sealed record AdminJobOfferDto(
     Guid Id, string Title, string? CompanyName, string LocationLabel, string Country, JobSource Source, string SourceLabel, JobOfferStatus Status,
     HiddenReason HiddenReason, bool NeedsReview, string? AlertKeyword, int ReportCount, bool IsDuplicate, DateTimeOffset PublishedAt,
-    DateTimeOffset ImportedAt, string ApplyUrl, string Excerpt, IReadOnlyList<JobReportDto> Reports);
+    DateTimeOffset ImportedAt, string ApplyUrl, string Excerpt, IReadOnlyList<JobReportDto> Reports,
+    string ExternalId, string SearchKey, ContractType ContractType, string? ContractLabel, bool IsRemote, string? Department,
+    DateTimeOffset LastSeenAt, DateTimeOffset? ClosingAt, DateTimeOffset? ExpiredAt, int Favorites);
+
+/// <summary>Offre complète pour la console (description entière, offre d'origine si doublon).</summary>
+public sealed record AdminJobOfferDetailDto(
+    AdminJobOfferDto Offer, string Description, string? WorkingTime, string? SalaryLabel, string? SectorLabel, string? CompanyLogoUrl,
+    Guid? DuplicateOfId, string? DuplicateOfTitle, string? DuplicateOfSource);
 
 public enum AdminOfferView
 {
     Review,
     Hidden,
     Reported,
-    All
+    All,
+    Visible,
+    Expired,
+    Duplicates
 }
 
 public sealed record GetJobsAdminOverviewQuery : IQuery<JobsAdminOverviewDto>;
@@ -57,6 +67,15 @@ public sealed record UpdateJobSettingsCommand(IReadOnlyList<string> AlertKeyword
 public sealed record GetAdminJobOffersQuery(AdminOfferView View, string? Q, JobSource? Source, int Skip = 0, int Take = 25)
     : IQuery<PagedResult<AdminJobOfferDto>>;
 
+public sealed record GetAdminJobOfferQuery(Guid Id) : IQuery<AdminJobOfferDetailDto>;
+
+/// <summary>Aperçu de la console : exactement la liste et la fiche des membres (sans favoris).</summary>
+public sealed record PreviewJobsQuery(JobSearchQuery Search) : IQuery<JobPageDto>;
+
+public sealed record PreviewJobQuery(Guid Id) : IQuery<JobOfferDto>;
+
+public sealed record PreviewJobFiltersQuery : IQuery<JobFiltersDto>;
+
 public sealed record ShowJobOfferCommand(Guid Id) : ICommand<AdminJobOfferDto>;
 
 public sealed record HideJobOfferCommand(Guid Id) : ICommand<AdminJobOfferDto>;
@@ -70,6 +89,10 @@ public sealed class AdminJobHandlers(
     IRequestHandler<RunJobImportCommand, ImportReport>,
     IRequestHandler<UpdateJobSettingsCommand, JobsAdminOverviewDto>,
     IRequestHandler<GetAdminJobOffersQuery, PagedResult<AdminJobOfferDto>>,
+    IRequestHandler<GetAdminJobOfferQuery, AdminJobOfferDetailDto>,
+    IRequestHandler<PreviewJobsQuery, JobPageDto>,
+    IRequestHandler<PreviewJobQuery, JobOfferDto>,
+    IRequestHandler<PreviewJobFiltersQuery, JobFiltersDto>,
     IRequestHandler<ShowJobOfferCommand, AdminJobOfferDto>,
     IRequestHandler<HideJobOfferCommand, AdminJobOfferDto>
 {
@@ -169,6 +192,9 @@ public sealed class AdminJobHandlers(
             AdminOfferView.Review => query.Where(o => o.NeedsReview),
             AdminOfferView.Hidden => query.Where(o => o.Status == JobOfferStatus.Hidden),
             AdminOfferView.Reported => query.Where(o => o.ReportCount > 0),
+            AdminOfferView.Visible => query.Where(o => o.Status == JobOfferStatus.Active && o.DuplicateOfId == null),
+            AdminOfferView.Expired => query.Where(o => o.Status == JobOfferStatus.Expired),
+            AdminOfferView.Duplicates => query.Where(o => o.DuplicateOfId != null),
             _ => query
         };
         if (Text.Like(request.Q) is { } q)
@@ -186,6 +212,25 @@ public sealed class AdminJobHandlers(
         var page = await query.OrderByDescending(o => o.ImportedAt).ThenByDescending(o => o.Number).Skip(skip).Take(take).ToListAsync(ct);
         return new PagedResult<AdminJobOfferDto>(await DescribeAsync(page, ct), total, skip);
     }
+
+    public async Task<AdminJobOfferDetailDto> Handle(GetAdminJobOfferQuery request, CancellationToken ct)
+    {
+        var offer = await db.Offers.AsNoTracking().FirstOrDefaultAsync(o => o.Id == request.Id, ct) ?? throw new NotFoundException("Offre");
+        var original = offer.DuplicateOfId is { } id ? await db.Offers.AsNoTracking().FirstOrDefaultAsync(o => o.Id == id, ct) : null;
+        return new AdminJobOfferDetailDto((await DescribeAsync([offer], ct))[0], offer.Description, offer.WorkingTime, offer.SalaryLabel,
+            offer.SectorLabel, offer.CompanyLogoUrl, offer.DuplicateOfId, original?.Title, original?.SourceLabel);
+    }
+
+    public async Task<JobPageDto> Handle(PreviewJobsQuery request, CancellationToken ct)
+    {
+        var (items, next) = await JobQueries.SearchAsync(JobQueries.Visible(db.Offers), request.Search, ct);
+        return new JobPageDto(items.Select(o => MemberJobHandlers.Summary(o, false)).ToList(), next);
+    }
+
+    public async Task<JobOfferDto> Handle(PreviewJobQuery request, CancellationToken ct) =>
+        JobQueries.Detail(await JobQueries.FindReadableAsync(db.Offers, request.Id, ct), false, false);
+
+    public Task<JobFiltersDto> Handle(PreviewJobFiltersQuery request, CancellationToken ct) => JobQueries.FiltersAsync(JobQueries.Visible(db.Offers), ct);
 
     public Task<AdminJobOfferDto> Handle(ShowJobOfferCommand request, CancellationToken ct) =>
         DecideAsync(request.Id, o => o.Show(clock.GetUtcNow()), "Offre d'emploi réaffichée", ct);
@@ -212,10 +257,14 @@ public sealed class AdminJobHandlers(
         var ids = offers.Select(o => o.Id).ToList();
         var reports = (await db.Reports.AsNoTracking().Where(r => ids.Contains(r.OfferId)).OrderByDescending(r => r.CreatedAt).ToListAsync(ct))
             .ToLookup(r => r.OfferId);
+        var favorites = await db.Favorites.AsNoTracking().Where(f => ids.Contains(f.OfferId)).GroupBy(f => f.OfferId)
+            .Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
         return offers.Select(o => new AdminJobOfferDto(
             o.Id, o.Title, o.CompanyName, o.LocationLabel, o.Country, o.Source, o.SourceLabel, o.Status, o.HiddenReason, o.NeedsReview,
             o.AlertKeyword, o.ReportCount, o.DuplicateOfId is not null, o.PublishedAt, o.ImportedAt, o.ApplyUrl, Text.Excerpt(o.Description, 400),
-            reports[o.Id].Take(20).Select(r => new JobReportDto(r.Reason, r.CreatedAt, r.Handled)).ToList())).ToList();
+            reports[o.Id].Take(20).Select(r => new JobReportDto(r.Reason, r.CreatedAt, r.Handled)).ToList(),
+            o.ExternalId, o.SearchKey, o.ContractType, o.ContractLabel, o.IsRemote, o.Department, o.LastSeenAt, o.ClosingAt, o.ExpiredAt,
+            favorites.GetValueOrDefault(o.Id))).ToList();
     }
 
     private async Task<JobSourceConfig> ConfigAsync(JobSource source, CancellationToken ct)

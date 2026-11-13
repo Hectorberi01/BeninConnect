@@ -87,6 +87,17 @@ public sealed class JobsModule : IModule
             s.Send(new UpdateJobSettingsCommand(r.AlertKeywords ?? [], r.ReportThreshold), ct)).RequirePermission(Permission.JobsManage);
         admin.MapGet("/offers", (AdminOfferView? view, string? q, JobSource? source, int? skip, int? take, ISender s, CancellationToken ct) =>
             s.Send(new GetAdminJobOffersQuery(view ?? AdminOfferView.Review, q, source, skip ?? 0, take ?? 25), ct)).RequirePermission(Permission.JobsManage);
+        admin.MapGet("/offers/{id:guid}", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetAdminJobOfferQuery(id), ct))
+            .RequirePermission(Permission.JobsManage);
+
+        // Aperçu « côté membre » : mêmes règles que /api/jobs
+        admin.MapGet("/preview", (string? q, string? country, string? department, ContractType? contract, bool? remote, JobSource? source,
+                string? cursor, int? take, ISender s, CancellationToken ct) =>
+            s.Send(new PreviewJobsQuery(new JobSearchQuery(q, country, department, contract, remote, source, cursor, take ?? 20)), ct))
+            .RequirePermission(Permission.JobsManage);
+        admin.MapGet("/preview/filters", (ISender s, CancellationToken ct) => s.Send(new PreviewJobFiltersQuery(), ct)).RequirePermission(Permission.JobsManage);
+        admin.MapGet("/preview/{id:guid}", (Guid id, ISender s, CancellationToken ct) => s.Send(new PreviewJobQuery(id), ct))
+            .RequirePermission(Permission.JobsManage);
         admin.MapPost("/offers/{id:guid}/show", (Guid id, ISender s, CancellationToken ct) => s.Send(new ShowJobOfferCommand(id), ct))
             .RequirePermission(Permission.JobsManage);
         admin.MapPost("/offers/{id:guid}/hide", (Guid id, ISender s, CancellationToken ct) => s.Send(new HideJobOfferCommand(id), ct))

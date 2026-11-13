@@ -79,86 +79,24 @@ public sealed class MemberJobHandlers(IJobsDb db, ICurrentUser me, TimeProvider 
     IRequestHandler<SetJobFavoriteCommand, FavoriteDto>,
     IRequestHandler<ReportJobOfferCommand, CountDto>
 {
-    private IQueryable<JobOffer> Visible => db.Offers.AsNoTracking().Where(o => o.Status == JobOfferStatus.Active && o.DuplicateOfId == null);
+    private IQueryable<JobOffer> Visible => JobQueries.Visible(db.Offers);
 
     public async Task<JobPageDto> Handle(JobSearchQuery r, CancellationToken ct)
     {
-        var take = Math.Clamp(r.Take, 1, 50);
-        var query = Visible;
-        if (Text.Like(r.Q) is { } q)
-        {
-            var pattern = $"%{q.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_")}%";
-            query = query.Where(o => EF.Functions.ILike(o.Title, pattern, "\\") || EF.Functions.ILike(o.CompanyName ?? "", pattern, "\\"));
-        }
-
-        if (!string.IsNullOrWhiteSpace(r.Country))
-        {
-            var country = r.Country.Trim().ToUpperInvariant();
-            query = query.Where(o => o.Country == country);
-        }
-
-        if (!string.IsNullOrWhiteSpace(r.Department))
-        {
-            var department = r.Department.Trim().ToUpperInvariant();
-            query = query.Where(o => o.Department == department);
-        }
-
-        if (r.Contract is { } contract)
-        {
-            query = query.Where(o => o.ContractType == contract);
-        }
-
-        if (r.Remote == true)
-        {
-            query = query.Where(o => o.IsRemote);
-        }
-
-        if (r.Source is { } source)
-        {
-            query = query.Where(o => o.Source == source);
-        }
-
-        if (JobCursor.Decode(r.Cursor) is { } cursor)
-        {
-            var (after, number) = cursor;
-            query = query.Where(o => o.PublishedAt < after || (o.PublishedAt == after && o.Number < number));
-        }
-
-        var page = await query.OrderByDescending(o => o.PublishedAt).ThenByDescending(o => o.Number).Take(take + 1).ToListAsync(ct);
-        var items = page.Take(take).ToList();
+        var (items, next) = await JobQueries.SearchAsync(Visible, r, ct);
         var favorites = await FavoritesAsync(items.Select(o => o.Id), ct);
-        var next = page.Count > take ? JobCursor.Encode(items[^1].PublishedAt, items[^1].Number) : null;
         return new JobPageDto(items.Select(o => Summary(o, favorites.Contains(o.Id))).ToList(), next);
     }
 
     public async Task<JobOfferDto> Handle(GetJobOfferQuery r, CancellationToken ct)
     {
-        // Offre expirée : encore lisible (favoris) ; masquée ou doublon : introuvable
-        var offer = await db.Offers.AsNoTracking()
-                        .FirstOrDefaultAsync(o => o.Id == r.Id && o.Status != JobOfferStatus.Hidden && o.DuplicateOfId == null, ct)
-                    ?? throw new NotFoundException("Offre");
+        var offer = await JobQueries.FindReadableAsync(db.Offers, r.Id, ct);
         var favorite = await db.Favorites.AnyAsync(f => f.UserId == me.Id && f.OfferId == offer.Id, ct);
         var reported = await db.Reports.AnyAsync(x => x.UserId == me.Id && x.OfferId == offer.Id, ct);
-        return new JobOfferDto(offer.Id, offer.Title, offer.Description, offer.CompanyName, offer.CompanyLogoUrl, offer.LocationLabel, offer.Country,
-            offer.Department, offer.PostalCode, offer.Latitude, offer.Longitude, offer.ContractType, offer.ContractLabel, offer.IsRemote,
-            offer.WorkingTime, offer.SalaryLabel, offer.SectorLabel, offer.ApplyUrl, offer.Source, offer.SourceLabel, offer.PublishedAt,
-            offer.ClosingAt, offer.Status, favorite, reported);
+        return JobQueries.Detail(offer, favorite, reported);
     }
 
-    public async Task<JobFiltersDto> Handle(GetJobFiltersQuery r, CancellationToken ct)
-    {
-        var total = await Visible.CountAsync(ct);
-        var remote = await Visible.CountAsync(o => o.IsRemote, ct);
-        var countries = await Visible.Where(o => o.Country != "").GroupBy(o => o.Country)
-            .Select(g => new LabelCount(g.Key, g.Count())).OrderByDescending(x => x.Count).ToListAsync(ct);
-        var departments = await Visible.Where(o => o.Country == "FR" && o.Department != null).GroupBy(o => o.Department!)
-            .Select(g => new LabelCount(g.Key, g.Count())).OrderBy(x => x.Label).ToListAsync(ct);
-        var contracts = await Visible.GroupBy(o => o.ContractType).Select(g => new { g.Key, Count = g.Count() }).ToListAsync(ct);
-        var sources = await Visible.GroupBy(o => o.Source).Select(g => new { g.Key, Count = g.Count() }).ToListAsync(ct);
-        return new JobFiltersDto(total, remote, countries, departments,
-            contracts.OrderBy(c => c.Key).Select(c => new LabelCount(c.Key.ToString(), c.Count)).ToList(),
-            sources.OrderBy(s => s.Key).Select(s => new LabelCount(s.Key.ToString(), s.Count)).ToList());
-    }
+    public Task<JobFiltersDto> Handle(GetJobFiltersQuery r, CancellationToken ct) => JobQueries.FiltersAsync(Visible, ct);
 
     public async Task<IReadOnlyList<JobOfferSummaryDto>> Handle(GetFavoriteJobsQuery r, CancellationToken ct)
     {
@@ -216,6 +154,90 @@ public sealed class MemberJobHandlers(IJobsDb db, ICurrentUser me, TimeProvider 
     internal static JobOfferSummaryDto Summary(JobOffer o, bool favorite) =>
         new(o.Id, o.Title, o.CompanyName, o.CompanyLogoUrl, o.LocationLabel, o.Country, o.Department, o.ContractType, o.ContractLabel, o.IsRemote,
             o.PublishedAt, o.Source, o.SourceLabel, o.Status, favorite);
+}
+
+/// <summary>Lecture commune aux membres et à l'aperçu de la console : mêmes règles d'affichage.</summary>
+public static class JobQueries
+{
+    /// <summary>Ce que voient les membres : actives, non masquées, hors doublons.</summary>
+    public static IQueryable<JobOffer> Visible(IQueryable<JobOffer> offers) =>
+        offers.AsNoTracking().Where(o => o.Status == JobOfferStatus.Active && o.DuplicateOfId == null);
+
+    public static async Task<(List<JobOffer> Items, string? Next)> SearchAsync(IQueryable<JobOffer> visible, JobSearchQuery r, CancellationToken ct)
+    {
+        var take = Math.Clamp(r.Take, 1, 50);
+        var query = visible;
+        if (Text.Like(r.Q) is { } q)
+        {
+            var pattern = $"%{q.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_")}%";
+            query = query.Where(o => EF.Functions.ILike(o.Title, pattern, "\\") || EF.Functions.ILike(o.CompanyName ?? "", pattern, "\\"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(r.Country))
+        {
+            var country = r.Country.Trim().ToUpperInvariant();
+            query = query.Where(o => o.Country == country);
+        }
+
+        if (!string.IsNullOrWhiteSpace(r.Department))
+        {
+            var department = r.Department.Trim().ToUpperInvariant();
+            query = query.Where(o => o.Department == department);
+        }
+
+        if (r.Contract is { } contract)
+        {
+            query = query.Where(o => o.ContractType == contract);
+        }
+
+        if (r.Remote == true)
+        {
+            query = query.Where(o => o.IsRemote);
+        }
+
+        if (r.Source is { } source)
+        {
+            query = query.Where(o => o.Source == source);
+        }
+
+        if (JobCursor.Decode(r.Cursor) is { } cursor)
+        {
+            var (after, number) = cursor;
+            query = query.Where(o => o.PublishedAt < after || (o.PublishedAt == after && o.Number < number));
+        }
+
+        var page = await query.OrderByDescending(o => o.PublishedAt).ThenByDescending(o => o.Number).Take(take + 1).ToListAsync(ct);
+        var items = page.Take(take).ToList();
+        return (items, page.Count > take ? JobCursor.Encode(items[^1].PublishedAt, items[^1].Number) : null);
+    }
+
+    /// <summary>Offre expirée : encore lisible (favoris) ; masquée ou doublon : introuvable.</summary>
+    public static async Task<JobOffer> FindReadableAsync(IQueryable<JobOffer> offers, Guid id, CancellationToken ct) =>
+        await offers.AsNoTracking().FirstOrDefaultAsync(o => o.Id == id && o.Status != JobOfferStatus.Hidden && o.DuplicateOfId == null, ct)
+        ?? throw new NotFoundException("Offre");
+
+    public static async Task<JobFiltersDto> FiltersAsync(IQueryable<JobOffer> visible, CancellationToken ct)
+    {
+        var total = await visible.CountAsync(ct);
+        var remote = await visible.CountAsync(o => o.IsRemote, ct);
+        // Regroupement en base, tri en mémoire (EF ne trie pas sur un record projeté)
+        var countries = (await visible.Where(o => o.Country != "").GroupBy(o => o.Country)
+                .Select(g => new { g.Key, Count = g.Count() }).ToListAsync(ct))
+            .OrderByDescending(x => x.Count).Select(x => new LabelCount(x.Key, x.Count)).ToList();
+        var departments = (await visible.Where(o => o.Country == "FR" && o.Department != null).GroupBy(o => o.Department!)
+                .Select(g => new { g.Key, Count = g.Count() }).ToListAsync(ct))
+            .OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => new LabelCount(x.Key, x.Count)).ToList();
+        var contracts = await visible.GroupBy(o => o.ContractType).Select(g => new { g.Key, Count = g.Count() }).ToListAsync(ct);
+        var sources = await visible.GroupBy(o => o.Source).Select(g => new { g.Key, Count = g.Count() }).ToListAsync(ct);
+        return new JobFiltersDto(total, remote, countries, departments,
+            contracts.OrderBy(c => c.Key).Select(c => new LabelCount(c.Key.ToString(), c.Count)).ToList(),
+            sources.OrderBy(s => s.Key).Select(s => new LabelCount(s.Key.ToString(), s.Count)).ToList());
+    }
+
+    public static JobOfferDto Detail(JobOffer o, bool favorite, bool reported) =>
+        new(o.Id, o.Title, o.Description, o.CompanyName, o.CompanyLogoUrl, o.LocationLabel, o.Country, o.Department, o.PostalCode, o.Latitude,
+            o.Longitude, o.ContractType, o.ContractLabel, o.IsRemote, o.WorkingTime, o.SalaryLabel, o.SectorLabel, o.ApplyUrl, o.Source, o.SourceLabel,
+            o.PublishedAt, o.ClosingAt, o.Status, favorite, reported);
 }
 
 /// <summary>Compte supprimé : favoris et signalements retirés.</summary>

@@ -340,7 +340,8 @@ export type JobSource = 'FranceTravail' | 'ReliefWeb' | 'Adzuna' | 'Remotive'
 export type SecretState = 'None' | 'Console' | 'Environment' | 'Unreadable'
 export type JobOfferStatus = 'Active' | 'Expired' | 'Hidden'
 export type HiddenReason = 'None' | 'AlertKeyword' | 'Reports' | 'Admin'
-export type AdminOfferView = 'Review' | 'Hidden' | 'Reported' | 'All'
+export type AdminOfferView = 'Review' | 'Hidden' | 'Reported' | 'All' | 'Visible' | 'Expired' | 'Duplicates'
+export type JobContract = 'Cdi' | 'Cdd' | 'Interim' | 'Stage' | 'Alternance' | 'Freelance' | 'Autre'
 
 export interface JobSearch {
   key: string
@@ -414,4 +415,62 @@ export interface AdminJobOffer {
   applyUrl: string
   excerpt: string
   reports: { reason: string; createdAt: string; handled: boolean }[]
+  externalId: string
+  searchKey: string
+  contractType: JobContract
+  contractLabel: string | null
+  isRemote: boolean
+  department: string | null
+  lastSeenAt: string
+  closingAt: string | null
+  expiredAt: string | null
+  favorites: number
+}
+
+export interface AdminJobOfferDetail {
+  offer: AdminJobOffer
+  description: string
+  workingTime: string | null
+  salaryLabel: string | null
+  sectorLabel: string | null
+  companyLogoUrl: string | null
+  duplicateOfId: string | null
+  duplicateOfTitle: string | null
+  duplicateOfSource: string | null
+}
+
+/** Offre telle que la reçoit l'application (aperçu membres). */
+export interface MemberJobSummary {
+  id: string
+  title: string
+  companyName: string | null
+  companyLogoUrl: string | null
+  locationLabel: string
+  country: string
+  department: string | null
+  contractType: JobContract
+  contractLabel: string | null
+  isRemote: boolean
+  publishedAt: string
+  source: JobSource
+  sourceLabel: string
+  status: JobOfferStatus
+}
+
+export interface MemberJob extends MemberJobSummary {
+  description: string
+  workingTime: string | null
+  salaryLabel: string | null
+  sectorLabel: string | null
+  applyUrl: string
+  closingAt: string | null
+}
+
+export interface JobFilters {
+  total: number
+  remote: number
+  countries: LabelCount[]
+  departments: LabelCount[]
+  contracts: LabelCount[]
+  sources: LabelCount[]
 }

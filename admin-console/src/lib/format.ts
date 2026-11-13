@@ -32,3 +32,18 @@ export function fmtRelative(iso: string, now = new Date()) {
 }
 
 export const initials = (first: string, last: string) => `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase()
+
+export const CONTRACT_LABELS: Record<string, string> = {
+  Cdi: 'CDI', Cdd: 'CDD', Interim: 'Intérim', Stage: 'Stage', Alternance: 'Alternance', Freelance: 'Freelance', Autre: 'Autre',
+}
+
+const COUNTRY_NAMES: Record<string, string> = {
+  FR: 'France', BJ: 'Bénin', TG: 'Togo', NG: 'Nigeria', NE: 'Niger', BF: 'Burkina Faso', GH: 'Ghana', CI: "Côte d'Ivoire", SN: 'Sénégal',
+  ML: 'Mali', GN: 'Guinée', CM: 'Cameroun', BE: 'Belgique', CH: 'Suisse', CA: 'Canada', US: 'États-Unis', GB: 'Royaume-Uni',
+}
+
+export const countryName = (code: string) => COUNTRY_NAMES[code] ?? (code || 'Sans pays')
+
+/** Libellé de contrat affiché dans l'application (même règle que le mobile). */
+export const contractText = (j: { contractType: string; contractLabel: string | null }) =>
+  j.contractType === 'Autre' && j.contractLabel && j.contractLabel.length <= 24 ? j.contractLabel : CONTRACT_LABELS[j.contractType] ?? j.contractType
