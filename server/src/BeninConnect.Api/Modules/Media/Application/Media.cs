@@ -66,6 +66,37 @@ public static class ImageUpload
     }
 }
 
+/// <summary>Photo sans métadonnées : contrôle du format réel, retrait EXIF / XMP, puis enregistrement.</summary>
+public static class CleanImageUpload
+{
+    public static async Task<string> SaveAsync(IMediaStorage storage, Stream content, long length, long maxBytes, CancellationToken ct)
+    {
+        if (length == 0)
+        {
+            throw new DomainException("Aucune image reçue.");
+        }
+
+        if (length > maxBytes)
+        {
+            throw new DomainException($"L'image ne doit pas dépasser {maxBytes / (1024 * 1024)} Mo.");
+        }
+
+        using var buffer = new MemoryStream((int)length);
+        await content.CopyToAsync(buffer, ct);
+        var data = buffer.ToArray();
+        var extension = ImageFile.DetectExtension(data.AsSpan(0, Math.Min(12, data.Length)));
+        if (extension is not ("jpg" or "png" or "webp"))
+        {
+            throw new DomainException("Format non pris en charge : utilisez une photo JPEG, PNG ou WebP.");
+        }
+
+        var clean = ImageMetadata.Strip(data, extension);
+        var name = ImageFile.NewName(extension);
+        await storage.SaveAsync(name, new MemoryStream(clean), ImageFile.ContentType(name), ct);
+        return ImageFile.PathPrefix + name;
+    }
+}
+
 /// <summary>Efface les photos envoyées par les membres (uploads/...) ; les images du jeu de démonstration sont ignorées.</summary>
 public sealed class DeleteReleasedImages(IMediaStorage storage) : IIntegrationEventHandler<ImagesReleased>
 {

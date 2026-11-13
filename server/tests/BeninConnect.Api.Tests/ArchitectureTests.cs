@@ -40,7 +40,7 @@ public sealed partial class ArchitectureTests
     [Fact]
     public void Every_module_has_the_five_layers()
     {
-        Assert.Equal(11, Modules.Count());
+        Assert.Equal(12, Modules.Count());
         var missing = Modules.SelectMany(m => Layers.Where(l => !Directory.Exists(Path.Combine(ApiRoot, "Modules", m, l))).Select(l => $"{m}/{l}"));
         Assert.Empty(missing);
     }

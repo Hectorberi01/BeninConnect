@@ -30,7 +30,7 @@ public sealed class ProductionTests(ApiFactory factory)
     {
         using var scope = factory.Services.CreateScope();
         var modules = scope.ServiceProvider.GetServices<ModuleDatabase>().ToList();
-        Assert.Equal(10, modules.Count);
+        Assert.Equal(11, modules.Count);
         foreach (var module in modules)
         {
             var db = (DbContext)scope.ServiceProvider.GetRequiredService(module.ContextType);

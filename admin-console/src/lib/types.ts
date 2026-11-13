@@ -5,7 +5,7 @@ export type AdminRole = 'SuperAdmin' | 'Admin' | 'Moderator' | 'Accountant' | 'D
 export type Permission =
   | 'DashboardView' | 'MembersView' | 'MembersSuspend' | 'ContentModerate' | 'ReportsManage' | 'CommunitiesManage'
   | 'EventsManage' | 'ExportsDownload' | 'AdminsManage' | 'AuditView' | 'SystemView' | 'SystemReset' | 'BackupsManage'
-  | 'EditorialManage' | 'JobsManage'
+  | 'EditorialManage' | 'JobsManage' | 'ServicesManage'
 
 export interface AdminMe {
   id: string
@@ -473,4 +473,184 @@ export interface JobFilters {
   departments: LabelCount[]
   contracts: LabelCount[]
   sources: LabelCount[]
+}
+
+// --- Services entre membres ---
+
+export type ProviderStatus = 'Draft' | 'PendingReview' | 'Active' | 'Suspended'
+export type VerificationLevel = 'None' | 'Identity' | 'Pro'
+export type LegalStatus = 'Individual' | 'MicroEntrepreneur' | 'Company'
+export type ServiceHiddenReason = 'None' | 'AlertKeyword' | 'Reports' | 'Admin'
+export type PriceType = 'Fixed' | 'From' | 'Hourly' | 'Quote'
+export type DocumentStatus = 'Pending' | 'Approved' | 'Rejected'
+export type DocumentKind = 'Identity' | 'Qualification' | 'Registration'
+export type ServiceReportTarget = 'Profile' | 'Offering' | 'Review'
+export type ProviderView = 'Review' | 'Pending' | 'Active' | 'Hidden' | 'Suspended' | 'Draft' | 'All'
+export type ModerationView = 'Review' | 'Hidden' | 'All'
+
+export interface ServiceCategory {
+  id: string
+  slug: string
+  name: string
+  icon: string
+  parentId: string | null
+  sortOrder: number
+  isActive: boolean
+  requiresQualification: boolean
+  activeProviders: number
+  children: ServiceCategory[]
+}
+
+export interface ServiceOffering {
+  id: string
+  categoryId: string
+  categoryName: string
+  requiresQualification: boolean
+  title: string
+  description: string
+  priceType: PriceType
+  priceAmount: number | null
+  currency: string
+  durationMinutes: number | null
+  images: string[]
+  isActive: boolean
+  hiddenReason: ServiceHiddenReason
+  alertKeyword: string | null
+}
+
+export interface ServiceDocument {
+  id: string
+  kind: DocumentKind
+  originalName: string
+  contentType: string
+  size: number
+  status: DocumentStatus
+  reviewNote: string | null
+  uploadedAt: string
+  reviewedAt: string | null
+}
+
+export interface ServicesSettings {
+  alertKeywords: string[]
+  reportThreshold: number
+  dailyRequestLimit: number
+}
+
+export interface ServicesOverview {
+  pendingProfiles: number
+  offeringsToReview: number
+  reviewsToReview: number
+  openReports: number
+  pendingDocuments: number
+  hiddenProfiles: number
+  activeProviders: number
+  totalProviders: number
+  requestsLast7Days: number
+  completedLast30Days: number
+  reviews: number
+  averageRating: number
+  settings: ServicesSettings
+}
+
+export interface ServicesStats {
+  byCategory: { id: string; name: string; icon: string; parentName: string | null; providers: number }[]
+  byCity: { city: string; country: string; providers: number }[]
+  requestsByWeek: { weekStart: string; requests: number; accepted: number; completed: number }[]
+}
+
+export interface AdminProvider {
+  id: string
+  userId: string
+  memberName: string
+  displayName: string
+  photoPath: string | null
+  city: string
+  country: string
+  status: ProviderStatus
+  hiddenReason: ServiceHiddenReason
+  alertKeyword: string | null
+  reportCount: number
+  verificationLevel: VerificationLevel
+  legalStatus: LegalStatus
+  offerings: number
+  ratingAverage: number
+  ratingCount: number
+  submittedAt: string | null
+  approvedAt: string | null
+  createdAt: string
+  pendingDocuments: number
+}
+
+export interface AdminServiceReport {
+  id: string
+  targetType: ServiceReportTarget
+  targetId: string
+  targetLabel: string
+  providerId: string | null
+  authorName: string
+  reason: string
+  createdAt: string
+  handled: boolean
+  decision: string | null
+}
+
+export interface AdminProviderDetail {
+  provider: AdminProvider
+  bio: string | null
+  phone: string | null
+  phoneIsPublic: boolean
+  contactPreference: 'InApp' | 'Phone' | 'WhatsApp'
+  siret: string | null
+  ifu: string | null
+  postalCode: string | null
+  latitude: number
+  longitude: number
+  serviceRadiusKm: number
+  servesAtHome: boolean
+  hasPremises: boolean
+  qualificationDeclared: boolean
+  hasRegulatedServices: boolean
+  reviewNote: string | null
+  responseRate: number
+  requestsReceived: number
+  requestsCompleted: number
+  offerings: ServiceOffering[]
+  documents: ServiceDocument[]
+  reports: AdminServiceReport[]
+}
+
+export interface AdminServiceOffering {
+  offering: ServiceOffering
+  providerId: string
+  providerName: string
+  providerStatus: ProviderStatus
+  moderationNote: string | null
+  reportCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AdminServiceReview {
+  id: string
+  providerId: string
+  providerName: string
+  authorName: string
+  rating: number
+  comment: string | null
+  createdAt: string
+  status: 'Published' | 'Hidden'
+  hiddenReason: ServiceHiddenReason
+  moderationNote: string | null
+  reportCount: number
+  providerReply: string | null
+}
+
+export interface AdminServiceDocument {
+  document: ServiceDocument
+  providerId: string
+  providerName: string
+  legalStatus: LegalStatus
+  siret: string | null
+  ifu: string | null
+  verificationLevel: VerificationLevel
 }

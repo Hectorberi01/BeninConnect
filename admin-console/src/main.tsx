@@ -20,6 +20,10 @@ const EventsPage = lazy(() => import('@/pages/Events').then((m) => ({ default: m
 const EditorialPage = lazy(() => import('@/pages/Editorial').then((m) => ({ default: m.EditorialPage })))
 const JobsPage = lazy(() => import('@/pages/Jobs').then((m) => ({ default: m.JobsPage })))
 const JobOffersPage = lazy(() => import('@/pages/JobOffers').then((m) => ({ default: m.JobOffersPage })))
+const ServicesDashboardPage = lazy(() => import('@/pages/services/ServicesDashboard').then((m) => ({ default: m.ServicesDashboardPage })))
+const ServicesModerationPage = lazy(() => import('@/pages/services/ServicesModeration').then((m) => ({ default: m.ServicesModerationPage })))
+const ServiceProvidersPage = lazy(() => import('@/pages/services/ServiceProviders').then((m) => ({ default: m.ServiceProvidersPage })))
+const ServiceCategoriesPage = lazy(() => import('@/pages/services/ServiceCategories').then((m) => ({ default: m.ServiceCategoriesPage })))
 const JobsPreviewPage = lazy(() => import('@/pages/JobsPreview').then((m) => ({ default: m.JobsPreviewPage })))
 const ExportsPage = lazy(() => import('@/pages/Exports').then((m) => ({ default: m.ExportsPage })))
 const ForbiddenPage = lazy(() => import('@/pages/Errors').then((m) => ({ default: m.ForbiddenPage })))
@@ -53,6 +57,10 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="editorial" element={<Guard permission="EditorialManage"><EditorialPage /></Guard>} />
                 <Route path="jobs" element={<Guard permission="JobsManage"><JobsPage /></Guard>} />
                 <Route path="jobs/offers" element={<Guard permission="JobsManage"><JobOffersPage /></Guard>} />
+                <Route path="services" element={<Guard permission="ServicesManage"><ServicesDashboardPage /></Guard>} />
+                <Route path="services/moderation" element={<Guard permission="ServicesManage"><ServicesModerationPage /></Guard>} />
+                <Route path="services/providers" element={<Guard permission="ServicesManage"><ServiceProvidersPage /></Guard>} />
+                <Route path="services/categories" element={<Guard permission="ServicesManage"><ServiceCategoriesPage /></Guard>} />
                 <Route path="jobs/preview" element={<Guard permission="JobsManage"><JobsPreviewPage /></Guard>} />
                 <Route path="exports" element={<Guard permission="ExportsDownload"><ExportsPage /></Guard>} />
                 <Route path="admins" element={<Guard permission="AdminsManage"><AdminsPage /></Guard>} />

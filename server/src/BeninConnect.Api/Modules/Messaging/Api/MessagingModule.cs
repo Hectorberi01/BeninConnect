@@ -26,6 +26,7 @@ public sealed class MessagingModule : IModule
         services.AddModuleDbContext<MessagingDbContext>(builder.Configuration, Name, MessagingDbContext.SchemaName);
         services.AddScoped<IMessagingDb>(sp => sp.GetRequiredService<MessagingDbContext>());
         services.AddModuleHandlers("BeninConnect.Modules.Messaging");
+        services.AddScoped<DirectMessages>();
         services.AddScoped<MessagingModuleService>();
         services.AddScoped<IMessagingModule>(sp => sp.GetRequiredService<MessagingModuleService>());
         services.AddScoped<IModuleStatistics>(sp => sp.GetRequiredService<MessagingModuleService>());

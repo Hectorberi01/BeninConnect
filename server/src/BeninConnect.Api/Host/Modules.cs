@@ -9,6 +9,7 @@ using BeninConnect.Modules.Media.Api;
 using BeninConnect.Modules.Messaging.Api;
 using BeninConnect.Modules.Moderation.Api;
 using BeninConnect.Modules.Notifications.Api;
+using BeninConnect.Modules.Services.Api;
 using BeninConnect.Shared.Api;
 
 namespace BeninConnect.Host;
@@ -28,6 +29,7 @@ public static class ModuleCatalog
         new AdministrationModule(),
         new MediaModule(),
         new EditorialModule(),
-        new JobsModule()
+        new JobsModule(),
+        new ServicesModule()
     ];
 }

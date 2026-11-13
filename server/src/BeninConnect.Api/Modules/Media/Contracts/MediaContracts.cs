@@ -29,6 +29,11 @@ public interface IMediaModule
     /// </summary>
     Task<string> SaveImageAsync(Stream content, long length, CancellationToken ct);
 
+    /// <summary>
+    /// Photo publique sans métadonnées (EXIF, localisation) : JPEG, PNG ou WebP, maxBytes au plus. Renvoie le chemin (uploads/…).
+    /// </summary>
+    Task<string> SaveCleanImageAsync(Stream content, long length, long maxBytes, CancellationToken ct);
+
     /// <summary>URL publique directe d'une photo (domaine du bucket) ; null si les fichiers passent par l'API.</summary>
     string? PublicUrl(string path);
 }

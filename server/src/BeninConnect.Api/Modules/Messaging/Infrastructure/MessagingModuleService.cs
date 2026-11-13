@@ -1,3 +1,4 @@
+using BeninConnect.Modules.Messaging.Application;
 using BeninConnect.Modules.Messaging.Contracts;
 using BeninConnect.Modules.Messaging.Infrastructure.Persistence;
 using BeninConnect.Shared.Application;
@@ -5,8 +6,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BeninConnect.Modules.Messaging.Infrastructure;
 
-public sealed class MessagingModuleService(MessagingDbContext db) : IMessagingModule, IModuleStatistics
+public sealed class MessagingModuleService(MessagingDbContext db, DirectMessages direct) : IMessagingModule, IModuleStatistics
 {
+    public Task<Guid> SendDirectAsync(Guid senderId, Guid recipientId, string content, bool notifyRecipient, CancellationToken ct) =>
+        direct.SendAsync(senderId, recipientId, content, notifyRecipient, ct);
+
     public Task<int> CountMessagesAsync(CancellationToken ct) => db.Messages.CountAsync(ct);
 
     public async Task<MemberMessagingStats> GetMemberStatsAsync(Guid userId, CancellationToken ct)

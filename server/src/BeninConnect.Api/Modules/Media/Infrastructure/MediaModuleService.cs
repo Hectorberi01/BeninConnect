@@ -11,6 +11,9 @@ public sealed class MediaModuleService(IMediaStorage storage, AttachmentStore at
         return new MediaUsage(files, bytes);
     }
 
+    public Task<string> SaveCleanImageAsync(Stream content, long length, long maxBytes, CancellationToken ct) =>
+        CleanImageUpload.SaveAsync(storage, content, length, maxBytes, ct);
+
     public Task<string> SaveImageAsync(Stream content, long length, CancellationToken ct) =>
         ImageUpload.SaveAsync(storage, content, length, ct);
 

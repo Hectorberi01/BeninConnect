@@ -49,6 +49,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Backups:Directory", BackupDirectory);
         builder.UseSetting("Jobs:WorkerEnabled", "false"); // imports lancés par les tests seulement
         builder.UseSetting("Jobs:RequestDelayMs", "0");
+        builder.UseSetting("Services:WorkerEnabled", "false");
         Configure(builder);
     }
 
