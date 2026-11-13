@@ -71,6 +71,8 @@ services:
       Review__Emails__0: ${REVIEW_EMAIL_1:-}
       Review__Emails__1: ${REVIEW_EMAIL_2:-}
       Review__ApiUrl: ${REVIEW_API_URL:-}
+      # App mobile : les versions plus anciennes affichent « Mettez à jour » (vide = aucune)
+      MobileApp__MinimumVersion: ${MOBILE_MIN_VERSION:-}
       # Compte officiel (Modules/Editorial) : collecte RSS, brouillons rédigés par Claude, publication après validation dans la console
       Editorial__Enabled: ${EDITORIAL_ENABLED:-false}
       Editorial__OfficialEmail: ${EDITORIAL_OFFICIAL_EMAIL:-officiel@monbenin.com}

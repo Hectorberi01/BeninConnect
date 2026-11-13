@@ -2,7 +2,15 @@
   "expo": {
     "name": "BeninConnect",
     "slug": "beninconnect",
-    "version": "1.1.0",
+    "version": "1.1.1",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/4a0ba136-2301-495e-abac-0be7e5ef4584",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",

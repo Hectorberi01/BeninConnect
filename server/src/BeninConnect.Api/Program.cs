@@ -98,6 +98,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapHealthChecks("/health");
 app.MapAppLinks(); // /.well-known : ouverture des liens monbenin.com dans l'application
+app.MapMobileApp(); // version minimale de l'app mobile
 app.MapGet("/", () => Results.Ok(new { name = "BéninConnect API", version = AppVersion.Current, docs = "/openapi/v1.json" })).ExcludeFromDescription();
 
 foreach (var module in ModuleCatalog.All)
