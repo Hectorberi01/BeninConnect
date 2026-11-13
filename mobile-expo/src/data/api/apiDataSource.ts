@@ -2,7 +2,7 @@ import { DEV_TOOLS, PRODUCTION_API_URL } from '@/core/config';
 import type { DataSource } from '../repositories';
 import type {
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
-  CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, MembershipStatus, Message, NotificationCategory,
+  CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, JobFilter, JobFilters, JobOffer, JobOfferSummary, JobPage, MembershipStatus, Message, NotificationCategory,
   LocalPhoto, LocalVideo, OutgoingFile, Paged, Post, PostFilter, ReportReason, ReportTarget, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User,
 } from '../types';
 import { Platform } from 'react-native';
@@ -256,6 +256,18 @@ export class ApiDataSource implements DataSource {
   getEventCities = () => this.get<string[]>('api/events/cities');
   createEvent = (r: CreateEventRequest) => this.post<CommunityEvent>('api/events', r);
   toggleParticipation = (id: string) => this.post<{ isParticipating: boolean; event: CommunityEvent }>(`api/events/${id}/participation`);
+
+  // Emploi
+  searchJobs = (f: JobFilter, cursor?: string | null) =>
+    this.get<JobPage>(`api/jobs${this.q({
+      q: f.q, country: f.country, department: f.department, contract: f.contract, remote: f.remote ? 'true' : undefined,
+      cursor: cursor ?? undefined, take: '20',
+    })}`);
+  getJob = (id: string) => this.get<JobOffer>(`api/jobs/${id}`);
+  getJobFilters = () => this.get<JobFilters>('api/jobs/filters');
+  getFavoriteJobs = () => this.get<JobOfferSummary[]>('api/jobs/favorites');
+  setJobFavorite = async (id: string, favorite: boolean) => { await this.request<unknown>(favorite ? 'POST' : 'DELETE', `api/jobs/${id}/favorite`); };
+  reportJob = async (id: string, reason: string) => { await this.post<unknown>(`api/jobs/${id}/report`, { reason }); };
 
   // Notifications
   getNotifications = (category?: NotificationCategory) => this.get<AppNotification[]>(`api/notifications${this.q({ category })}`);

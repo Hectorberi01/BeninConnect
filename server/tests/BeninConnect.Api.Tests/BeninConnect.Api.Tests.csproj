@@ -22,6 +22,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Jobs\Samples\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\BeninConnect.Api\BeninConnect.Api.csproj" />
     <ProjectReference Include="..\..\..\src\BeninConnect.App\BeninConnect.App.csproj" />
   </ItemGroup>

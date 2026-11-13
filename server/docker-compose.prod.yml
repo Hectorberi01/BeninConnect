@@ -78,6 +78,9 @@ services:
       Editorial__OfficialEmail: ${EDITORIAL_OFFICIAL_EMAIL:-officiel@monbenin.com}
       Editorial__Llm__ApiKey: ${ANTHROPIC_API_KEY:-}
       Editorial__Llm__Model: ${EDITORIAL_LLM_MODEL:-claude-haiku-5-5}
+      # Emploi (Modules/Jobs) : sources et secrets se règlent dans la console ; ces variables sont prioritaires (facultatives)
+      Jobs__FranceTravail__ClientSecret: ${FRANCE_TRAVAIL_CLIENT_SECRET:-}
+      Jobs__Adzuna__AppKey: ${ADZUNA_APP_KEY:-}
     volumes:
       - media:/app/media
       - ./backups:/backups

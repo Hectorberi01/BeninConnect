@@ -1,0 +1,14 @@
+{
+  "id": "4123456",
+  "fields": {
+    "title": "Coordinateur de projet santé",
+    "body-html": "<p>Le projet couvre <strong>Cotonou</strong>.</p><ul><li>Suivi</li><li>Rapports</li></ul>",
+    "source": [{ "name": "Médecins du Monde", "shortname": "MdM" }],
+    "city": [{ "name": "Cotonou" }],
+    "country": [{ "name": "Benin", "iso3": "ben" }],
+    "date": { "created": "2026-11-05T00:00:00+00:00", "closing": "2026-12-01T00:00:00+00:00" },
+    "url_alias": "https://reliefweb.int/job/4123456/coordinateur-de-projet-sante",
+    "type": [{ "name": "Job" }],
+    "career_categories": [{ "name": "Program/Project Management" }]
+  }
+}

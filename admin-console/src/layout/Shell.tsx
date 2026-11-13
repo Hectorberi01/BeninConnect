@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  CalendarDays, DatabaseBackup, Download, FileText, Flag, KeyRound, LayoutDashboard, LogOut, Menu, Newspaper, ScrollText, Server, ShieldCheck, Users, UsersRound, X,
+  BriefcaseBusiness, CalendarDays, DatabaseBackup, Download, FileText, Flag, KeyRound, LayoutDashboard, LogOut, Menu, Newspaper, ScrollText, Server, ShieldCheck, Users, UsersRound, X,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ComponentType, useState } from 'react'
@@ -29,6 +29,7 @@ export const NAV: { section: string; items: Item[] }[] = [
       { to: '/communities', label: 'Communautés', icon: UsersRound, permission: 'CommunitiesManage' },
       { to: '/events', label: 'Événements', icon: CalendarDays, permission: 'EventsManage' },
       { to: '/editorial', label: 'Compte officiel', icon: Newspaper, permission: 'EditorialManage' },
+      { to: '/jobs', label: 'Emploi', icon: BriefcaseBusiness, permission: 'JobsManage' },
     ],
   },
   { section: 'Finance', items: [{ to: '/exports', label: 'Exports', icon: Download, permission: 'ExportsDownload' }] },

@@ -13,12 +13,12 @@ public static class RolePermissions
         [
             Permission.DashboardView, Permission.MembersView, Permission.MembersSuspend, Permission.ContentModerate,
             Permission.ReportsManage, Permission.CommunitiesManage, Permission.EventsManage, Permission.ExportsDownload, Permission.AuditView,
-            Permission.EditorialManage
+            Permission.EditorialManage, Permission.JobsManage
         ],
         [AdminRole.Moderator] =
         [
             Permission.DashboardView, Permission.MembersView, Permission.MembersSuspend, Permission.ContentModerate, Permission.ReportsManage,
-            Permission.EditorialManage
+            Permission.EditorialManage, Permission.JobsManage
         ],
         [AdminRole.Accountant] = [Permission.DashboardView, Permission.ExportsDownload],
         [AdminRole.Developer] = [Permission.DashboardView, Permission.AuditView, Permission.SystemView, Permission.SystemReset, Permission.BackupsManage]

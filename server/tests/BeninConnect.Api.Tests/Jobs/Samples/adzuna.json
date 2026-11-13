@@ -1,0 +1,16 @@
+{
+  "id": "4870000001",
+  "title": "<strong>Développeur</strong> C# confirmé",
+  "description": "Mission longue durée…",
+  "created": "2026-11-09T12:00:00Z",
+  "company": { "display_name": "Beta Conseil" },
+  "location": { "display_name": "Lyon, Rhône", "area": ["France", "Auvergne-Rhône-Alpes", "Rhône", "Lyon"] },
+  "latitude": 45.76,
+  "longitude": 4.83,
+  "contract_type": "permanent",
+  "contract_time": "full_time",
+  "salary_min": 42000,
+  "salary_max": 50000,
+  "category": { "label": "Emplois Informatique" },
+  "redirect_url": "https://www.adzuna.fr/land/ad/4870000001"
+}

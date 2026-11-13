@@ -1,0 +1,17 @@
+{
+  "id": "201XKQM",
+  "intitule": "Développeur .NET H/F",
+  "description": "Rejoignez notre équipe.\nTélétravail complet possible.",
+  "dateCreation": "2026-11-10T08:30:00.000Z",
+  "dateActualisation": "2026-11-11T09:00:00.000Z",
+  "lieuTravail": { "libelle": "75 - Paris 11e Arrondissement", "latitude": 48.859, "longitude": 2.379, "codePostal": "75011", "commune": "75111" },
+  "entreprise": { "nom": "ACME SERVICES", "logo": "https://entreprise.francetravail.fr/static/img/logos/acme.png" },
+  "typeContrat": "CDI",
+  "typeContratLibelle": "Contrat à durée indéterminée",
+  "natureContrat": "Contrat travail",
+  "dureeTravailLibelleConverti": "Temps plein",
+  "salaire": { "libelle": "Annuel de 45000,00 Euros à 55000,00 Euros" },
+  "secteurActiviteLibelle": "Programmation informatique",
+  "alternance": false,
+  "origineOffre": { "origine": "1", "urlOrigine": "https://candidat.francetravail.fr/offres/recherche/detail/201XKQM" }
+}

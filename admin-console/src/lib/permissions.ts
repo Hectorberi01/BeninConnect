@@ -10,8 +10,8 @@ export const ROLE_LABELS: Record<AdminRole, string> = {
 
 export const ROLE_DESCRIPTIONS: Record<AdminRole, string> = {
   SuperAdmin: 'Tous les droits, dont la gestion des comptes administrateurs.',
-  Admin: 'Membres, contenus, signalements, communautés, événements, exports et journal.',
-  Moderator: 'Signalements, contenus (masquer, supprimer) et suspension des membres.',
+  Admin: 'Membres, contenus, signalements, communautés, événements, emploi, exports et journal.',
+  Moderator: 'Signalements, contenus (masquer, supprimer), offres d’emploi et suspension des membres.',
   Accountant: 'Tableau de bord et exports CSV, en lecture seule.',
   Developer: "État de l'API, sauvegardes de la base, journal d'audit et outils de développement.",
 }

@@ -47,6 +47,8 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("RateLimiting:Enabled", "false");
         builder.UseSetting("Push:Provider", "log"); // jamais de vrai push depuis les tests
         builder.UseSetting("Backups:Directory", BackupDirectory);
+        builder.UseSetting("Jobs:WorkerEnabled", "false"); // imports lancés par les tests seulement
+        builder.UseSetting("Jobs:RequestDelayMs", "0");
         Configure(builder);
     }
 

@@ -348,3 +348,78 @@ export interface LocalVideo extends LocalPhoto {
   durationMs: number;
   thumbnailUri: string | null;
 }
+
+// --- Emploi (offres importées de France Travail, ReliefWeb…) -------------------------------
+
+export type JobContract = 'Cdi' | 'Cdd' | 'Interim' | 'Stage' | 'Alternance' | 'Freelance' | 'Autre';
+export type JobSource = 'FranceTravail' | 'ReliefWeb' | 'Adzuna' | 'Remotive';
+export type JobOfferStatus = 'Active' | 'Expired' | 'Hidden';
+
+export interface JobOfferSummary {
+  id: string;
+  title: string;
+  companyName: string | null;
+  companyLogoUrl: string | null;
+  locationLabel: string;
+  country: string;
+  department: string | null;
+  contractType: JobContract;
+  contractLabel: string | null;
+  isRemote: boolean;
+  publishedAt: string;
+  source: JobSource;
+  sourceLabel: string;
+  status: JobOfferStatus;
+  isFavorite: boolean;
+}
+
+export interface JobOffer extends JobOfferSummary {
+  description: string;
+  postalCode: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  workingTime: string | null;
+  salaryLabel: string | null;
+  sectorLabel: string | null;
+  applyUrl: string;
+  closingAt: string | null;
+  reportedByMe: boolean;
+}
+
+export interface JobPage {
+  items: JobOfferSummary[];
+  nextCursor: string | null;
+}
+
+export interface JobFilter {
+  q?: string;
+  country?: string;
+  department?: string;
+  contract?: JobContract;
+  remote?: boolean;
+}
+
+export interface LabelCount {
+  label: string;
+  count: number;
+}
+
+export interface JobFilters {
+  total: number;
+  remote: number;
+  countries: LabelCount[];
+  departments: LabelCount[];
+  contracts: LabelCount[];
+  sources: LabelCount[];
+}
+
+export const CONTRACT_LABELS: Record<JobContract, string> = {
+  Cdi: 'CDI', Cdd: 'CDD', Interim: 'Intérim', Stage: 'Stage', Alternance: 'Alternance', Freelance: 'Freelance', Autre: 'Autre',
+};
+
+const COUNTRY_NAMES: Record<string, string> = {
+  FR: 'France', BJ: 'Bénin', TG: 'Togo', NG: 'Nigeria', NE: 'Niger', BF: 'Burkina Faso', GH: 'Ghana', CI: "Côte d'Ivoire", SN: 'Sénégal',
+  ML: 'Mali', GN: 'Guinée', CM: 'Cameroun', BE: 'Belgique', CH: 'Suisse', CA: 'Canada', US: 'États-Unis', GB: 'Royaume-Uni',
+};
+
+export const countryName = (code: string) => COUNTRY_NAMES[code] ?? code;

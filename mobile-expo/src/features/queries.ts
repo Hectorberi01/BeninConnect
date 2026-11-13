@@ -8,7 +8,7 @@ import { data } from '@/data';
 import type {
   AppNotification, Comment, ConversationSummary, Message,
   Community, CommunityEvent, CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, NotificationCategory,
-  OutgoingFile, Paged, Post, PostFilter, UpdatePostRequest, UpdateProfileRequest,
+  OutgoingFile, Paged, Post, PostFilter, UpdatePostRequest, UpdateProfileRequest, JobFilter, JobOffer, JobPage,
 } from '@/data/types';
 import { errorMessage, toggleReaction } from '@/data/types';
 
@@ -483,4 +483,54 @@ export function useNotificationActions() {
       toast(count > 0 ? `${fmt.plural(count, 'notification')} supprimée${count > 1 ? 's' : ''}.` : 'Aucune notification à supprimer.');
     }).catch(onError),
   };
+}
+
+// --- Emploi ------------------------------------------------------------------------------
+
+export const useJobs = (filter: JobFilter) =>
+  useInfiniteQuery({
+    queryKey: ['jobs', filter],
+    queryFn: ({ pageParam }) => data().searchJobs(filter, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last: JobPage) => last.nextCursor,
+  });
+
+export const useJob = (id: string) => useQuery({ queryKey: ['job', id], queryFn: () => data().getJob(id) });
+
+export const useJobFilters = () => useQuery({ queryKey: ['job-filters'], queryFn: () => data().getJobFilters(), staleTime: 5 * 60_000 });
+
+export const useFavoriteJobs = () => useQuery({ queryKey: ['job-favorites'], queryFn: () => data().getFavoriteJobs() });
+
+/** Favori : mis à jour tout de suite dans les listes et le détail. */
+export function useToggleJobFavorite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, favorite }: { id: string; favorite: boolean }) => data().setJobFavorite(id, favorite),
+    onMutate: ({ id, favorite }) => {
+      qc.setQueryData<JobOffer>(['job', id], (old) => (old ? { ...old, isFavorite: favorite } : old));
+      qc.setQueriesData<InfiniteData<JobPage>>({ queryKey: ['jobs'] }, (old) =>
+        old && { ...old, pages: old.pages.map((p) => ({ ...p, items: p.items.map((j) => (j.id === id ? { ...j, isFavorite: favorite } : j)) })) });
+    },
+    onSuccess: (_, { favorite }) => {
+      qc.invalidateQueries({ queryKey: ['job-favorites'] });
+      toast(favorite ? 'Offre ajoutée à vos favoris.' : 'Offre retirée de vos favoris.', 'success');
+    },
+    onError: (e, { id, favorite }) => {
+      qc.setQueryData<JobOffer>(['job', id], (old) => (old ? { ...old, isFavorite: !favorite } : old));
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+      onError(e);
+    },
+  });
+}
+
+export function useReportJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => data().reportJob(id, reason),
+    onSuccess: (_, { id }) => {
+      qc.setQueryData<JobOffer>(['job', id], (old) => (old ? { ...old, reportedByMe: true } : old));
+      toast('Merci. Notre équipe va vérifier cette offre.', 'success');
+    },
+    onError,
+  });
 }

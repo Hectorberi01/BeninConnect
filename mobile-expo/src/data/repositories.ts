@@ -1,6 +1,6 @@
 import type {
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
-  CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, MembershipStatus, Message,
+  CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, JobFilter, JobFilters, JobOffer, JobOfferSummary, JobPage, MembershipStatus, Message,
   NotificationCategory, OutgoingFile, Paged, Post, ReportReason, ReportTarget, PostFilter, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User, LocalPhoto, LocalVideo } from './types';
 
 /**
@@ -113,6 +113,16 @@ export interface DataSource {
   getEventCities(): Promise<string[]>;
   createEvent(request: CreateEventRequest): Promise<CommunityEvent>;
   toggleParticipation(eventId: string): Promise<{ isParticipating: boolean; event: CommunityEvent }>;
+
+  // Emploi (offres importées, candidature chez la source)
+  searchJobs(filter: JobFilter, cursor?: string | null): Promise<JobPage>;
+  /** Offre expirée : encore lisible ; masquée : introuvable. */
+  getJob(id: string): Promise<JobOffer>;
+  getJobFilters(): Promise<JobFilters>;
+  getFavoriteJobs(): Promise<JobOfferSummary[]>;
+  setJobFavorite(id: string, favorite: boolean): Promise<void>;
+  /** Un signalement par membre et par offre. */
+  reportJob(id: string, reason: string): Promise<void>;
 
   // Notifications
   getNotifications(category?: NotificationCategory): Promise<AppNotification[]>;

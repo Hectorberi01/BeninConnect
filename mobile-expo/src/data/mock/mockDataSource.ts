@@ -2,7 +2,7 @@ import * as v from '@/core/validation';
 import type { DataSource } from '../repositories';
 import { INTERESTS, REACTIONS } from '../repositories';
 import type {
-  AppNotification, Comment, Community, CommunityEvent, CommunityMember, Conversation, CreateEventRequest, EventFilter,
+  AppNotification, Comment, Community, CommunityEvent, CommunityMember, Conversation, CreateEventRequest, EventFilter, JobFilter, JobFilters, JobOffer, JobPage,
   MembershipStatus, Message, NotificationCategory, OutgoingFile, Paged, Post, PostFilter, User, LocalPhoto, LocalVideo, ReportReason, ReportTarget,
 } from '../types';
 import { AppError, displayName, isEventFull, membershipStatus, toggleReaction } from '../types';
@@ -10,6 +10,7 @@ import { COMMUNITY_CATEGORIES, EVENT_CATEGORIES } from './seed/seed';
 import { extractTags, normalizeTag } from '../social';
 import { createMockStore, type MockStore } from './factory';
 import { newId } from './random';
+import { createMockJobs } from './jobs';
 
 const checkReaction = (emoji: string) => {
   if (!REACTIONS.includes(emoji.trim())) throw new AppError("Cette réaction n'est pas disponible.", 400);
@@ -754,6 +755,60 @@ export class MockDataSource implements DataSource {
       ...e, participantIds: participating ? [...e.participantIds, this.userId] : e.participantIds.filter((p) => p !== this.userId),
     });
     return { isParticipating: participating, event };
+  }
+
+  // --- Emploi ---------------------------------------------------------------------------------
+
+  private jobs: JobOffer[] = createMockJobs();
+
+  async searchJobs(f: JobFilter, cursor?: string | null): Promise<JobPage> {
+    await this.net();
+    const q = f.q?.trim();
+    const items = this.jobs
+      .filter((j) => j.status === 'Active')
+      .filter((j) => !q || [j.title, j.companyName ?? ''].some((x) => v.matches(x, q)))
+      .filter((j) => !f.country || j.country === f.country)
+      .filter((j) => !f.department || j.department === f.department)
+      .filter((j) => !f.contract || j.contractType === f.contract)
+      .filter((j) => !f.remote || j.isRemote)
+      .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+    const start = cursor ? Number(cursor) : 0;
+    const page = items.slice(start, start + 20);
+    return { items: page, nextCursor: start + 20 < items.length ? String(start + 20) : null };
+  }
+
+  async getJob(id: string) {
+    await this.net();
+    const job = this.jobs.find((j) => j.id === id && j.status !== 'Hidden');
+    if (!job) throw new AppError('Offre introuvable.', 404);
+    return job;
+  }
+
+  async getJobFilters(): Promise<JobFilters> {
+    const active = this.jobs.filter((j) => j.status === 'Active');
+    const count = (key: (j: JobOffer) => string | null) => {
+      const map = new Map<string, number>();
+      active.forEach((j) => { const k = key(j); if (k) map.set(k, (map.get(k) ?? 0) + 1); });
+      return [...map].map(([label, n]) => ({ label, count: n })).sort((a, b) => b.count - a.count);
+    };
+    return {
+      total: active.length, remote: active.filter((j) => j.isRemote).length, countries: count((j) => j.country),
+      departments: count((j) => (j.country === 'FR' ? j.department : null)), contracts: count((j) => j.contractType), sources: count((j) => j.source),
+    };
+  }
+
+  async getFavoriteJobs() { await this.net(); return this.jobs.filter((j) => j.isFavorite && j.status !== 'Hidden'); }
+
+  async setJobFavorite(id: string, favorite: boolean) {
+    const job = await this.getJob(id);
+    this.jobs = this.jobs.map((j) => (j.id === job.id ? { ...j, isFavorite: favorite } : j));
+  }
+
+  async reportJob(id: string, reason: string) {
+    const job = await this.getJob(id);
+    if (job.reportedByMe) throw new AppError('Vous avez déjà signalé cette offre.', 409);
+    if (reason.trim().length < 3) throw new AppError('Indiquez le motif du signalement.', 400);
+    this.jobs = this.jobs.map((j) => (j.id === job.id ? { ...j, reportedByMe: true } : j));
   }
 
   // --- Notifications ------------------------------------------------------------------------

@@ -5,7 +5,7 @@ export type AdminRole = 'SuperAdmin' | 'Admin' | 'Moderator' | 'Accountant' | 'D
 export type Permission =
   | 'DashboardView' | 'MembersView' | 'MembersSuspend' | 'ContentModerate' | 'ReportsManage' | 'CommunitiesManage'
   | 'EventsManage' | 'ExportsDownload' | 'AdminsManage' | 'AuditView' | 'SystemView' | 'SystemReset' | 'BackupsManage'
-  | 'EditorialManage'
+  | 'EditorialManage' | 'JobsManage'
 
 export interface AdminMe {
   id: string
@@ -332,4 +332,86 @@ export interface PipelineReport {
   skipped: number
   published: number
   failed: number
+}
+
+// --- Emploi (offres importées) ---
+
+export type JobSource = 'FranceTravail' | 'ReliefWeb' | 'Adzuna' | 'Remotive'
+export type SecretState = 'None' | 'Console' | 'Environment' | 'Unreadable'
+export type JobOfferStatus = 'Active' | 'Expired' | 'Hidden'
+export type HiddenReason = 'None' | 'AlertKeyword' | 'Reports' | 'Admin'
+export type AdminOfferView = 'Review' | 'Hidden' | 'Reported' | 'All'
+
+export interface JobSearch {
+  key: string
+  keywords?: string | null
+  region?: string | null
+  department?: string | null
+  contractType?: string | null
+  country?: string | null
+  category?: string | null
+  location?: string | null
+}
+
+export interface JobSourceConfig {
+  source: JobSource
+  label: string
+  isEnabled: boolean
+  importIntervalMinutes: number
+  minIntervalMinutes: number
+  clientId: string | null
+  needsClientId: boolean
+  needsSecret: boolean
+  secretState: SecretState
+  secretUpdatedAt: string | null
+  searches: JobSearch[]
+  lastRunAt: string | null
+  lastSuccessAt: string | null
+  lastError: string | null
+  lastAdded: number
+  lastUpdated: number
+  lastDuplicates: number
+  lastHidden: number
+  lastExpired: number
+  activeOffers: number
+}
+
+export interface JobsOverview {
+  workerEnabled: boolean
+  sources: JobSourceConfig[]
+  alertKeywords: string[]
+  reportThreshold: number
+  counts: LabelCount[]
+}
+
+export interface JobImportReport {
+  source: JobSource
+  fetched: number
+  added: number
+  updated: number
+  duplicates: number
+  hidden: number
+  expired: number
+  errors: string[]
+}
+
+export interface AdminJobOffer {
+  id: string
+  title: string
+  companyName: string | null
+  locationLabel: string
+  country: string
+  source: JobSource
+  sourceLabel: string
+  status: JobOfferStatus
+  hiddenReason: HiddenReason
+  needsReview: boolean
+  alertKeyword: string | null
+  reportCount: number
+  isDuplicate: boolean
+  publishedAt: string
+  importedAt: string
+  applyUrl: string
+  excerpt: string
+  reports: { reason: string; createdAt: string; handled: boolean }[]
 }
