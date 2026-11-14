@@ -65,6 +65,15 @@ public sealed class S3MediaTests(S3ApiFactory factory) : IClassFixture<S3ApiFact
         Assert.Contains("immutable", served.Headers.CacheControl?.ToString());
         Assert.Equal(png, await served.Content.ReadAsByteArrayAsync());
 
+        // Photo HEIC (iPhone) relayée par l'API pour la console : ?relay=1
+        byte[] heic = [0, 0, 0, 0x18, .. "ftypheic"u8, 0, 0, 0, 0, .. "mif1heic"u8, 1, 2, 3];
+        var heicForm = new MultipartFormDataContent { { new ByteArrayContent(heic), "file", "IMG_0001.HEIC" } };
+        var heicMedia = (await (await http.PostAsync("api/media", heicForm)).EnsureSuccessStatusCode().Content.ReadFromJsonAsync<MediaView>())!;
+        Assert.EndsWith(".heic", heicMedia.Path);
+        var relayed = await http.GetAsync($"{heicMedia.Path}?relay=1");
+        Assert.Equal(HttpStatusCode.OK, relayed.StatusCode);
+        Assert.Equal(heic, await relayed.Content.ReadAsByteArrayAsync());
+
         Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync($"uploads/{Guid.NewGuid():N}.png")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync("uploads/..%2Fappsettings.json")).StatusCode);
     }

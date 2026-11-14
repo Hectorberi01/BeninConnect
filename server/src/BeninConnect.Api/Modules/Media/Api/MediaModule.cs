@@ -134,6 +134,19 @@ public sealed class MediaModule : IModule, IModulePipeline
                     return Results.Empty;
                 }
 
+                // ?relay=1 sur une photo HEIC : relayée par l'API (même origine que la console, qui la convertit en JPEG)
+                if (http.Request.Query.ContainsKey("relay") && name.EndsWith(".heic", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (await storage.OpenRangeAsync(name, 0, null, ct) is not { } whole)
+                    {
+                        return Results.NotFound();
+                    }
+
+                    http.Response.Headers.CacheControl = CacheControl;
+                    http.Response.ContentLength = whole.Total;
+                    return Results.Stream(whole.Content, whole.ContentType);
+                }
+
                 if (await storage.OpenAsync(name, ct) is not { } image)
                 {
                     return Results.NotFound();

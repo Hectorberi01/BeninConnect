@@ -96,6 +96,24 @@
     group: "{{ deploy_user }}"
     mode: "0600"
 
+# Secrets obligatoires vérifiés AVANT de redémarrer les conteneurs : l'API en place reste en service si l'un manque.
+# grep -q : aucune valeur n'est lue ni affichée dans les journaux.
+- name: Vérifier la clé de chiffrement des messages (.env)
+  ansible.builtin.command: grep -Eq '^MESSAGES_ENCRYPTION_KEY=[A-Za-z0-9+/]{43}=[[:space:]]*$' {{ app_dir }}/server/.env
+  register: messages_key
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Arrêter si la clé de chiffrement des messages manque
+  ansible.builtin.assert:
+    that: messages_key.rc == 0
+    fail_msg: >-
+      MESSAGES_ENCRYPTION_KEY absente ou invalide dans {{ app_dir }}/server/.env (32 octets en base64).
+      Sur le serveur : echo "MESSAGES_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> {{ app_dir }}/server/.env,
+      puis sauvegarder cette clé hors du serveur (voir docs/CHIFFREMENT_MESSAGES.md).
+    quiet: true
+
 # API de revue : secrets dans .env.review, déposé à la main comme le .env
 - name: Vérifier la présence du .env.review
   when: review_enabled
@@ -119,6 +137,23 @@
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
     mode: "0600"
+
+- name: Vérifier la clé de chiffrement des messages (.env.review)
+  when: review_enabled
+  ansible.builtin.command: grep -Eq '^Messaging__EncryptionKey=[A-Za-z0-9+/]{43}=[[:space:]]*$' {{ app_dir }}/server/.env.review
+  register: review_messages_key
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Arrêter si la clé de chiffrement des messages de revue manque
+  when: review_enabled
+  ansible.builtin.assert:
+    that: review_messages_key.rc == 0
+    fail_msg: >-
+      Messaging__EncryptionKey absente ou invalide dans {{ app_dir }}/server/.env.review. Sur le serveur :
+      echo "Messaging__EncryptionKey=$(openssl rand -base64 32)" >> {{ app_dir }}/server/.env.review
+    quiet: true
 
 # Version à déployer (non secret), séparée du .env pour ne jamais toucher aux secrets.
 - name: Version de l'API (.env.deploy)

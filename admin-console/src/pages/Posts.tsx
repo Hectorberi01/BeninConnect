@@ -3,10 +3,11 @@ import { Eye, EyeOff, MessageSquare, Search, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useToast } from '@/components/toast'
 import { Badge, Button, Card, ConfirmDialog, Empty, ErrorBox, Input, Loading, Modal, PageHeader, Pagination, Select, Table } from '@/components/ui'
-import { api, apiUrl, errorMessage, qs } from '@/lib/api'
+import { api, errorMessage, qs } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import type { AdminComment, AdminPost, Paged } from '@/lib/types'
 import { useDebounced } from './Members'
+import { UploadImage } from '@/components/UploadImage'
 
 const TAKE = 25
 const VISIBILITY: Record<AdminPost['visibility'], string> = { Public: 'Public', CommunityMembers: 'Membres', OnlyMe: 'Privé' }
@@ -75,7 +76,7 @@ export function PostsPage() {
                 <tr key={p.id} className={p.isHidden ? 'bg-surface-2/60' : undefined}>
                   <td className="max-w-md px-4 py-3">
                     <div className="flex gap-3">
-                      {p.imagePath?.startsWith('uploads/') && <img src={apiUrl(p.imagePath)} alt="" className="size-12 shrink-0 rounded-md object-cover" />}
+                      {p.imagePath?.startsWith('uploads/') && <UploadImage path={p.imagePath} alt="" className="size-12 shrink-0 rounded-md object-cover" />}
                       <div className="min-w-0">
                         <p className="line-clamp-2">{p.content}</p>
                         <p className="mt-1 text-xs text-muted">{p.communityName ?? 'Fil public'} · {VISIBILITY[p.visibility]}</p>

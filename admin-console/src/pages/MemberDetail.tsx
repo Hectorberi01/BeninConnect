@@ -10,11 +10,12 @@ import { useAuth } from '@/auth'
 import { revealItem, Stagger } from '@/components/motion'
 import { useToast } from '@/components/toast'
 import { Avatar, Badge, Button, Card, ConfirmDialog, cx, Empty, ErrorBox, Loading, Stat } from '@/components/ui'
-import { api, apiUrl, errorMessage } from '@/lib/api'
+import { api, errorMessage } from '@/lib/api'
 import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
 import { COMMUNITY_ROLE_LABELS, REASON_LABELS, REPORT_STATUS_LABELS } from '@/lib/permissions'
 import type { AdminMember, AdminMemberDetail, AuditEntry, Paged } from '@/lib/types'
 import { MemberStatus } from './Members'
+import { UploadImage } from '@/components/UploadImage'
 
 type Tab = 'posts' | 'communities' | 'events' | 'reports' | 'history'
 
@@ -229,7 +230,7 @@ function Profile({ d, actions }: { d: AdminMemberDetail; actions: ReactNode }) {
   const m = d.member
   const toast = useToast()
   const [copied, setCopied] = useState(false)
-  const cover = d.coverImage?.startsWith('uploads/') ? apiUrl(d.coverImage) : null
+  const cover = d.coverImage?.startsWith('uploads/') ? d.coverImage : null
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(m.email)
@@ -244,7 +245,7 @@ function Profile({ d, actions }: { d: AdminMemberDetail; actions: ReactNode }) {
     <motion.section variants={revealItem} className="mb-6 overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_24px_48px_-32px_rgba(16,24,40,0.35)]">
       <div className="relative h-36 sm:h-44">
         {cover
-          ? <img src={cover} alt="" className="absolute inset-0 size-full object-cover" />
+          ? <UploadImage path={cover} alt="" className="absolute inset-0 size-full object-cover" />
           : <div className="absolute inset-0 bg-gradient-to-br from-[#0b9e71] via-[#087f5b] to-[#043d2c]">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_20%,rgba(252,209,22,0.3),transparent_45%)]" />
             </div>}
@@ -281,7 +282,7 @@ function Posts({ d }: { d: AdminMemberDetail }) {
     <ul className="divide-y divide-line">
       {d.recentPosts.map((p) => (
         <li key={p.id} className="flex gap-4 px-5 py-4">
-          {p.imagePath?.startsWith('uploads/') && <img src={apiUrl(p.imagePath)} alt="" className="size-16 shrink-0 rounded-lg object-cover" />}
+          {p.imagePath?.startsWith('uploads/') && <UploadImage path={p.imagePath} alt="" className="size-16 shrink-0 rounded-lg object-cover" />}
           <div className="min-w-0 flex-1">
             <p className="line-clamp-3 text-sm">{p.content}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">

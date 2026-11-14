@@ -39,6 +39,8 @@ export async function pickPhoto(source: PhotoSource, options: { aspect?: [number
     aspect: options.aspect,
     quality: 0.7, // JPEG compressé : envoi plus rapide (limite serveur 10 Mo)
     exif: false,
+    // iPhone : photo convertie en JPEG (le HEIC ne s'affiche ni sur le web ni dans la console)
+    preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
   };
   const result = source === 'camera' ? await ImagePicker.launchCameraAsync(settings) : await ImagePicker.launchImageLibraryAsync(settings);
   if (result.canceled || !result.assets[0]) return null;
@@ -56,6 +58,7 @@ export async function pickPhotos(limit: number): Promise<LocalPhoto[]> {
   }
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'], allowsMultipleSelection: limit > 1, selectionLimit: limit, orderedSelection: true, quality: 0.7, exif: false,
+    preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
   });
   if (result.canceled) return [];
   return result.assets.slice(0, limit).map((a) => ({ uri: a.uri, mimeType: a.mimeType, fileName: a.fileName }));

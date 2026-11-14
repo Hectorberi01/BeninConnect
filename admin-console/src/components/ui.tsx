@@ -4,9 +4,9 @@ import { createPortal } from 'react-dom'
 import {
   type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes, useEffect, useState,
 } from 'react'
-import { apiUrl } from '@/lib/api'
 import { initials } from '@/lib/format'
 import { AnimatedNumber, revealItem, Sparkline, Tilt } from './motion'
+import { UploadImage } from './UploadImage'
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ')
 export { cx }
@@ -100,9 +100,8 @@ export function PageHeader({ title, description, actions }: { title: string; des
 }
 
 export function Avatar({ first, last, color, image, size = 36 }: { first: string; last: string; color: string; image?: string | null; size?: number }) {
-  const src = image?.startsWith('uploads/') ? apiUrl(image) : null
-  return src ? (
-    <img src={src} alt="" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
+  return image?.startsWith('uploads/') ? (
+    <UploadImage path={image} alt="" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
   ) : (
     <span className="grid shrink-0 place-items-center rounded-full font-semibold text-white" style={{ width: size, height: size, background: color, fontSize: size * 0.38 }}>
       {initials(first, last)}
