@@ -89,7 +89,8 @@ export interface DataSource {
   getConversations(): Promise<ConversationSummary[]>;
   getConversation(id: string): Promise<ConversationSummary>;
   getMessages(conversationId: string): Promise<Message[]>;
-  sendMessage(conversationId: string, content: string): Promise<Message>;
+  /** replyToId : message cité (même discussion). */
+  sendMessage(conversationId: string, content: string, replyToId?: string | null): Promise<Message>;
   /** Envoie une publication dans la discussion (avec un mot facultatif). */
   sendPost(conversationId: string, postId: string, content?: string): Promise<Message>;
   /** Scénario de démonstration explicite : réponse marquée « simulée ». */
@@ -102,7 +103,7 @@ export interface DataSource {
   /** Retire la discussion de ma liste (pour moi seulement) ; elle revient au prochain message. */
   deleteConversation(conversationId: string): Promise<void>;
   /** Photo, PDF ou message vocal (20 Mo), avec une légende facultative. */
-  sendAttachment(conversationId: string, file: OutgoingFile, caption?: string): Promise<Message>;
+  sendAttachment(conversationId: string, file: OutgoingFile, caption?: string, replyToId?: string | null): Promise<Message>;
   /** Adresse de la pièce jointe, utilisable par l'image, le lecteur audio ou le navigateur (accès vérifié par le serveur). */
   attachmentUrl(message: Message): string | null;
   markConversationRead(conversationId: string): Promise<number>;
@@ -157,6 +158,8 @@ export interface DataSource {
   reportService(target: ServiceReportTarget, id: string, reason: string): Promise<void>;
 
   // Voyages : des membres proposent des kilos sur leur trajet (mise en relation, aucun paiement)
+  /** Module affiché par l'équipe (masqué : écrans et sections cachés). */
+  getVoyagesStatus(): Promise<{ enabled: boolean }>;
   getVoyagesInfo(): Promise<VoyagesInfo>;
   searchTrips(filter: TripSearch, cursor?: string | null): Promise<TripPage>;
   getTrip(id: string): Promise<TripDetail>;

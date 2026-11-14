@@ -3,11 +3,16 @@ import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Notice } from '@/components/services';
 import { Button, Header, Muted, Screen, T, TextField } from '@/components/ui';
+import { VoyagesGate } from '@/components/VoyagesGate';
 import { errorMessage } from '@/data/types';
 import { useDeliverBooking } from '@/features/queries';
 
 /** Le voyageur saisit le code donné par le destinataire : 5 essais au plus. */
-export default function DeliverBooking() {
+export default function DeliverBookingScreen() {
+  return <VoyagesGate><DeliverBooking /></VoyagesGate>;
+}
+
+function DeliverBooking() {
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const deliver = useDeliverBooking();
   const [code, setCode] = useState('');

@@ -19,7 +19,7 @@ import { toast } from '@/core/toast';
 import { data } from '@/data';
 import type { User } from '@/data/types';
 import { displayName, errorMessage, initials, location } from '@/data/types';
-import { useMemberCommunities, usePosts, useSavedPosts, useUpdateProfile, useUser } from './queries';
+import { useMemberCommunities, usePosts, useSavedPosts, useUpdateProfile, useUser, useVoyagesEnabled } from './queries';
 import { VoyageBlock } from './VoyageBlock';
 
 type PostTab = 'grid' | 'list' | 'saved';
@@ -53,6 +53,7 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
   const [changing, setChanging] = useState<'avatar' | 'cover' | null>(null);
   const [tab, setTab] = useState<PostTab>('grid');
   const saved = useSavedPosts(isMe && tab === 'saved');
+  const voyagesEnabled = useVoyagesEnabled().enabled;
 
   // Changement direct de la photo de profil ou de couverture (sans passer par « Modifier le profil »).
   const changeImage = async (kind: 'avatar' | 'cover') => {
@@ -192,13 +193,13 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
             <ListRow icon="briefcase-outline" label="Mon espace prestataire" onPress={() => router.push('/services/me')} />
             <ListRow icon="clipboard-text-outline" label="Mes demandes de services" onPress={() => router.push('/services/requests')} />
             <ListRow icon="heart-outline" label="Prestataires favoris" onPress={() => router.push('/services/favorites')} />
-            <ListRow icon="airplane" label="Mes voyages et envois" onPress={() => router.push('/voyages/mine')} />
+            {voyagesEnabled && <ListRow icon="airplane" label="Mes voyages et envois" onPress={() => router.push('/voyages/mine')} />}
             <ListRow icon="bookmark-multiple-outline" label="Offres d'emploi favorites" onPress={() => router.push('/jobs/favorites')} last />
           </Card>
         </>
       )}
 
-      {!shownUser.isOfficial && <VoyageBlock userId={user.id} isMe={isMe} />}
+      {voyagesEnabled && !shownUser.isOfficial && <VoyageBlock userId={user.id} isMe={isMe} />}
 
       <SectionTitle title="À propos" />
       <View style={{ paddingHorizontal: 16 }}>

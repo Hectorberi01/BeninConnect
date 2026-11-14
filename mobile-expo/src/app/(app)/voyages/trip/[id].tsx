@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Notice, Stars } from '@/components/services';
 import { Button, Card, Header, IconButton, Muted, QueryView, Screen, SectionTitle, T, Tag } from '@/components/ui';
+import { VoyagesGate } from '@/components/VoyagesGate';
 import {
   askVoyageReport, BookingStatusTag, LinkRow, PersonAvatar, Pill, ProhibitedNotice, tripDay, TripRoute, TrustedTag,
 } from '@/components/voyages';
@@ -12,7 +13,11 @@ import { countryName } from '@/data/cities';
 import { kg, PARCEL_LABELS, type TripDetail, tripPrice, TRIP_STATUS_LABELS } from '@/data/types';
 import { useReportVoyage, useTrip, useVoyageReviews, useVoyagesInfo } from '@/features/queries';
 
-export default function TripScreen() {
+export default function TripScreenScreen() {
+  return <VoyagesGate><TripScreen /></VoyagesGate>;
+}
+
+function TripScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const query = useTrip(id);
   const report = useReportVoyage();

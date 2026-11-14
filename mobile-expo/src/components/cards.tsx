@@ -8,7 +8,7 @@ import * as fmt from '@/core/format';
 import { imageSource } from '@/core/images';
 import { useMe } from '@/core/session';
 import { depth, font, radius, type, useColors } from '@/core/theme';
-import type { AppNotification, Community, CommunityEvent, Message, Post, User } from '@/data/types';
+import type { AppNotification, Community, CommunityEvent, Message, MessageReply, Post, User } from '@/data/types';
 import { displayName, initials, isEventFull, location, membershipStatus } from '@/data/types';
 import {
   useCommunitiesMap, useDeletePost, useJoinRequests, useMembership, usePinPost, useSavedIds, useSharePost, useToggleLike,
@@ -329,9 +329,28 @@ export function NotificationItem({ item, onPress, onDelete }: { item: AppNotific
 
 // --- Messages -----------------------------------------------------------------------------
 
-export function MessageBubble({ message, mine, me, onLongPress, onToggleReaction }: {
+/** Citation du message auquel on répond (barre de couleur, auteur, extrait). */
+function ReplyQuote({ reply, mine, author, onPress }: { reply: MessageReply; mine: boolean; author: string; onPress?: () => void }) {
+  const c = useColors();
+  const text = mine ? '#FFFFFF' : c.text;
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`Réponse à ${author}`} onPress={onPress} disabled={!onPress || reply.isDeleted}
+      style={[styles.quote, { backgroundColor: mine ? 'rgba(255,255,255,0.18)' : c.surfaceVariant, borderLeftColor: mine ? '#FFFFFF' : c.primary }]}>
+      <Text style={[type.label, { fontSize: 12, color: mine ? '#FFFFFF' : c.primary }]} numberOfLines={1}>{author}</Text>
+      <Text style={[type.caption, { color: text, opacity: 0.85, fontStyle: reply.isDeleted ? 'italic' : 'normal' }]} numberOfLines={2}>
+        {reply.isDeleted ? 'Message supprimé' : reply.excerpt}
+      </Text>
+    </Pressable>
+  );
+}
+
+export function MessageBubble({ message, mine, me, onLongPress, onToggleReaction, replyAuthor, onPressReply }: {
   message: Message; mine: boolean; me: string;
   onLongPress?: (e: GestureResponderEvent) => void; onToggleReaction?: (emoji: string) => void;
+  /** Nom affiché au-dessus de la citation (« Vous » ou le prénom). */
+  replyAuthor?: (senderId: string) => string;
+  /** Toucher la citation : aller au message cité. */
+  onPressReply?: (messageId: string) => void;
 }) {
   const c = useColors();
   const deleted = !!message.isDeleted;
@@ -342,6 +361,10 @@ export function MessageBubble({ message, mine, me, onLongPress, onToggleReaction
         ? <T color={c.textSecondary} style={{ fontStyle: 'italic' }}>Message supprimé</T>
         : (
           <>
+            {message.replyTo && (
+              <ReplyQuote reply={message.replyTo} mine={mine} author={replyAuthor?.(message.replyTo.senderId) ?? 'Message'}
+                onPress={onPressReply ? () => onPressReply(message.replyTo!.id) : undefined} />
+            )}
             {message.attachment && <AttachmentView message={message} mine={mine} />}
             {message.sharedPostId && <SharedPostCard postId={message.sharedPostId} mine={mine} />}
             {!!message.content && <RichText text={message.content} color={mine ? '#FFFFFF' : undefined} />}
@@ -357,7 +380,7 @@ export function MessageBubble({ message, mine, me, onLongPress, onToggleReaction
   return (
     <View style={[styles.bubbleRow, { alignItems: mine ? 'flex-end' : 'flex-start' }]}>
       <Pressable onLongPress={deleted ? undefined : onLongPress} delayLongPress={280}
-        accessibilityHint={deleted ? undefined : mine ? 'Appui long pour réagir, modifier ou supprimer' : 'Appui long pour réagir'}
+        accessibilityHint={deleted ? undefined : mine ? 'Appui long pour répondre, réagir, modifier ou supprimer' : 'Appui long pour répondre ou réagir'}
         style={({ pressed }) => [{ maxWidth: '80%' }, pressed && !deleted && { transform: [{ scale: 0.98 }] }]}>
         {mine && !deleted ? (
           <LinearGradient colors={[c.primaryTop, c.bubbleMine]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
@@ -408,6 +431,7 @@ const styles = StyleSheet.create({
   tile: { width: 168, marginRight: 12 },
   eventCard: { marginHorizontal: 16, marginBottom: 12 },
   eventTile: { width: 200, marginRight: 12 },
+  quote: { borderLeftWidth: 3, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, marginBottom: 6 },
   dateBadge: { position: 'absolute', top: 10, left: 10, borderRadius: 14, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4, alignItems: 'center' },
   userRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   notification: { flexDirection: 'row', gap: 12, padding: 14, marginHorizontal: 16, marginBottom: 10, borderRadius: radius.card, borderWidth: 1 },

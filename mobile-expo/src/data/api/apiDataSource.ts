@@ -219,13 +219,14 @@ export class ApiDataSource implements DataSource {
   getConversations = () => this.get<ConversationSummary[]>('api/conversations');
   getConversation = (id: string) => this.get<ConversationSummary>(`api/conversations/${id}`);
   getMessages = (id: string) => this.get<Message[]>(`api/conversations/${id}/messages`);
-  sendMessage = (id: string, content: string) => this.post<Message>(`api/conversations/${id}/messages`, { content });
+  sendMessage = (id: string, content: string, replyToId?: string | null) =>
+    this.post<Message>(`api/conversations/${id}/messages`, replyToId ? { content, replyToId } : { content });
   sendPost = (id: string, postId: string, content?: string) => this.post<Message>(`api/conversations/${id}/messages`, { content: content ?? '', postId });
   editMessage = (id: string, messageId: string, content: string) =>
     this.request<Message>('PUT', `api/conversations/${id}/messages/${messageId}`, { content });
   deleteMessage = (id: string, messageId: string) => this.request<Message>('DELETE', `api/conversations/${id}/messages/${messageId}`);
   deleteConversation = async (id: string) => { await this.request('DELETE', `api/conversations/${id}`); };
-  async sendAttachment(id: string, file: OutgoingFile, caption?: string) {
+  async sendAttachment(id: string, file: OutgoingFile, caption?: string, replyToId?: string | null) {
     const form = new FormData();
     if (Platform.OS === 'web') {
       form.append('file', await (await fetch(file.uri)).blob(), file.name);
@@ -234,6 +235,7 @@ export class ApiDataSource implements DataSource {
     }
     if (caption?.trim()) form.append('content', caption.trim());
     if (file.durationMs) form.append('durationMs', String(Math.round(file.durationMs)));
+    if (replyToId) form.append('replyToId', replyToId);
     // Jusqu'à 20 Mo : délai long (réseau mobile)
     return this.request<Message>('POST', `api/conversations/${id}/attachments`, form, 120_000);
   }
@@ -328,6 +330,7 @@ export class ApiDataSource implements DataSource {
   };
 
   // Voyages
+  getVoyagesStatus = () => this.get<{ enabled: boolean }>('api/trips/status');
   getVoyagesInfo = () => this.get<VoyagesInfo>('api/trips/info');
   searchTrips = (f: TripSearch, cursor?: string | null) =>
     this.get<TripPage>(`api/trips${this.q({

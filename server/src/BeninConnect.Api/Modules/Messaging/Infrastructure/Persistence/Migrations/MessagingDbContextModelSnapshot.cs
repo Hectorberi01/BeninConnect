@@ -63,8 +63,7 @@ namespace BeninConnect.Api.Modules.Messaging.Infrastructure.Persistence.Migratio
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                        .HasColumnType("text");
 
                     b.Property<Guid>("ConversationId")
                         .HasColumnType("uuid");
@@ -81,6 +80,9 @@ namespace BeninConnect.Api.Modules.Messaging.Infrastructure.Persistence.Migratio
                     b.Property<bool>("IsSimulated")
                         .HasColumnType("boolean");
 
+                    b.Property<Guid?>("ReplyToId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("SenderId")
                         .HasColumnType("uuid");
 
@@ -91,6 +93,8 @@ namespace BeninConnect.Api.Modules.Messaging.Infrastructure.Persistence.Migratio
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ReplyToId");
 
                     b.HasIndex("ConversationId", "SentAt");
 
@@ -150,8 +154,7 @@ namespace BeninConnect.Api.Modules.Messaging.Infrastructure.Persistence.Migratio
 
                             b1.Property<string>("FileName")
                                 .IsRequired()
-                                .HasMaxLength(120)
-                                .HasColumnType("character varying(120)");
+                                .HasColumnType("text");
 
                             b1.Property<string>("Kind")
                                 .IsRequired()

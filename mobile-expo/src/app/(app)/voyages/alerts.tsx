@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { Button, Card, EmptyState, Header, IconButton, Muted, QueryView, Screen, T, TextField } from '@/components/ui';
+import { VoyagesGate } from '@/components/VoyagesGate';
 import { formatDay, parseDay, PlacePicker, type Place, placeLabel } from '@/components/voyages';
 import { useRouteAlerts, useRouteAlertActions, useVoyagesInfo } from '@/features/queries';
 
 /** Alertes de trajet : une notification dès qu'un membre publie un trajet correspondant. */
-export default function RouteAlerts() {
+export default function RouteAlertsScreen() {
+  return <VoyagesGate><RouteAlerts /></VoyagesGate>;
+}
+
+function RouteAlerts() {
   const query = useRouteAlerts();
   const { create, remove } = useRouteAlertActions();
   const max = useVoyagesInfo().data?.maxAlerts ?? 5;

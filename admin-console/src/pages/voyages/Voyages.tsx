@@ -1,14 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Eye, EyeOff, Flag, PackageCheck, Plane, Star } from 'lucide-react'
+import { AlertTriangle, Eye, EyeOff, Flag, PackageCheck, Plane, Power, Star } from 'lucide-react'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useAuth } from '@/auth'
 import { useToast } from '@/components/toast'
 import { Badge, Button, Card, ConfirmDialog, cx, Empty, ErrorBox, Input, Loading, Modal, PageHeader, Pagination, Select, Stat } from '@/components/ui'
 import { api, errorMessage, qs } from '@/lib/api'
 import { countryName, fmtDateTime, fmtRelative } from '@/lib/format'
 import type {
   AdminBooking, AdminTrip, AdminTripDetail, AdminTripView, AdminVoyageReport, AdminVoyageReview, BookingStatus, Paged, ParcelCategory, TripStatus,
-  VoyagesOverview,
+  VoyagesOverview, VoyagesSettings,
 } from '@/lib/types'
 
 type Tab = 'trips' | 'disputes' | 'reports'
@@ -45,6 +46,7 @@ export function VoyagesPage() {
   return (
     <>
       <PageHeader title="Voyages" description="« Qui part au pays ? » : trajets publiés, réservations de kilos, litiges et signalements." />
+      <Visibility />
       {overview.error ? <ErrorBox message={errorMessage(overview.error)} onRetry={overview.refetch} /> : (
         <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Stat label="Trajets à venir" count={o?.upcomingTrips ?? 0} icon={<Plane />} hint={`${o?.openTrips ?? 0} encore ouverts`} />
@@ -73,6 +75,51 @@ export function VoyagesPage() {
       {tab === 'disputes' && <Disputes />}
       {tab === 'reports' && <Reports />}
     </>
+  )
+}
+
+/** Le module n'apparaît dans l'application qu'une fois affiché par un administrateur. */
+function Visibility() {
+  const toast = useToast()
+  const { me } = useAuth()
+  const qc = useQueryClient()
+  const [confirming, setConfirming] = useState(false)
+  const canToggle = me?.role === 'SuperAdmin' || me?.role === 'Admin'
+  const settings = useQuery({ queryKey: ['voyages-settings'], queryFn: () => api<VoyagesSettings>('api/admin/trips/settings') })
+  const save = useMutation({
+    mutationFn: (enabled: boolean) => api<VoyagesSettings>('api/admin/trips/settings', { method: 'PUT', body: { enabled } }),
+    onSuccess: (s) => {
+      qc.setQueryData(['voyages-settings'], s)
+      setConfirming(false)
+      toast(s.enabled ? 'Le module Voyages est visible dans l’application.' : 'Le module Voyages est masqué dans l’application.', 'success')
+    },
+    onError: (e) => toast(errorMessage(e), 'error'),
+  })
+  const s = settings.data
+  if (!s) return null
+  return (
+    <Card className={cx('mb-6 flex flex-wrap items-center gap-4 px-5 py-4', !s.enabled && 'border-warning')}>
+      <Power className={cx('size-5', s.enabled ? 'text-brand' : 'text-warning')} />
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold">{s.enabled ? 'Visible dans l’application' : 'Masqué dans l’application'}</p>
+        <p className="text-sm text-muted">
+          {s.enabled
+            ? 'Les membres voient « Qui part au pays ? » et peuvent publier et réserver.'
+            : 'Les membres ne voient ni la section ni les écrans Voyages. Affichez le module une fois les règles et les CGU validées.'}
+          {s.updatedBy && ` Dernière modification : ${s.updatedBy}${s.updatedAt ? `, ${fmtRelative(s.updatedAt)}` : ''}.`}
+        </p>
+      </div>
+      {canToggle
+        ? <Button variant={s.enabled ? 'danger' : 'primary'} onClick={() => setConfirming(true)}>{s.enabled ? 'Masquer le module' : 'Afficher le module'}</Button>
+        : <span className="text-sm text-muted">Réservé aux administrateurs</span>}
+      <ConfirmDialog open={confirming} busy={save.isPending} danger={s.enabled}
+        title={s.enabled ? 'Masquer le module Voyages ?' : 'Afficher le module Voyages ?'}
+        confirmLabel={s.enabled ? 'Masquer' : 'Afficher'}
+        message={s.enabled
+          ? 'Les écrans disparaissent de l’application. Les trajets et réservations sont conservés et réapparaîtront si vous affichez de nouveau le module.'
+          : 'Tous les membres pourront publier des trajets et réserver des kilos.'}
+        onClose={() => setConfirming(false)} onConfirm={() => save.mutate(!s.enabled)} />
+    </Card>
   )
 }
 

@@ -42,6 +42,13 @@ public sealed record AdminTripDetailDto(
     AdminTripDto Trip, IReadOnlyList<ParcelCategory> AcceptedCategories, decimal? PricePerKg, string Currency, string? DropOffZones, string? Notes,
     IReadOnlyList<AdminBookingDto> Bookings, IReadOnlyList<AdminVoyageReportDto> Reports, IReadOnlyList<AdminVoyageReviewDto> Reviews);
 
+public sealed record VoyagesSettingsDto(bool Enabled, DateTimeOffset? UpdatedAt, string? UpdatedBy);
+
+public sealed record GetVoyagesSettingsQuery : IQuery<VoyagesSettingsDto>;
+
+/// <summary>Afficher ou masquer le module dans l'application (rôles Admin et SuperAdmin).</summary>
+public sealed record SetVoyagesEnabledCommand(bool Enabled) : ICommand<VoyagesSettingsDto>;
+
 public sealed record GetVoyagesOverviewQuery : IQuery<VoyagesOverviewDto>;
 
 public sealed record GetAdminTripsQuery(AdminTripView View, string? Q, int Skip = 0, int Take = 25) : IQuery<PagedResult<AdminTripDto>>;
@@ -64,6 +71,8 @@ public sealed record SetVoyageReviewVisibilityCommand(Guid Id, bool Visible, str
 
 /// <summary>Modération des voyages (permission ContentModerate) : trajets, litiges, signalements, avis. Chaque décision est journalisée.</summary>
 public sealed class AdminVoyageHandlers(IVoyagesDb db, IIdentityModule identity, IEventBus bus, IAdminSession admin, TimeProvider clock) :
+    IRequestHandler<GetVoyagesSettingsQuery, VoyagesSettingsDto>,
+    IRequestHandler<SetVoyagesEnabledCommand, VoyagesSettingsDto>,
     IRequestHandler<GetVoyagesOverviewQuery, VoyagesOverviewDto>,
     IRequestHandler<GetAdminTripsQuery, PagedResult<AdminTripDto>>,
     IRequestHandler<GetAdminTripQuery, AdminTripDetailDto>,
@@ -75,6 +84,34 @@ public sealed class AdminVoyageHandlers(IVoyagesDb db, IIdentityModule identity,
     IRequestHandler<CloseVoyageReportCommand, AdminVoyageReportDto>,
     IRequestHandler<SetVoyageReviewVisibilityCommand, AdminVoyageReviewDto>
 {
+    public async Task<VoyagesSettingsDto> Handle(GetVoyagesSettingsQuery q, CancellationToken ct)
+    {
+        var s = await db.Settings.AsNoTracking().FirstOrDefaultAsync(x => x.Id == VoyagesSettings.SingletonId, ct);
+        return new VoyagesSettingsDto(s?.Enabled ?? false, s?.UpdatedAt, s?.UpdatedBy);
+    }
+
+    public async Task<VoyagesSettingsDto> Handle(SetVoyagesEnabledCommand c, CancellationToken ct)
+    {
+        var who = await admin.GetAsync(ct);
+        if (who.Role is not ("SuperAdmin" or "Admin"))
+        {
+            throw new ForbiddenException("Seuls les administrateurs affichent ou masquent le module Voyages.");
+        }
+
+        var settings = await db.Settings.FirstOrDefaultAsync(x => x.Id == VoyagesSettings.SingletonId, ct);
+        if (settings is null)
+        {
+            settings = VoyagesSettings.CreateDefault();
+            db.Settings.Add(settings);
+        }
+
+        settings.SetEnabled(c.Enabled, who.DisplayName, clock.GetUtcNow());
+        await db.SaveChangesAsync(ct);
+        await admin.LogAsync(c.Enabled ? "Module Voyages affiché" : "Module Voyages masqué", "VoyagesSettings", null,
+            c.Enabled ? "Visible dans l'application" : "Masqué dans l'application", ct);
+        return new VoyagesSettingsDto(settings.Enabled, settings.UpdatedAt, settings.UpdatedBy);
+    }
+
     public async Task<VoyagesOverviewDto> Handle(GetVoyagesOverviewQuery q, CancellationToken ct)
     {
         var now = clock.GetUtcNow();

@@ -11,18 +11,31 @@ using BeninConnect.Shared.Infrastructure;
 namespace BeninConnect.Modules.Voyages.Api;
 
 public sealed record BookingBody(decimal WeightKg, ParcelCategory Category, string Description, bool Certified);
-
 public sealed record DeliverBody(string Code);
-
 public sealed record VoyageReviewBody(int Rating, string? Comment);
-
 public sealed record VoyageReportBody(VoyageReportTarget TargetType, Guid TargetId, string Reason);
-
 public sealed record RouteAlertBody(string FromCountry, string? FromCity, string ToCountry, string? ToCity, DateOnly? After, DateOnly? Before);
-
 public sealed record ResolveBody(DisputeOutcome Outcome, string Note);
-
 public sealed record VoyageVisibilityBody(string? Reason);
+public sealed record VoyagesEnabledBody(bool Enabled);
+public sealed record VoyagesStatusDto(bool Enabled);
+
+/// <summary>Module masqué par l'équipe : les routes membres répondent 404.</summary>
+public sealed class VoyagesEnabledFilter : IEndpointFilter
+{
+    public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    {
+        var http = context.HttpContext;
+        var db = http.RequestServices.GetRequiredService<IVoyagesDb>();
+        if (!await VoyagesData.IsEnabledAsync(db, http.RequestAborted))
+        {
+            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Service indisponible",
+                detail: "Le service Voyages n'est pas encore disponible.");
+        }
+
+        return await next(context);
+    }
+}
 
 /// <summary>« Qui part au pays ? » : des voyageurs proposent des kilos, des expéditeurs les réservent. Mise en relation seulement, aucun paiement.</summary>
 public sealed class VoyagesModule : IModule
@@ -45,7 +58,11 @@ public sealed class VoyagesModule : IModule
 
     public void MapEndpoints(IEndpointRouteBuilder app)
     {
-        var trips = app.MapGroup("/api/trips").WithTags("Voyages").RequireAuthorization();
+        // État du module pour l'application (accessible même masqué)
+        app.MapGet("/api/trips/status", async (IVoyagesDb db, CancellationToken ct) => new VoyagesStatusDto(await VoyagesData.IsEnabledAsync(db, ct)))
+            .WithTags("Voyages").RequireAuthorization();
+
+        var trips = app.MapGroup("/api/trips").WithTags("Voyages").RequireAuthorization().AddEndpointFilter<VoyagesEnabledFilter>();
         trips.MapGet("", (string? from, string? to, string? fromCity, string? toCity, DateOnly? after, DateOnly? before, ParcelCategory? category,
                 decimal? minKg, string? cursor, int? take, ISender s, CancellationToken ct) =>
             s.Send(new SearchTripsQuery(from, to, fromCity, toCity, after, before, category, minKg, cursor, take ?? 20), ct));
@@ -69,7 +86,7 @@ public sealed class VoyagesModule : IModule
         });
         trips.MapPost("/reports", (VoyageReportBody r, ISender s, CancellationToken ct) => s.Send(new ReportVoyageCommand(r.TargetType, r.TargetId, r.Reason), ct));
 
-        var bookings = app.MapGroup("/api/bookings").WithTags("Voyages").RequireAuthorization();
+        var bookings = app.MapGroup("/api/bookings").WithTags("Voyages").RequireAuthorization().AddEndpointFilter<VoyagesEnabledFilter>();
         bookings.MapGet("/mine", (ISender s, CancellationToken ct) => s.Send(new GetMyBookingsQuery(), ct));
         bookings.MapGet("/{id:guid}", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetBookingQuery(id), ct));
         bookings.MapPost("/{id:guid}/accept", (Guid id, ISender s, CancellationToken ct) => s.Send(new AcceptBookingCommand(id), ct));
@@ -89,6 +106,9 @@ public sealed class VoyagesModule : IModule
     private static void MapAdmin(RouteGroupBuilder admin)
     {
         const Permission p = Permission.ContentModerate;
+        admin.MapGet("/settings", (ISender s, CancellationToken ct) => s.Send(new GetVoyagesSettingsQuery(), ct)).RequirePermission(p);
+        admin.MapPut("/settings", (VoyagesEnabledBody r, ISender s, CancellationToken ct) => s.Send(new SetVoyagesEnabledCommand(r.Enabled), ct))
+            .RequirePermission(p);
         admin.MapGet("/overview", (ISender s, CancellationToken ct) => s.Send(new GetVoyagesOverviewQuery(), ct)).RequirePermission(p);
         admin.MapGet("", (AdminTripView? view, string? q, int? skip, int? take, ISender s, CancellationToken ct) =>
             s.Send(new GetAdminTripsQuery(view ?? AdminTripView.All, q, skip ?? 0, take ?? 25), ct)).RequirePermission(p);

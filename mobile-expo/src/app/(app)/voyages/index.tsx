@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Notice } from '@/components/services';
 import { Button, Chip, EmptyState, ErrorState, Header, IconButton, Loading, Muted, Screen, TextField } from '@/components/ui';
+import { VoyagesGate } from '@/components/VoyagesGate';
 import { formatDay, parseDay, PARCEL_CATEGORIES, PlacePicker, type Place, TripCardView } from '@/components/voyages';
 import { useColors } from '@/core/theme';
 import { PARCEL_LABELS, type ParcelCategory, type TripSearch } from '@/data/types';
@@ -10,7 +11,11 @@ import { errorMessage } from '@/data/types';
 import { useRouteAlertActions, useTripSearch, useVoyagesInfo } from '@/features/queries';
 
 /** « Qui part au pays ? » : trajets à venir, filtrés par itinéraire, date et catégorie. */
-export default function Voyages() {
+export default function VoyagesScreen() {
+  return <VoyagesGate><Voyages /></VoyagesGate>;
+}
+
+function Voyages() {
   const c = useColors();
   const info = useVoyagesInfo().data;
   const [from, setFrom] = useState<Place | null>(null);

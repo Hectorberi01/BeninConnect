@@ -19,6 +19,8 @@ public sealed class VoyagesDbContext(DbContextOptions<VoyagesDbContext> options)
 
     public DbSet<TripReport> Reports => Set<TripReport>();
 
+    public DbSet<VoyagesSettings> Settings => Set<VoyagesSettings>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
@@ -96,6 +98,14 @@ public sealed class VoyagesDbContext(DbContextOptions<VoyagesDbContext> options)
             e.Property(x => x.ToCityKey).HasMaxLength(80);
             e.HasIndex(x => new { x.FromCountry, x.ToCountry });
             e.HasIndex(x => x.UserId);
+        });
+
+        b.Entity<VoyagesSettings>(e =>
+        {
+            e.ToTable("settings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.UpdatedBy).HasMaxLength(120);
         });
 
         b.Entity<TripReport>(e =>

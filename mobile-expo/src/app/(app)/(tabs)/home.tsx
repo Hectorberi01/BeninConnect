@@ -11,7 +11,7 @@ import { useTabBarSpace } from '@/components/glass';
 import { useMe } from '@/core/session';
 import { depth, useColors } from '@/core/theme';
 import { initials } from '@/data/types';
-import { useCommunities, useEvents, useFeed, useJobs, useServiceCategories, useTripSearch, useUnreadNotifications } from '@/features/queries';
+import { useCommunities, useEvents, useFeed, useJobs, useServiceCategories, useTripSearch, useUnreadNotifications, useVoyagesEnabled } from '@/features/queries';
 import { errorMessage } from '@/data/types';
 
 export default function Home() {
@@ -23,7 +23,8 @@ export default function Home() {
   const events = useEvents({});
   const jobs = useJobs({});
   const serviceCategories = useServiceCategories().data ?? [];
-  const trips = useTripSearch({});
+  const voyages = useVoyagesEnabled().enabled;
+  const trips = useTripSearch({}, voyages);
   const unread = useUnreadNotifications().data ?? 0;
   const [refreshing, setRefreshing] = useState(false);
   const bottom = useTabBarSpace();
@@ -40,7 +41,7 @@ export default function Home() {
 
   const refresh = async () => {
     setRefreshing(true);
-    await Promise.all([feed.refetch(), communities.refetch(), events.refetch(), jobs.refetch(), trips.refetch()]);
+    await Promise.all([feed.refetch(), communities.refetch(), events.refetch(), jobs.refetch(), ...(voyages ? [trips.refetch()] : [])]);
     setRefreshing(false);
   };
 
@@ -72,8 +73,8 @@ export default function Home() {
         </>
       )}
 
-      <SectionTitle title="Qui part au pays ?" action="Voir tout" onAction={() => router.push('/voyages')} />
-      {nextTrips.length > 0 ? (
+      {voyages && <SectionTitle title="Qui part au pays ?" action="Voir tout" onAction={() => router.push('/voyages')} />}
+      {!voyages ? null : nextTrips.length > 0 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hList}>
           {nextTrips.map((t) => <TripTile key={t.id} t={t} />)}
         </ScrollView>

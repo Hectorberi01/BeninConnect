@@ -50,12 +50,13 @@ public sealed class ProductionTests(ApiFactory factory)
         Assert.Contains("Email__Provider", error.Message);
         Assert.Contains("SeedDemoData", error.Message);
         Assert.Contains("chiffrement obligatoire", error.Message);
+        Assert.Contains("Messaging__EncryptionKey", error.Message);
 
         var local = Assert.Throws<InvalidOperationException>(() => Production.Validate(
             Config(("ConnectionStrings:Database", "Host=localhost;SSL Mode=Require")), new Env("Production"), jwt, new AuthSettings(), new EmailSettings()));
         Assert.Contains("hôte de la base hébergée", local.Message);
 
-        Production.Validate(Config(("Database:SeedDemoData", "false"),
+        Production.Validate(Config(("Database:SeedDemoData", "false"), ("Messaging:EncryptionKey", Convert.ToBase64String(new byte[32])),
                 ("ConnectionStrings:Database", "Host=ep-exemple.eu-central-1.aws.neon.tech;Database=beninconnect;Username=app;Password=x;SSL Mode=Require")), new Env("Production"),
             new JwtOptions { SigningKey = new string('k', 48) }, new AuthSettings(),
             new EmailSettings { Provider = "smtp", Host = "smtp.exemple.test", From = "no-reply@exemple.test" });
@@ -63,7 +64,7 @@ public sealed class ProductionTests(ApiFactory factory)
 
     [Fact]
     public void Cloud_sql_unix_socket_is_accepted_without_ssl() =>
-        Production.Validate(Config(("Database:SeedDemoData", "false"),
+        Production.Validate(Config(("Database:SeedDemoData", "false"), ("Messaging:EncryptionKey", Convert.ToBase64String(new byte[32])),
                 ("ConnectionStrings:Database", "Host=/cloudsql/projet:europe-west1:beninconnect;Database=beninconnect;Username=app;Password=x")),
             new Env("Production"), new JwtOptions { SigningKey = new string('k', 48) }, new AuthSettings(),
             new EmailSettings { Provider = "smtp", Host = "smtp.exemple.test", From = "no-reply@exemple.test" });

@@ -386,6 +386,26 @@ namespace BeninConnect.Api.Modules.Voyages.Infrastructure.Persistence.Migrations
                     b.ToTable("reviews", "voyages");
                 });
 
+            modelBuilder.Entity("BeninConnect.Modules.Voyages.Domain.VoyagesSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("settings", "voyages");
+                });
+
             modelBuilder.Entity("BeninConnect.Modules.Voyages.Domain.Booking", b =>
                 {
                     b.HasOne("BeninConnect.Modules.Voyages.Domain.Trip", null)

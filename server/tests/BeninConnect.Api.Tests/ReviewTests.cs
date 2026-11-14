@@ -30,6 +30,7 @@ public sealed class ReviewModeFactory : ApiFactory
         builder.UseEnvironment("Review");
         builder.UseSetting("Jwt:SigningKey", "cle-de-test-du-mode-revue-0123456789-abcdefghijklmnop");
         builder.UseSetting("Auth:FixedVerificationCode", "123456");
+        builder.UseSetting("Messaging:EncryptionKey", ApiFactory.MessagesTestKey);
         builder.UseSetting("Database:AllowInsecure", "true");
         builder.UseSetting("Database:AllowLocalhost", "true");
         builder.UseSetting("Database:SeedDemoData", "true");

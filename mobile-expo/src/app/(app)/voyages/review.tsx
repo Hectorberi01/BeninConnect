@@ -2,13 +2,18 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { Button, Header, Icon, Muted, Screen, T, TextField } from '@/components/ui';
+import { VoyagesGate } from '@/components/VoyagesGate';
 import { useColors } from '@/core/theme';
 import { useReviewBooking } from '@/features/queries';
 
 const LABELS = ['', 'Très décevant', 'Décevant', 'Correct', 'Bien', 'Excellent'];
 
 /** Avis après une livraison confirmée par le code : un par côté. */
-export default function ReviewBooking() {
+export default function ReviewBookingScreen() {
+  return <VoyagesGate><ReviewBooking /></VoyagesGate>;
+}
+
+function ReviewBooking() {
   const c = useColors();
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const save = useReviewBooking();

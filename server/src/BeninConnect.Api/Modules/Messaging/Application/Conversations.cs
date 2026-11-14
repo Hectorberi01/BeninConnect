@@ -24,7 +24,10 @@ public sealed record AttachmentDto(AttachmentKind Kind, string FileName, string 
 public sealed record MessageDto(
     Guid Id, Guid ConversationId, Guid SenderId, string Content, DateTimeOffset SentAt, bool IsRead, bool IsSimulated,
     IReadOnlyList<ReactionDto> Reactions, DateTimeOffset? EditedAt = null, bool IsDeleted = false, AttachmentDto? Attachment = null,
-    Guid? SharedPostId = null);
+    Guid? SharedPostId = null, ReplyDto? ReplyTo = null);
+
+/// <summary>Message cité par une réponse : extrait du texte ou type de pièce jointe.</summary>
+public sealed record ReplyDto(Guid Id, Guid SenderId, string Excerpt, bool IsDeleted, AttachmentKind? Kind);
 
 /// <summary>Fichier d'une pièce jointe, après contrôle d'accès.</summary>
 public sealed record AttachmentDownload(Stream Content, long? Length, string ContentType, string FileName);
@@ -58,10 +61,28 @@ public static class MessagingMapping
     public static ConversationDto ToDto(this Conversation c) =>
         new(c.Id, c.Participants.Select(p => p.UserId).ToList(), c.CreatedAt);
 
-    /// <summary>Nécessite l'inclusion de Reactions.</summary>
-    public static MessageDto ToDto(this Message m) =>
+    /// <summary>Nécessite l'inclusion de Reactions. replyTo : message cité (sinon pas de citation).</summary>
+    public static MessageDto ToDto(this Message m, Message? replyTo = null) =>
         new(m.Id, m.ConversationId, m.SenderId, m.Content, m.SentAt, m.IsRead, m.IsSimulated, m.Reactions.ToDto(), m.EditedAt, m.IsDeleted,
-            m.Attachment is { } a ? new AttachmentDto(a.Kind, a.FileName, a.ContentType, a.Size, a.DurationMs) : null, m.SharedPostId);
+            m.Attachment is { } a ? new AttachmentDto(a.Kind, a.FileName, a.ContentType, a.Size, a.DurationMs) : null, m.SharedPostId,
+            replyTo is null ? null : new ReplyDto(replyTo.Id, replyTo.SenderId, replyTo.IsDeleted ? string.Empty : Text.Excerpt(replyTo.Preview(), 120),
+                replyTo.IsDeleted, replyTo.Attachment?.Kind));
+
+    /// <summary>Messages avec leurs citations (messages cités absents de la liste chargés en une requête).</summary>
+    public static async Task<List<MessageDto>> ToDtosAsync(this IMessagingDb db, IReadOnlyList<Message> messages, CancellationToken ct)
+    {
+        var known = messages.GroupBy(m => m.Id).ToDictionary(g => g.Key, g => g.First());
+        var missing = messages.Where(m => m.ReplyToId is { } id && !known.ContainsKey(id)).Select(m => m.ReplyToId!.Value).Distinct().ToList();
+        if (missing.Count > 0)
+        {
+            foreach (var cited in await db.Messages.AsNoTracking().Where(m => missing.Contains(m.Id)).ToListAsync(ct))
+            {
+                known[cited.Id] = cited;
+            }
+        }
+
+        return messages.Select(m => m.ToDto(m.ReplyToId is { } id ? known.GetValueOrDefault(id) : null)).ToList();
+    }
 
     /// <summary>Aperçu (notification, liste des conversations) : texte ou type de pièce jointe.</summary>
     public static string Preview(this Message m) => m.Attachment switch
@@ -81,7 +102,7 @@ public sealed record GetConversationQuery(Guid Id) : IQuery<ConversationSummaryD
 public sealed record GetMessagesQuery(Guid ConversationId) : IQuery<IReadOnlyList<MessageDto>>;
 
 /// <summary>PostId : publication partagée (texte facultatif).</summary>
-public sealed record SendMessageCommand(Guid ConversationId, string Content, Guid? PostId = null) : ICommand<MessageDto>, IValidatable
+public sealed record SendMessageCommand(Guid ConversationId, string Content, Guid? PostId = null, Guid? ReplyToId = null) : ICommand<MessageDto>, IValidatable
 {
     public IEnumerable<(string, string)> Validate() => PostId is not null && string.IsNullOrWhiteSpace(Content)
         ? []
@@ -103,7 +124,8 @@ public sealed record EditMessageCommand(Guid ConversationId, Guid MessageId, str
 public sealed record DeleteMessageCommand(Guid ConversationId, Guid MessageId) : ICommand<MessageDto>;
 
 /// <summary>Photo, PDF ou message vocal (20 Mo), avec une légende facultative. Content doit permettre la lecture répétée.</summary>
-public sealed record SendAttachmentCommand(Guid ConversationId, Stream Content, long Length, string? FileName, string? Caption, int? DurationMs)
+public sealed record SendAttachmentCommand(Guid ConversationId, Stream Content, long Length, string? FileName, string? Caption, int? DurationMs,
+    Guid? ReplyToId = null)
     : ICommand<MessageDto>, IValidatable
 {
     public IEnumerable<(string, string)> Validate()
@@ -166,10 +188,10 @@ public sealed class ConversationHandlers(
     {
         var conversation = await LoadMineAsync(request.ConversationId, ct);
         var since = conversation.ClearedAtFor(me.Id) ?? DateTimeOffset.MinValue;
-        return (await db.Messages.AsNoTracking().Include(m => m.Reactions)
-                .Where(m => m.ConversationId == request.ConversationId && m.SentAt > since)
-                .OrderBy(m => m.SentAt).ToListAsync(ct))
-            .Select(m => m.ToDto()).ToList();
+        var messages = await db.Messages.AsNoTracking().Include(m => m.Reactions)
+            .Where(m => m.ConversationId == request.ConversationId && m.SentAt > since)
+            .OrderBy(m => m.SentAt).ToListAsync(ct);
+        return await db.ToDtosAsync(messages, ct);
     }
 
     public async Task<MessageDto> Handle(SendMessageCommand request, CancellationToken ct)
@@ -181,7 +203,8 @@ public sealed class ConversationHandlers(
             throw new NotFoundException("Publication");
         }
 
-        var message = conversation.Post(Guid.NewGuid(), me.Id, request.Content, clock.GetUtcNow(), sharedPostId: request.PostId);
+        var replyTo = await ReplyTargetAsync(conversation, request.ReplyToId, ct);
+        var message = conversation.Post(Guid.NewGuid(), me.Id, request.Content, clock.GetUtcNow(), sharedPostId: request.PostId, replyTo: replyTo);
         db.Messages.Add(message);
         await db.SaveChangesAsync(ct);
 
@@ -192,6 +215,7 @@ public sealed class ConversationHandlers(
     {
         var conversation = await LoadMineAsync(request.ConversationId, ct);
         await EnsureNotBlockedAsync(conversation.Participants.Select(p => p.UserId), ct);
+        var replyTo = await ReplyTargetAsync(conversation, request.ReplyToId, ct);
         var stored = await media.SaveAttachmentAsync(request.Content, request.Length, ct);
         var kind = Enum.Parse<AttachmentKind>(stored.Kind);
         var fallback = kind switch { AttachmentKind.Audio => "Message vocal", AttachmentKind.Image => "Photo", _ => "Document" };
@@ -200,7 +224,7 @@ public sealed class ConversationHandlers(
 
         try
         {
-            var message = conversation.Post(Guid.NewGuid(), me.Id, request.Caption ?? string.Empty, clock.GetUtcNow(), attachment: attachment);
+            var message = conversation.Post(Guid.NewGuid(), me.Id, request.Caption ?? string.Empty, clock.GetUtcNow(), attachment: attachment, replyTo: replyTo);
             db.Messages.Add(message);
             await db.SaveChangesAsync(ct);
             return await AnnounceAsync(conversation, message, ct);
@@ -229,7 +253,7 @@ public sealed class ConversationHandlers(
     private async Task<MessageDto> AnnounceAsync(Conversation conversation, Message message, CancellationToken ct)
     {
         var recipients = conversation.Participants.Select(p => p.UserId).Where(id => id != me.Id).ToList();
-        var dto = message.ToDto();
+        var dto = (await db.ToDtosAsync([message], ct))[0];
         await live.MessageCreatedAsync(Participants(conversation), dto, ct);
         await bus.PublishAsync(new MessageSent(conversation.Id, me.Id, recipients, Text.Excerpt(message.Preview())), ct);
         return dto;
@@ -275,7 +299,7 @@ public sealed class ConversationHandlers(
 
         change(message);
         await db.SaveChangesAsync(ct);
-        var dto = message.ToDto();
+        var dto = (await db.ToDtosAsync([message], ct))[0];
         await live.MessageUpdatedAsync(Participants(conversation), dto, ct);
         return dto;
     }
@@ -346,6 +370,13 @@ public sealed class ConversationHandlers(
         return new CountDto(1);
     }
 
+    /// <summary>Message cité : de la même conversation (404 sinon).</summary>
+    private async Task<Message?> ReplyTargetAsync(Conversation conversation, Guid? replyToId, CancellationToken ct) =>
+        replyToId is not { } id
+            ? null
+            : await db.Messages.AsNoTracking().FirstOrDefaultAsync(m => m.Id == id && m.ConversationId == conversation.Id, ct)
+              ?? throw new NotFoundException("Message cité");
+
     private async Task EnsureNotBlockedAsync(IEnumerable<Guid> participants, CancellationToken ct)
     {
         var blocked = await identity.GetBlockedRelationsAsync(me.Id, ct);
@@ -369,8 +400,17 @@ public sealed class ConversationHandlers(
         var users = await identity.GetUsersAsync(otherIds, ct);
         var blocked = await identity.GetBlockedRelationsAsync(me.Id, ct);
 
-        var messages = await db.Messages.AsNoTracking().Where(m => ids.Contains(m.ConversationId)).ToListAsync(ct);
-        var byConversation = messages.GroupBy(m => m.ConversationId).ToDictionary(g => g.Key, g => g.ToList());
+        // Métadonnées seulement (sans le texte chiffré) ; le dernier message visible est chargé ensuite
+        var meta = await db.Messages.AsNoTracking().Where(m => ids.Contains(m.ConversationId))
+            .Select(m => new { m.Id, m.ConversationId, m.SenderId, m.SentAt, m.IsRead }).ToListAsync(ct);
+        var byConversation = meta.GroupBy(m => m.ConversationId).ToDictionary(g => g.Key, g => g.ToList());
+        var lastIds = conversations.Select(c =>
+            {
+                var since = c.ClearedAtFor(me.Id) ?? DateTimeOffset.MinValue;
+                return (byConversation.GetValueOrDefault(c.Id) ?? []).Where(m => m.SentAt > since).MaxBy(m => m.SentAt)?.Id;
+            })
+            .OfType<Guid>().ToList();
+        var lastMessages = await db.Messages.AsNoTracking().Where(m => lastIds.Contains(m.Id)).ToDictionaryAsync(m => m.ConversationId, ct);
 
         var result = new List<ConversationSummaryDto>();
         foreach (var c in conversations)
@@ -386,7 +426,7 @@ public sealed class ConversationHandlers(
             result.Add(new ConversationSummaryDto(
                 c.ToDto(),
                 other,
-                list.MaxBy(m => m.SentAt)?.ToDto(),
+                lastMessages.GetValueOrDefault(c.Id)?.ToDto(),
                 list.Count(m => m.SenderId != me.Id && !m.IsRead),
                 blocked.Contains(otherId),
                 presence.IsOnline(otherId),

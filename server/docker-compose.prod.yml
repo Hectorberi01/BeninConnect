@@ -26,6 +26,9 @@ services:
       Database__AllowInsecure: ${DB_ALLOW_INSECURE:-false}
       ConnectionStrings__Database: "Host=${DB_HOST};Port=${DB_PORT:-5432};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};SSL Mode=${DB_SSLMODE:-Require};Maximum Pool Size=${DB_POOL_SIZE:-20};Timeout=15;Keepalive=30;GSS Encryption Mode=Disable"
       Jwt__SigningKey: ${JWT_SIGNING_KEY}
+      # Chiffrement des messages en base (obligatoire : l'API refuse de démarrer sans clé valide)
+      Messaging__EncryptionKey: ${MESSAGES_ENCRYPTION_KEY}
+      Messaging__PreviousEncryptionKeys: ${MESSAGES_PREVIOUS_KEYS:-}
       # Emails (codes de vérification, mot de passe oublié) : Resend par défaut, SMTP possible
       Email__Provider: ${EMAIL_PROVIDER:-resend}
       Email__ResendApiKey: ${RESEND_API_KEY:-}

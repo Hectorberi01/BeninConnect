@@ -1,3 +1,4 @@
+using BeninConnect.Modules.Administration.Contracts;
 using BeninConnect.Modules.Messaging.Application;
 using BeninConnect.Modules.Messaging.Contracts;
 using BeninConnect.Modules.Messaging.Infrastructure;
@@ -14,7 +15,7 @@ namespace BeninConnect.Modules.Messaging.Api;
 public sealed record StartConversationRequest(Guid OtherUserId);
 
 /// <summary>PostId : partager une publication (Content facultatif).</summary>
-public sealed record SendMessageRequest(string? Content, Guid? PostId = null);
+public sealed record SendMessageRequest(string? Content, Guid? PostId = null, Guid? ReplyToId = null);
 
 public sealed class MessagingModule : IModule
 {
@@ -23,6 +24,12 @@ public sealed class MessagingModule : IModule
     public void AddServices(WebApplicationBuilder builder)
     {
         var services = builder.Services;
+        // Clé de chiffrement des messages : obligatoire hors développement (contrôlée aussi par Host/Production.cs)
+        var encryption = builder.Configuration.GetSection(MessageEncryptionOptions.Section).Get<MessageEncryptionOptions>() ?? new MessageEncryptionOptions();
+        var jwtKey = builder.Configuration.GetSection(JwtOptions.Section).Get<JwtOptions>()?.SigningKey ?? string.Empty;
+        MessageCipher.Current = MessageCipher.FromConfiguration(encryption, jwtKey, builder.Environment.IsDevelopment());
+        services.AddSingleton<MessageEncryptionJob>();
+        services.AddSingleton<IMessageEncryptionJob>(sp => sp.GetRequiredService<MessageEncryptionJob>());
         services.AddModuleDbContext<MessagingDbContext>(builder.Configuration, Name, MessagingDbContext.SchemaName);
         services.AddScoped<IMessagingDb>(sp => sp.GetRequiredService<MessagingDbContext>());
         services.AddModuleHandlers("BeninConnect.Modules.Messaging");
@@ -50,7 +57,7 @@ public sealed class MessagingModule : IModule
         conversations.MapGet("/{id:guid}/messages", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetMessagesQuery(id), ct));
         conversations.MapPost("/{id:guid}/messages", async (Guid id, SendMessageRequest r, ISender s, CancellationToken ct) =>
         {
-            var message = await s.Send(new SendMessageCommand(id, r.Content ?? string.Empty, r.PostId), ct);
+            var message = await s.Send(new SendMessageCommand(id, r.Content ?? string.Empty, r.PostId, r.ReplyToId), ct);
             return Results.Created($"/api/conversations/{id}/messages", message);
         });
         conversations.MapPost("/{id:guid}/messages/{messageId:guid}/reactions", (Guid id, Guid messageId, ReactionRequest r, ISender s, CancellationToken ct) =>
@@ -61,7 +68,8 @@ public sealed class MessagingModule : IModule
                 var file = form.Files.GetFile("file");
                 await using var content = file?.OpenReadStream() ?? Stream.Null;
                 var duration = int.TryParse(form["durationMs"], out var ms) ? ms : (int?)null;
-                var message = await s.Send(new SendAttachmentCommand(id, content, file?.Length ?? 0, file?.FileName, form["content"], duration), ct);
+                var replyTo = Guid.TryParse(form["replyToId"], out var reply) ? reply : (Guid?)null;
+                var message = await s.Send(new SendAttachmentCommand(id, content, file?.Length ?? 0, file?.FileName, form["content"], duration, replyTo), ct);
                 return Results.Created($"/api/conversations/{id}/messages", message);
             })
             .RequireRateLimiting(RateLimits.Uploads)
@@ -85,6 +93,13 @@ public sealed class MessagingModule : IModule
             .RequireAuthorization();
 
         app.MapHub<ChatHub>("/hubs/chat");
+
+        // Console : chiffrement des messages enregistrés avant l'activation (rôles vérifiés par le traitement)
+        var admin = app.MapGroup("/api/admin/messaging").WithTags("Administration");
+        admin.MapGet("/encryption", (ISender s, CancellationToken ct) => s.Send(new GetMessageEncryptionStatusQuery(), ct))
+            .RequirePermission(Permission.DashboardView);
+        admin.MapPost("/encryption/run", (ISender s, CancellationToken ct) => s.Send(new StartMessageEncryptionCommand(), ct))
+            .RequirePermission(Permission.DashboardView);
 
         if (app.ServiceProvider.GetRequiredService<IHostEnvironment>().IsDevelopment())
         {

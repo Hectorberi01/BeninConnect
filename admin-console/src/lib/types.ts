@@ -663,6 +663,12 @@ export type TripHiddenReason = 'None' | 'Reports' | 'Admin' | 'Suspended'
 export type BookingStatus = 'Pending' | 'Accepted' | 'Declined' | 'Cancelled' | 'Delivered' | 'Disputed'
 export type AdminTripView = 'All' | 'Upcoming' | 'Hidden' | 'Reported'
 
+export interface VoyagesSettings {
+  enabled: boolean
+  updatedAt: string | null
+  updatedBy: string | null
+}
+
 export interface VoyagesOverview {
   openTrips: number
   upcomingTrips: number

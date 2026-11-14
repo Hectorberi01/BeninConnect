@@ -3,13 +3,18 @@ import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { CityPicker, Notice } from '@/components/services';
 import { Button, Checkbox, Header, Muted, Screen, Segmented, SectionTitle, T, TextField } from '@/components/ui';
+import { VoyagesGate } from '@/components/VoyagesGate';
 import { CategoryChips, formatDay, isoDay, parseDay, ProhibitedNotice } from '@/components/voyages';
 import { type City, findCity } from '@/data/cities';
 import type { ParcelCategory } from '@/data/types';
 import { useSaveTrip, useTrip, useVoyagesInfo } from '@/features/queries';
 
 /** Publier ou modifier un trajet, en deux étapes : itinéraire puis conditions. */
-export default function PublishTrip() {
+export default function PublishTripScreen() {
+  return <VoyagesGate><PublishTrip /></VoyagesGate>;
+}
+
+function PublishTrip() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const existing = useTrip(id ?? '').data;
   const info = useVoyagesInfo().data;

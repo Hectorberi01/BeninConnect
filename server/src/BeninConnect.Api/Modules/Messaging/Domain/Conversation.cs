@@ -41,15 +41,23 @@ public sealed class Conversation
         participant.Clear(now);
     }
 
+    /// <summary>replyTo : message cité (même conversation, non supprimé).</summary>
     public Message Post(Guid id, Guid senderId, string content, DateTimeOffset now, bool isSimulated = false, MessageAttachment? attachment = null,
-        Guid? sharedPostId = null)
+        Guid? sharedPostId = null, Message? replyTo = null)
     {
         if (!Includes(senderId))
         {
             throw new ForbiddenException("Vous ne participez pas à cette conversation.");
         }
 
-        return Message.Create(id, Id, senderId, content, now, isSimulated, attachment: attachment, sharedPostId: sharedPostId);
+        if (replyTo is not null && (replyTo.ConversationId != Id || replyTo.IsDeleted))
+        {
+            throw new DomainException("Ce message ne peut pas recevoir de réponse.");
+        }
+
+        var message = Message.Create(id, Id, senderId, content, now, isSimulated, attachment: attachment, sharedPostId: sharedPostId);
+        message.ReplyTo(replyTo?.Id);
+        return message;
     }
 }
 
@@ -127,6 +135,9 @@ public sealed class Message
     /// <summary>Publication partagée dans la discussion (aperçu chargé par l'application).</summary>
     public Guid? SharedPostId { get; private set; }
 
+    /// <summary>Message auquel celui-ci répond (citation affichée au-dessus).</summary>
+    public Guid? ReplyToId { get; private set; }
+
     public IReadOnlyCollection<MessageReaction> Reactions => _reactions;
 
     /// <summary>Retourne true si le membre a désormais une réaction sur ce message.</summary>
@@ -154,6 +165,8 @@ public sealed class Message
     }
 
     public void MarkRead() => IsRead = true;
+
+    internal void ReplyTo(Guid? messageId) => ReplyToId = messageId;
 
     /// <summary>Par l'expéditeur, dans les 15 minutes suivant l'envoi.</summary>
     public void Edit(Guid userId, string content, DateTimeOffset now)

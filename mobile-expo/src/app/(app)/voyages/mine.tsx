@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, FlatList, Platform, RefreshControl, Share, StyleSheet, View } from 'react-native';
 import { Button, Card, EmptyState, Header, Muted, QueryView, Screen, Segmented, T, Tag } from '@/components/ui';
+import { VoyagesGate } from '@/components/VoyagesGate';
 import { askReason, BookingStatusTag, PersonAvatar, tripDay, TripRoute } from '@/components/voyages';
 import { confirm } from '@/core/dialog';
 import * as fmt from '@/core/format';
@@ -16,7 +17,11 @@ type Tab = 'trips' | 'sent';
 const DISPUTE_REASONS = ['Colis non remis ou non livré', 'Contenu différent de l’annonce', 'L’autre membre ne répond plus', 'Autre problème'];
 
 /** Mes voyages (réservations reçues) et mes envois (code de remise, avis). */
-export default function MyVoyages() {
+export default function MyVoyagesScreen() {
+  return <VoyagesGate><MyVoyages /></VoyagesGate>;
+}
+
+function MyVoyages() {
   const c = useColors();
   const params = useLocalSearchParams<{ tab?: Tab }>();
   const [tab, setTab] = useState<Tab>(params.tab === 'sent' ? 'sent' : 'trips');

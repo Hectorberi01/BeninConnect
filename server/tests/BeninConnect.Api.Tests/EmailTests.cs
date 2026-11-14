@@ -65,6 +65,7 @@ public sealed class EmailTests
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Database:SeedDemoData"] = "false",
+            ["Messaging:EncryptionKey"] = Convert.ToBase64String(new byte[32]),
             ["ConnectionStrings:Database"] = "Host=db.exemple.test;Database=b;Username=u;Password=p;SSL Mode=Require"
         }).Build();
         var jwt = new JwtOptions { SigningKey = new string('k', 48) };

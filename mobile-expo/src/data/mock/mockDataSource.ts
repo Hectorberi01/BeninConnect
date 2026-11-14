@@ -6,7 +6,7 @@ import type {
   DocumentKind, OfferingInput, ProviderInput, ServiceReportTarget, ServiceSearch, BookingInput, RouteAlertInput, TripInput, TripSearch, VoyageReportTarget,
   MembershipStatus, Message, NotificationCategory, OutgoingFile, Paged, Post, PostFilter, User, LocalPhoto, LocalVideo, ReportReason, ReportTarget,
 } from '../types';
-import { AppError, displayName, isEventFull, membershipStatus, toggleReaction } from '../types';
+import { AppError, displayName, isEventFull, membershipStatus, messagePreview, toggleReaction } from '../types';
 import { COMMUNITY_CATEGORIES, EVENT_CATEGORIES } from './seed/seed';
 import { extractTags, normalizeTag } from '../social';
 import { createMockStore, type MockStore } from './factory';
@@ -572,20 +572,30 @@ export class MockDataSource implements DataSource {
     this.cleared.set(`${this.userId}:${conversationId}`, new Date().toISOString());
   }
 
-  private post(conversationId: string, senderId: string, content: string, isSimulated: boolean, sharedPostId: string | null = null) {
+  private post(conversationId: string, senderId: string, content: string, isSimulated: boolean, sharedPostId: string | null = null, replyToId: string | null = null) {
     if (!sharedPostId || content.trim()) this.validate({ content: v.length(content, 'Le message', 1, 2000) });
     const m: Message = {
       id: newId(), conversationId, senderId, content: content.trim(), sentAt: new Date().toISOString(), isRead: false, isSimulated, reactions: [], sharedPostId,
+      replyTo: this.reply(conversationId, replyToId),
     };
     this.store.messages.push(m);
     return m;
   }
 
-  async sendMessage(conversationId: string, content: string) {
+  /** Citation d'un message de la même discussion. */
+  private reply(conversationId: string, replyToId: string | null) {
+    if (!replyToId) return null;
+    const cited = this.store.messages.find((m) => m.id === replyToId && m.conversationId === conversationId);
+    if (!cited) throw new AppError('Message cité introuvable.', 404);
+    if (cited.isDeleted) throw new AppError('Ce message ne peut pas recevoir de réponse.', 400);
+    return { id: cited.id, senderId: cited.senderId, excerpt: excerpt(messagePreview(cited)), isDeleted: false, kind: cited.attachment?.kind ?? null };
+  }
+
+  async sendMessage(conversationId: string, content: string, replyToId?: string | null) {
     await this.net();
     const c = this.mine(conversationId);
     this.ensureNotBlocked(c);
-    const message = this.post(conversationId, this.userId, content, false);
+    const message = this.post(conversationId, this.userId, content, false, null, replyToId ?? null);
     const me = this.find(this.store.users, this.userId, 'Compte');
     for (const other of c.participantIds.filter((p) => p !== this.userId)) {
       this.notify(other, { category: 'Messages', title: `Nouveau message de ${displayName(me)}`, body: excerpt(message.content), target: 'Conversation', targetId: c.id });
@@ -646,7 +656,7 @@ export class MockDataSource implements DataSource {
   /** Démo : le fichier reste sur l'appareil, son adresse locale sert d'URL. */
   private readonly attachmentUris = new Map<string, string>();
 
-  async sendAttachment(conversationId: string, file: OutgoingFile, caption?: string) {
+  async sendAttachment(conversationId: string, file: OutgoingFile, caption?: string, replyToId?: string | null) {
     await this.net();
     this.ensureNotBlocked(this.mine(conversationId));
     const kind = file.mimeType.startsWith('image/') ? 'Image' : file.mimeType.startsWith('audio/') ? 'Audio' : 'File';
@@ -654,6 +664,7 @@ export class MockDataSource implements DataSource {
     const m: Message = {
       id: newId(), conversationId, senderId: this.userId, content: caption?.trim() ?? '', sentAt: new Date().toISOString(), isRead: false,
       isSimulated: false, reactions: [], attachment: { kind, fileName: file.name, contentType: file.mimeType, size: 0, durationMs: file.durationMs ?? null },
+      replyTo: this.reply(conversationId, replyToId ?? null),
     };
     this.attachmentUris.set(m.id, file.uri);
     this.store.messages.push(m);
@@ -852,6 +863,7 @@ export class MockDataSource implements DataSource {
 
   private voyages = new MockVoyages(() => this.userId, (id) => this.store.users.find((u) => u.id === id));
 
+  async getVoyagesStatus() { return { enabled: true }; }
   async getVoyagesInfo() { return VOYAGES_INFO; }
   async searchTrips(f: TripSearch) { await this.net(); return this.voyages.search(f); }
   async getTrip(id: string) { await this.net(); return this.voyages.get(id); }

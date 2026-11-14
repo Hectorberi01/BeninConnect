@@ -18,6 +18,8 @@ public interface IVoyagesDb
 
     DbSet<TripReport> Reports { get; }
 
+    DbSet<VoyagesSettings> Settings { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
@@ -32,6 +34,10 @@ public sealed class VoyagesOptions
 
 public static class VoyagesData
 {
+    /// <summary>Module activé par l'équipe (absent = désactivé).</summary>
+    public static async Task<bool> IsEnabledAsync(IVoyagesDb db, CancellationToken ct) =>
+        await db.Settings.AsNoTracking().Where(s => s.Id == VoyagesSettings.SingletonId).Select(s => s.Enabled).FirstOrDefaultAsync(ct);
+
     /// <summary>Catégorie « System » : une catégorie « Voyages » désactivable demande une évolution du module Notifications (V2).</summary>
     public static Task NotifyAsync(IEventBus bus, Guid userId, string title, string body, Guid? conversationId, CancellationToken ct) =>
         bus.PublishAsync(new NotificationRequested(userId, "System", title, Text.Excerpt(body, 160),

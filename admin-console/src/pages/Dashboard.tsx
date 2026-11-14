@@ -7,6 +7,7 @@ import { type ReactNode, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useAuth } from '@/auth'
+import { MessageEncryptionCard } from '@/components/MessageEncryptionCard'
 import { AnimatedNumber, Cube, Float, ProgressRing, revealItem, Stagger } from '@/components/motion'
 import { Card, ErrorBox, Loading, Stat } from '@/components/ui'
 import { api, errorMessage } from '@/lib/api'
@@ -122,6 +123,7 @@ export function DashboardPage() {
       <Hero name={me?.displayName.split(' ')[0] ?? ''} role={me ? ROLE_LABELS[me.role] : ''} s={s} />
 
       <div className="space-y-6">
+        <MessageEncryptionCard />
         <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" delay={0.1}>
           <Stat label="Membres" count={s.members} icon={<Users />} accent="brand" spark={s.signups.map((d) => d.count)}
             hint={`+${s.newMembers7Days} cette semaine · +${s.newMembers30Days} en 30 j`} />

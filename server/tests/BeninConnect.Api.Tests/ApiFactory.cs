@@ -15,6 +15,8 @@ namespace BeninConnect.Api.Tests;
 /// </summary>
 public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    public static readonly string MessagesTestKey = Convert.ToBase64String(Enumerable.Range(1, 32).Select(i => (byte)i).ToArray());
+
     private static readonly string? ExternalServer = Environment.GetEnvironmentVariable("BC_TEST_POSTGRES");
 
     private readonly PostgreSqlContainer? _db = ExternalServer is null
@@ -45,6 +47,8 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("ConnectionStrings:Database", ConnectionString);
         builder.UseSetting("Media:Root", Path.Combine(Path.GetTempPath(), "beninconnect-tests-media"));
         builder.UseSetting("RateLimiting:Enabled", "false");
+        // Même clé pour toutes les fabriques : le chiffrement des messages est partagé par le processus
+        builder.UseSetting("Messaging:EncryptionKey", MessagesTestKey);
         builder.UseSetting("Push:Provider", "log"); // jamais de vrai push depuis les tests
         builder.UseSetting("Backups:Directory", BackupDirectory);
         builder.UseSetting("Jobs:WorkerEnabled", "false"); // imports lancés par les tests seulement

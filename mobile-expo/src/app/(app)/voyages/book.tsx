@@ -3,12 +3,17 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Notice } from '@/components/services';
 import { Button, Checkbox, Header, Loading, Muted, Screen, SectionTitle, T, TextField } from '@/components/ui';
+import { VoyagesGate } from '@/components/VoyagesGate';
 import { CategoryChips, ProhibitedNotice, tripDay, TripRoute } from '@/components/voyages';
 import { kg, type ParcelCategory } from '@/data/types';
 import { useRequestBooking, useTrip, useVoyagesInfo } from '@/features/queries';
 
 /** Demande de réservation : poids, catégorie, contenu et attestation obligatoire. */
-export default function BookTrip() {
+export default function BookTripScreen() {
+  return <VoyagesGate><BookTrip /></VoyagesGate>;
+}
+
+function BookTrip() {
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
   const trip = useTrip(tripId).data;
   const info = useVoyagesInfo().data;

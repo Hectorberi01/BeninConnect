@@ -6,6 +6,18 @@ BéninConnect ne transporte rien et ne touche pas l'argent : le prix au kilo est
 
 ## Version 1 (livrée)
 
+### Activation par l'équipe
+
+Le module est **masqué par défaut**.
+
+- Un administrateur (rôle Admin ou SuperAdmin) l'affiche ou le masque depuis la console, page « Voyages ». Chaque changement est inscrit au journal d'audit.
+- Tant qu'il est masqué :
+  - les routes membres `/api/trips/*` et `/api/bookings/*` répondent 404 « Service indisponible » ;
+  - l'application cache la section de l'accueil, le bloc du profil et l'entrée « Mes voyages et envois » ;
+  - un lien direct vers un écran Voyages affiche « Bientôt disponible ».
+- `GET /api/trips/status` reste accessible et indique l'état à l'application.
+- La console reste utilisable, et les données sont conservées.
+
 ### Parcours
 
 **Voyageur**
@@ -60,6 +72,7 @@ BéninConnect ne transporte rien et ne touche pas l'argent : le prix au kilo est
 
 ```
 GET    /api/trips?from=FR&to=BJ&fromCity=&toCity=Cotonou&after=&before=&category=&minKg=&cursor=&take=
+GET    /api/trips/status                     { enabled } : module affiché ou non
 GET    /api/trips/info                       règles, objets interdits, conseils, liens douane
 GET    /api/trips/{id}
 POST   /api/trips                            publier
@@ -80,6 +93,7 @@ POST   /api/bookings/{id}/deliver   {code}   voyageur
 POST   /api/bookings/{id}/dispute   {reason}
 POST   /api/bookings/{id}/review    {rating, comment}
 
+GET    /api/admin/trips/settings | PUT /api/admin/trips/settings { enabled }   (Admin, SuperAdmin)
 GET    /api/admin/trips/overview
 GET    /api/admin/trips?view=All|Upcoming|Hidden|Reported&q=
 GET    /api/admin/trips/{id}

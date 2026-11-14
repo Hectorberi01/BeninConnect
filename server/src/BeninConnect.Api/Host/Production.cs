@@ -32,6 +32,11 @@ public static class Production
             errors.Add("Jwt__SigningKey : la clé de développement est interdite (générez-en une : openssl rand -base64 48).");
         }
 
+        if (!Modules.Messaging.Infrastructure.MessageCipher.IsValidKey(config["Messaging:EncryptionKey"]))
+        {
+            errors.Add("Messaging__EncryptionKey : clé de chiffrement des messages obligatoire, 32 octets en base64 (openssl rand -base64 32).");
+        }
+
         if (auth.FixedVerificationCode is not null && !review)
         {
             errors.Add("Auth__FixedVerificationCode doit être vide : un code fixe permet de valider n'importe quel email.");

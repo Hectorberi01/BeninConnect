@@ -145,6 +145,17 @@ export interface Message {
   attachment?: Attachment | null;
   /** Publication envoyée dans la discussion. */
   sharedPostId?: string | null;
+  /** Message auquel celui-ci répond. */
+  replyTo?: MessageReply | null;
+}
+
+/** Message cité : extrait du texte (ou type de pièce jointe), vide s'il a été supprimé. */
+export interface MessageReply {
+  id: string;
+  senderId: string;
+  excerpt: string;
+  isDeleted: boolean;
+  kind?: AttachmentKind | null;
 }
 
 /** Aperçu d'un message (liste des conversations). */

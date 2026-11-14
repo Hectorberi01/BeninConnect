@@ -1,5 +1,6 @@
 using BeninConnect.Modules.Messaging.Application;
 using BeninConnect.Modules.Messaging.Domain;
+using BeninConnect.Modules.Messaging.Infrastructure;
 using BeninConnect.Shared.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -34,7 +35,9 @@ public sealed class MessagingDbContext(DbContextOptions<MessagingDbContext> opti
         {
             e.ToTable("messages");
             e.HasKey(x => x.Id);
-            e.Property(x => x.Content).HasMaxLength(Message.MaxLength);
+            // Texte chiffré en base (AES-GCM) ; les anciens messages en clair sont lus tels quels
+            e.Property(x => x.Content).HasConversion(v => MessageCipher.Current.Protect(v), v => MessageCipher.Current.Reveal(v));
+            e.HasIndex(x => x.ReplyToId);
             e.HasIndex(x => new { x.ConversationId, x.SentAt });
             e.HasOne<Conversation>().WithMany().HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Reactions).WithOne().HasForeignKey(r => r.MessageId).OnDelete(DeleteBehavior.Cascade);
@@ -44,7 +47,7 @@ public sealed class MessagingDbContext(DbContextOptions<MessagingDbContext> opti
             {
                 a.Property(x => x.Name).HasMaxLength(64);
                 a.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
-                a.Property(x => x.FileName).HasMaxLength(MessageAttachment.MaxFileNameLength);
+                a.Property(x => x.FileName).HasConversion(v => MessageCipher.Current.Protect(v), v => MessageCipher.Current.Reveal(v));
                 a.Property(x => x.ContentType).HasMaxLength(64);
             });
         });

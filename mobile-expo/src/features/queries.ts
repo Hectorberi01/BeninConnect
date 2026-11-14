@@ -312,8 +312,8 @@ const refreshMessaging = (qc: QueryClient, id?: string) =>
 export function useSendMessage(conversationId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ content, simulated }: { content: string; simulated?: boolean }) =>
-      simulated ? data().simulateReply(conversationId, content) : data().sendMessage(conversationId, content),
+    mutationFn: ({ content, simulated, replyToId }: { content: string; simulated?: boolean; replyToId?: string | null }) =>
+      simulated ? data().simulateReply(conversationId, content) : data().sendMessage(conversationId, content, replyToId),
     onSuccess: (message) => {
       upsertMessage(qc, message);
       return refreshMessaging(qc);
@@ -341,7 +341,8 @@ export function useSendPostTo() {
 export function useSendAttachment(conversationId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ file, caption }: { file: OutgoingFile; caption?: string }) => data().sendAttachment(conversationId, file, caption),
+    mutationFn: ({ file, caption, replyToId }: { file: OutgoingFile; caption?: string; replyToId?: string | null }) =>
+      data().sendAttachment(conversationId, file, caption, replyToId),
     onSuccess: (message) => {
       upsertMessage(qc, message);
       return refreshMessaging(qc);
@@ -703,10 +704,17 @@ export function useReportService() {
 
 // --- Voyages ---------------------------------------------------------------------------------
 
+/** Module Voyages affiché par l'équipe ; false tant que la réponse n'est pas arrivée. */
+export function useVoyagesEnabled() {
+  const q = useQuery({ queryKey: ['voyages-status'], queryFn: () => data().getVoyagesStatus(), staleTime: 60_000 });
+  return { enabled: q.data?.enabled ?? false, pending: q.isPending };
+}
+
 export const useVoyagesInfo = () => useQuery({ queryKey: ['voyages-info'], queryFn: () => data().getVoyagesInfo(), staleTime: 3_600_000 });
 
-export const useTripSearch = (filter: TripSearch) =>
+export const useTripSearch = (filter: TripSearch, enabled = true) =>
   useInfiniteQuery({
+    enabled,
     queryKey: ['trips', filter],
     queryFn: ({ pageParam }) => data().searchTrips(filter, pageParam),
     initialPageParam: null as string | null,
@@ -719,8 +727,8 @@ export const useMyTrips = () => useQuery({ queryKey: ['my-trips'], queryFn: () =
 
 export const useMyBookings = () => useQuery({ queryKey: ['my-bookings'], queryFn: () => data().getMyBookings() });
 
-export const useVoyageStats = (userId: string) =>
-  useQuery({ queryKey: ['voyage-stats', userId], queryFn: () => data().getVoyageStats(userId), retry: false });
+export const useVoyageStats = (userId: string, enabled = true) =>
+  useQuery({ queryKey: ['voyage-stats', userId], queryFn: () => data().getVoyageStats(userId), retry: false, enabled });
 
 export const useVoyageReviews = (userId: string) => useQuery({ queryKey: ['voyage-reviews', userId], queryFn: () => data().getVoyageReviews(userId) });
 

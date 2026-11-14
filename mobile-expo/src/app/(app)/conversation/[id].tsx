@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type ComponentRef, useEffect, useMemo, useRef, useState } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,7 +10,7 @@ import * as fmt from '@/core/format';
 import { useMe } from '@/core/session';
 import { font, useColors } from '@/core/theme';
 import type { ConversationSummary, Message, OutgoingFile } from '@/data/types';
-import { displayName, initials, location } from '@/data/types';
+import { displayName, initials, location, messagePreview } from '@/data/types';
 import { confirm } from '@/core/dialog';
 import { pickPhoto } from '@/core/photos';
 import { useOpenConversation } from '@/core/push';
@@ -58,12 +58,14 @@ function Chat({ summary }: { summary: ConversationSummary }) {
     }
   };
   const [editing, setEditing] = useState<Message | null>(null);
+  const [replying, setReplying] = useState<Message | null>(null);
   const attach = useSendAttachment(id);
-  const sendFile = (file: OutgoingFile) => attach.mutate({ file });
+  const sendFile = (file: OutgoingFile) => attach.mutate({ file, replyToId: replying?.id ?? null }, { onSuccess: () => setReplying(null) });
   const voice = useVoiceRecorder(sendFile);
   const picker = useReactionPicker();
   const [draft, setDraft] = useState('');
   const list = useRef<FlatList<Row>>(null);
+  const input = useRef<ComponentRef<typeof TextInput>>(null);
   const typing = useIsTyping(id);
   const status = typing ? "en train d'écrire…"
     : summary.otherOnline ? 'En ligne'
@@ -106,7 +108,7 @@ function Chat({ summary }: { summary: ConversationSummary }) {
       edit.mutate({ messageId: editing.id, content }, { onSuccess: cancelEdit });
       return;
     }
-    send.mutate({ content }, { onSuccess: () => setDraft('') });
+    send.mutate({ content, replyToId: replying?.id ?? null }, { onSuccess: () => { setDraft(''); setReplying(null); } });
   };
 
   // Pièces jointes : photo (galerie, appareil photo) ou document PDF, 20 Mo au plus
@@ -135,7 +137,20 @@ function Chat({ summary }: { summary: ConversationSummary }) {
     else if (send) toast('Message vocal trop court.', 'info');
   };
 
+  const startReply = (message: Message) => {
+    setEditing(null);
+    setReplying(message);
+    input.current?.focus();
+  };
+  const authorName = (senderId: string) => (senderId === me.id ? 'Vous' : other.firstName);
+  // Toucher une citation : défilement jusqu'au message cité (s'il est encore affiché)
+  const goToMessage = (messageId: string) => {
+    const index = rows.findIndex((r) => r.kind === 'message' && r.message.id === messageId);
+    if (index >= 0) list.current?.scrollToIndex({ index, viewPosition: 0.4, animated: true });
+  };
+
   const startEdit = (message: Message) => {
+    setReplying(null);
     setEditing(message);
     setDraft(message.content);
   };
@@ -160,11 +175,13 @@ function Chat({ summary }: { summary: ConversationSummary }) {
     { text: 'Annuler', style: 'cancel' },
   ]);
 
-  // Appui long : réactions, et pour ses messages Modifier (15 min) / Supprimer.
+  // Appui long : Répondre et réactions ; pour ses messages, Modifier (15 min) / Supprimer.
   const actionsFor = (message: Message): PickerAction[] => {
-    if (message.senderId !== me.id) return [];
+    const reply: PickerAction = { label: 'Répondre', icon: 'reply-outline', onPress: () => startReply(message) };
+    if (message.senderId !== me.id) return locked ? [] : [reply];
     const editable = !message.attachment && Date.now() - Date.parse(message.sentAt) < EDIT_WINDOW_MS;
     return [
+      ...(locked ? [] : [reply]),
       ...(editable ? [{ label: 'Modifier', icon: 'pencil-outline' as const, onPress: () => startEdit(message) }] : []),
       { label: 'Supprimer', icon: 'delete-outline' as const, destructive: true, onPress: () => askDelete(message) },
     ];
@@ -197,6 +214,7 @@ function Chat({ summary }: { summary: ConversationSummary }) {
             ? <Muted style={styles.day}>{item.label}</Muted>
             : (
               <MessageBubble message={item.message} mine={item.message.senderId === me.id} me={me.id}
+                replyAuthor={authorName} onPressReply={goToMessage}
                 onToggleReaction={(emoji) => reactTo(item.message.id, emoji)}
                 onLongPress={(e) => picker.open(e, item.message.reactions.find((r) => r.userId === me.id)?.emoji ?? null,
                   (emoji) => reactTo(item.message.id, emoji), actionsFor(item.message))} />
@@ -207,6 +225,7 @@ function Chat({ summary }: { summary: ConversationSummary }) {
             message={`Envoyez votre premier message à ${other.firstName}.`} />}
           contentContainerStyle={{ paddingTop: 12, paddingBottom: 22, flexGrow: 1 }}
           keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
+          onScrollToIndexFailed={(info) => list.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true })}
         />
       )}
 
@@ -228,6 +247,15 @@ function Chat({ summary }: { summary: ConversationSummary }) {
               <Muted lines={1}>{editing.content}</Muted>
             </View>
             <IconButton name="close" label="Annuler la modification" onPress={cancelEdit} />
+          </View>
+        ) : replying ? (
+          <View style={[styles.editing, { borderColor: c.primary }]}>
+            <Icon name="reply-outline" size={18} color={c.primary} />
+            <View style={{ flex: 1 }}>
+              <T v="label" color={c.primary} style={{ fontSize: 13 }}>{`Répondre à ${authorName(replying.senderId) === 'Vous' ? 'vous-même' : authorName(replying.senderId)}`}</T>
+              <Muted lines={1}>{messagePreview(replying)}</Muted>
+            </View>
+            <IconButton name="close" label="Annuler la réponse" onPress={() => setReplying(null)} />
           </View>
         ) : (
           <Muted style={{ textAlign: 'right', fontSize: 12, marginBottom: 6 }} color={attach.isPending ? c.primary : undefined}>
@@ -257,7 +285,7 @@ function Chat({ summary }: { summary: ConversationSummary }) {
                 <Icon name="paperclip" color={c.textSecondary} size={24} />
               </Pressable>
             )}
-            <TextInput value={draft} onChangeText={changeDraft} placeholder="Votre message…" placeholderTextColor={c.textSecondary}
+            <TextInput ref={input} value={draft} onChangeText={changeDraft} placeholder="Votre message…" placeholderTextColor={c.textSecondary}
               multiline maxLength={2000} accessibilityLabel="Votre message"
               style={[styles.input, { backgroundColor: c.surfaceVariant, color: c.text }]} />
             {draft.trim() || editing ? (

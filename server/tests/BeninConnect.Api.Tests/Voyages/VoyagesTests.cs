@@ -10,8 +10,14 @@ namespace BeninConnect.Api.Tests.Voyages;
 /// <summary>Base dédiée : les trajets publiés ici ne se mélangent pas aux autres tests.</summary>
 public sealed class VoyagesFactory : ApiFactory;
 
-public sealed class VoyagesTests(VoyagesFactory factory) : IClassFixture<VoyagesFactory>
+public sealed class VoyagesTests(VoyagesFactory factory) : IClassFixture<VoyagesFactory>, IAsyncLifetime
 {
+    /// <summary>Le module est masqué par défaut : l'équipe l'active avant chaque test.</summary>
+    public async Task InitializeAsync() =>
+        (await (await AdminAsync("admin@beninconnect.test")).PutAsJsonAsync("api/admin/trips/settings", new { enabled = true })).EnsureSuccessStatusCode();
+
+    public Task DisposeAsync() => Task.CompletedTask;
+
     private sealed record TokenBody(string Token);
 
     private sealed record IdBody(Guid Id);
@@ -102,6 +108,32 @@ public sealed class VoyagesTests(VoyagesFactory factory) : IClassFixture<Voyages
         }
 
         return false;
+    }
+
+    private sealed record Status(bool Enabled);
+
+    [Fact]
+    public async Task Module_is_hidden_until_an_administrator_shows_it()
+    {
+        var (member, _) = await MemberAsync();
+        var admin = await AdminAsync("admin@beninconnect.test");
+        await Error((await AdminAsync()).PutAsJsonAsync("api/admin/trips/settings", new { enabled = false }), HttpStatusCode.Forbidden); // modérateur
+        await Ok<JsonElement>(admin.PutAsJsonAsync("api/admin/trips/settings", new { enabled = false }));
+        try
+        {
+            Assert.False((await member.GetFromJsonAsync<Status>("api/trips/status"))!.Enabled);
+            await Error(member.GetAsync("api/trips"), HttpStatusCode.NotFound);
+            await Error(member.PostAsJsonAsync("api/trips", TripBody()), HttpStatusCode.NotFound);
+            await Error(member.GetAsync("api/bookings/mine"), HttpStatusCode.NotFound);
+            Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("api/admin/trips/overview")).StatusCode); // la console reste accessible
+        }
+        finally
+        {
+            await Ok<JsonElement>(admin.PutAsJsonAsync("api/admin/trips/settings", new { enabled = true }));
+        }
+
+        Assert.True((await member.GetFromJsonAsync<Status>("api/trips/status"))!.Enabled);
+        Assert.Equal(HttpStatusCode.OK, (await member.GetAsync("api/trips")).StatusCode);
     }
 
     [Fact]

@@ -173,3 +173,30 @@ public sealed class TripReport
         Decision = decision;
     }
 }
+
+/// <summary>
+/// Activation du module dans l'application : désactivé tant que l'équipe ne l'a pas validé.
+/// Désactivé, les routes membres répondent 404 et l'appli masque les écrans « Voyages ».
+/// </summary>
+public sealed class VoyagesSettings
+{
+    public const int SingletonId = 1;
+
+    private VoyagesSettings()
+    {
+    }
+
+    public int Id { get; private set; }
+    public bool Enabled { get; private set; }
+    public DateTimeOffset? UpdatedAt { get; private set; }
+    public string? UpdatedBy { get; private set; }
+
+    public static VoyagesSettings CreateDefault() => new() { Id = SingletonId };
+
+    public void SetEnabled(bool enabled, string adminName, DateTimeOffset now)
+    {
+        Enabled = enabled;
+        UpdatedBy = adminName;
+        UpdatedAt = now;
+    }
+}
