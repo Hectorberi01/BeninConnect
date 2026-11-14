@@ -668,3 +668,205 @@ export function servicePrice(o: { priceType: PriceType; priceAmount: number | nu
     .format(o.priceAmount);
   return o.priceType === 'From' ? `à partir de ${amount}` : o.priceType === 'Hourly' ? `${amount} / h` : amount;
 }
+
+// --- Voyages (« Qui part au pays ? ») : mise en relation voyageurs / expéditeurs, aucun paiement ---
+
+export type ParcelCategory = 'Documents' | 'Clothes' | 'DryFood' | 'Electronics' | 'Cosmetics' | 'Other';
+export type TripStatus = 'Open' | 'Full' | 'Departed' | 'Cancelled';
+export type TripHiddenReason = 'None' | 'Reports' | 'Admin' | 'Suspended';
+export type BookingStatus = 'Pending' | 'Accepted' | 'Declined' | 'Cancelled' | 'Delivered' | 'Disputed';
+export type VoyageReportTarget = 'Trip' | 'Booking' | 'Review';
+
+/** Membre affiché : prénom et initiale seulement (contact par la messagerie). */
+export interface VoyagePerson {
+  id: string;
+  name: string;
+  avatarColor: string;
+  avatarImage: string | null;
+}
+
+export interface TripCard {
+  id: string;
+  traveler: VoyagePerson;
+  fromCountry: string;
+  fromCity: string;
+  toCountry: string;
+  toCity: string;
+  /** AAAA-MM-JJ */
+  departureDate: string;
+  capacityKg: number;
+  remainingKg: number;
+  pricePerKg: number | null;
+  currency: 'EUR' | 'XOF';
+  acceptedCategories: ParcelCategory[];
+  status: TripStatus;
+  travelerRating: number;
+  travelerReviewCount: number;
+  trustedTraveler: boolean;
+  isMine: boolean;
+}
+
+export interface TripDetail {
+  trip: TripCard;
+  dropOffZones: string | null;
+  notes: string | null;
+  travelerDeliveries: number;
+  myBooking: Booking | null;
+  canBook: boolean;
+  hiddenReason: TripHiddenReason;
+  createdAt: string;
+}
+
+export interface TripPage {
+  items: TripCard[];
+  nextCursor: string | null;
+  total: number;
+}
+
+export interface Booking {
+  id: string;
+  tripId: string;
+  fromCity: string;
+  toCity: string;
+  departureDate: string;
+  tripStatus: TripStatus;
+  sender: VoyagePerson;
+  traveler: VoyagePerson;
+  iAmTraveler: boolean;
+  weightKg: number;
+  category: ParcelCategory;
+  description: string;
+  status: BookingStatus;
+  declineReason: string | null;
+  conversationId: string | null;
+  /** Un code de remise valide existe (l'expéditeur peut en générer un nouveau). */
+  hasCode: boolean;
+  codeLocked: boolean;
+  attemptsLeft: number;
+  createdAt: string;
+  respondedAt: string | null;
+  deliveredAt: string | null;
+  disputeReason: string | null;
+  resolutionNote: string | null;
+  canReview: boolean;
+  myReviewId: string | null;
+}
+
+export interface MyTrip {
+  detail: TripDetail;
+  bookings: Booking[];
+  pendingCount: number;
+}
+
+export interface DeliveryCode {
+  code: string;
+  shareText: string;
+}
+
+export interface VoyageReview {
+  id: string;
+  author: VoyagePerson;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  aboutTraveler: boolean;
+}
+
+export interface VoyageReviewPage {
+  items: VoyageReview[];
+  ratingAverage: number;
+  ratingCount: number;
+}
+
+export interface VoyageStats {
+  deliveriesAsTraveler: number;
+  shipmentsDelivered: number;
+  ratingAverage: number;
+  ratingCount: number;
+  trustedTraveler: boolean;
+  upcomingTrips: TripCard[];
+}
+
+export interface RouteAlert {
+  id: string;
+  fromCountry: string;
+  fromCity: string | null;
+  toCountry: string;
+  toCity: string | null;
+  after: string | null;
+  before: string | null;
+  createdAt: string;
+}
+
+export interface RouteAlertInput {
+  fromCountry: string;
+  fromCity: string | null;
+  toCountry: string;
+  toCity: string | null;
+  after: string | null;
+  before: string | null;
+}
+
+export interface TripInput {
+  fromCountry: string;
+  fromCity: string;
+  toCountry: string;
+  toCity: string;
+  departureDate: string;
+  capacityKg: number;
+  pricePerKg: number | null;
+  currency: 'EUR' | 'XOF';
+  acceptedCategories: ParcelCategory[];
+  dropOffZones: string | null;
+  notes: string | null;
+}
+
+export interface BookingInput {
+  weightKg: number;
+  category: ParcelCategory;
+  description: string;
+  certified: boolean;
+}
+
+export interface TripSearch {
+  from?: string | null;
+  to?: string | null;
+  fromCity?: string | null;
+  toCity?: string | null;
+  after?: string | null;
+  before?: string | null;
+  category?: ParcelCategory | null;
+}
+
+export interface VoyagesInfo {
+  intermediation: string;
+  travelerResponsibility: string;
+  prohibitedItems: string[];
+  travelerAdvice: string[];
+  customsLinks: { label: string; url: string }[];
+  maxDaysAhead: number;
+  minBookingKg: number;
+  maxBookingKg: number;
+  maxCapacityKg: number;
+  maxAlerts: number;
+}
+
+export const PARCEL_LABELS: Record<ParcelCategory, string> = {
+  Documents: 'Documents', Clothes: 'Vêtements', DryFood: 'Alimentaire sec', Electronics: 'Électronique', Cosmetics: 'Cosmétiques', Other: 'Autre',
+};
+
+export const PARCEL_ICONS: Record<ParcelCategory, string> = {
+  Documents: 'file-document-outline', Clothes: 'tshirt-crew-outline', DryFood: 'food-variant', Electronics: 'cellphone', Cosmetics: 'lipstick',
+  Other: 'package-variant-closed',
+};
+
+export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
+  Pending: 'En attente', Accepted: 'Acceptée', Declined: 'Refusée', Cancelled: 'Annulée', Delivered: 'Livrée', Disputed: 'Litige',
+};
+
+export const TRIP_STATUS_LABELS: Record<TripStatus, string> = { Open: 'Ouvert', Full: 'Complet', Departed: 'Parti', Cancelled: 'Annulé' };
+
+export const tripPrice = (t: Pick<TripCard, 'pricePerKg' | 'currency'>) =>
+  t.pricePerKg == null ? 'Prix à convenir' : t.pricePerKg === 0 ? 'Gratuit' : `${t.pricePerKg.toLocaleString('fr-FR')} ${t.currency === 'XOF' ? 'FCFA' : '€'}/kg`;
+
+export const kg = (n: number) => `${n.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} kg`;

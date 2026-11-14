@@ -20,6 +20,7 @@ import { data } from '@/data';
 import type { User } from '@/data/types';
 import { displayName, errorMessage, initials, location } from '@/data/types';
 import { useMemberCommunities, usePosts, useSavedPosts, useUpdateProfile, useUser } from './queries';
+import { VoyageBlock } from './VoyageBlock';
 
 type PostTab = 'grid' | 'list' | 'saved';
 
@@ -191,10 +192,13 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
             <ListRow icon="briefcase-outline" label="Mon espace prestataire" onPress={() => router.push('/services/me')} />
             <ListRow icon="clipboard-text-outline" label="Mes demandes de services" onPress={() => router.push('/services/requests')} />
             <ListRow icon="heart-outline" label="Prestataires favoris" onPress={() => router.push('/services/favorites')} />
+            <ListRow icon="airplane" label="Mes voyages et envois" onPress={() => router.push('/voyages/mine')} />
             <ListRow icon="bookmark-multiple-outline" label="Offres d'emploi favorites" onPress={() => router.push('/jobs/favorites')} last />
           </Card>
         </>
       )}
+
+      {!shownUser.isOfficial && <VoyageBlock userId={user.id} isMe={isMe} />}
 
       <SectionTitle title="À propos" />
       <View style={{ paddingHorizontal: 16 }}>

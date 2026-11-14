@@ -82,6 +82,34 @@ public static partial class ServiceRules
         return text.Length <= max ? text : text[..max].TrimEnd();
     }
 
+    /// <summary>
+    /// Numéro saisi ou collé : chiffres et « + » gardés, séparateurs ramenés à une espace,
+    /// caractères invisibles (marques de direction ajoutées par iOS, espaces insécables) retirés.
+    /// </summary>
+    public static string? NormalizePhone(string? value)
+    {
+        var sb = new StringBuilder();
+        foreach (var ch in value ?? string.Empty)
+        {
+            if (char.IsAsciiDigit(ch) || ch == '+')
+            {
+                sb.Append(ch);
+            }
+            else if (char.IsWhiteSpace(ch) || ch is '.' or '-' or '/' or '(' or ')')
+            {
+                sb.Append(' ');
+            }
+        }
+
+        var text = Spaces().Replace(sb.ToString(), " ").Trim();
+        if (text.Length > 20)
+        {
+            text = text.Replace(" ", "");
+        }
+
+        return text.Length == 0 ? null : text;
+    }
+
     public static string? CleanOrNull(string? value, int max) => string.IsNullOrWhiteSpace(value) ? null : Clean(value, max);
 
     [GeneratedRegex(@"\s+")]

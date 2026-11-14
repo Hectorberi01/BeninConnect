@@ -16,6 +16,9 @@ const STEPS = ['Présentation', 'Zone', 'Contact et statut'];
 const RADII = [5, 10, 15, 25, 50, 100];
 
 /** Création (assistant en étapes) ou modification du profil prestataire. */
+/** Retire les caractères invisibles qu'iOS ajoute aux numéros collés ou suggérés (marques de direction, espaces insécables). */
+const cleanPhone = (t: string) => t.replace(/[\u00A0\u2007\u202F]/g, ' ').replace(/[^\d+ .\-()]/g, '');
+
 export default function ProviderProfileForm() {
   const query = useMyProvider();
   return (
@@ -64,14 +67,14 @@ function Form({ existing }: { existing: MyProvider | null }) {
     }
   };
 
-  const valid = [name.trim().length >= 2, !!city && (atHome || premises), contact === 'InApp' || phone.trim().length >= 8];
+  const valid = [name.trim().length >= 2, !!city && (atHome || premises), contact === 'InApp' || phone.replace(/\D/g, '').length >= 8];
   const last = step === STEPS.length - 1;
 
   const submit = () => {
     if (!city) return;
     save.mutate({
       input: {
-        displayName: name.trim(), bio: bio.trim() || null, photoPath: photo, phone: phone.trim() || null, phoneIsPublic: phonePublic,
+        displayName: name.trim(), bio: bio.trim() || null, photoPath: photo, phone: phone.replace(/\s+/g, ' ').trim() || null, phoneIsPublic: phonePublic,
         contactPreference: contact, legalStatus: legal, siret: siret.trim() || null, ifu: ifu.trim() || null, country: city.country, city: city.name,
         postalCode: postalCode.trim() || null, latitude: city.lat, longitude: city.lng, serviceRadiusKm: radius, servesAtHome: atHome, hasPremises: premises,
       },
@@ -117,7 +120,7 @@ function Form({ existing }: { existing: MyProvider | null }) {
             <T v="label" style={{ marginBottom: 6 }}>Comment préférez-vous être contacté ?</T>
             <Segmented value={contact} onChange={setContact}
               items={[{ key: 'InApp', label: 'Messagerie' }, { key: 'Phone', label: 'Téléphone' }, { key: 'WhatsApp', label: 'WhatsApp' }]} />
-            <TextField label={contact === 'InApp' ? 'Téléphone (facultatif)' : 'Téléphone'} value={phone} onChangeText={setPhone} keyboardType="phone-pad"
+            <TextField label={contact === 'InApp' ? 'Téléphone (facultatif)' : 'Téléphone'} value={phone} onChangeText={(t) => setPhone(cleanPhone(t))} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel"
               placeholder="+33 6… ou +229…" style={{ marginTop: 12 }} />
             {!!phone.trim() && <SwitchRow icon="eye-outline" label="Afficher mon numéro à tous"
               description="Sinon, il n’est donné qu’après acceptation d’une demande." value={phonePublic} onChange={setPhonePublic} />}

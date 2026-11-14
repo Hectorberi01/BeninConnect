@@ -18,6 +18,12 @@ function parseDate(text: string): string | null | undefined {
   return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
 }
 
+/** Date du jour au format AAAA-MM-JJ (heure locale). */
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 /** Demande de devis : le message part dans la messagerie, le prestataire accepte ou refuse. */
 export default function RequestQuote() {
   const { offeringId, title, provider } = useLocalSearchParams<{ offeringId: string; title: string; provider: string }>();
@@ -27,7 +33,8 @@ export default function RequestQuote() {
   const [date, setDate] = useState('');
   const [city, setCity] = useState<City | null>(() => findCity(me.city) ?? null);
   const parsed = parseDate(date);
-  const invalid = message.trim().length < 10 || parsed === undefined;
+  const past = !!parsed && parsed < today();
+  const invalid = message.trim().length < 10 || parsed === undefined || past;
 
   const send = () => create.mutate({ offeringId, message: message.trim(), preferredDate: parsed ?? null, city: city?.name ?? null }, {
     onSuccess: (r) => (r.conversationId ? router.replace(`/conversation/${r.conversationId}`) : router.back()),
@@ -43,7 +50,7 @@ export default function RequestQuote() {
           <TextField label="Votre demande" value={message} onChangeText={setMessage} multiline maxLength={2000} counter={`${message.length}/2000`}
             placeholder="Décrivez votre besoin : prestation, lieu, contraintes…" hint="10 caractères au moins." />
           <TextField label="Date souhaitée (facultatif)" value={date} onChangeText={setDate} placeholder="JJ/MM/AAAA" keyboardType="numbers-and-punctuation"
-            error={parsed === undefined ? 'Date invalide : utilisez le format JJ/MM/AAAA.' : null} />
+            error={parsed === undefined ? 'Date invalide : utilisez le format JJ/MM/AAAA.' : past ? 'Cette date est déjà passée.' : null} />
           <CityPicker value={city} onChange={setCity} label="Lieu de la prestation (ville)" allowAll="Ne pas préciser" />
           <Notice icon="cash-lock">
             Aucun paiement ne passe par BéninConnect : vous fixez le prix et le règlement directement avec le prestataire. Ne payez jamais d’avance par transfert d’argent.

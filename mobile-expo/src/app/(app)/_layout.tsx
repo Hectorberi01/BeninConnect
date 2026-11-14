@@ -28,6 +28,9 @@ function SignedIn({ background }: { background: string }) {
       <Stack.Screen name="user/qr" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="services/request" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="services/review" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="voyages/book" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="voyages/deliver" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="voyages/review" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
     </Stack>
     <CommentsSheetHost />
     </>

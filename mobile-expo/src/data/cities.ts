@@ -87,3 +87,8 @@ export const cityLabel = (c: Pick<City, 'name' | 'country'>) => `${c.name} (${CO
 
 export const findCity = (name: string | null | undefined, country?: string | null) =>
   name ? CITIES.find((c) => c.name.toLowerCase() === name.trim().toLowerCase() && (!country || c.country === country)) : undefined;
+
+export const countryName = (code: string) => COUNTRIES[code] ?? code;
+
+/** Pays de la liste, dans l'ordre d'apparition (France et Bénin en tête). */
+export const COUNTRY_CODES = [...new Set(CITIES.map((c) => c.country))];

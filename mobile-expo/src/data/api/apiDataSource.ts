@@ -5,6 +5,8 @@ import type {
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, DocumentKind, EventFilter, JobFilter, JobFilters, JobOffer, JobOfferSummary, JobPage,
   MembershipStatus, Message, MyProvider, NotificationCategory, OfferingInput, ProviderCard, ProviderDetail, ProviderDocument, ProviderInput, ProviderPage,
   ReviewPage, ServiceCategory, ServiceOffering, ServiceReportTarget, ServiceRequestItem, ServiceReview, ServiceSearch, ServicesInfo,
+  Booking, BookingInput, DeliveryCode, MyTrip, RouteAlert, RouteAlertInput, TripDetail, TripInput, TripPage, TripSearch, VoyageReportTarget,
+  VoyageReview, VoyageReviewPage, VoyagesInfo, VoyageStats,
   LocalPhoto, LocalVideo, OutgoingFile, Paged, Post, PostFilter, ReportReason, ReportTarget, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User,
 } from '../types';
 import { Platform } from 'react-native';
@@ -323,6 +325,37 @@ export class ApiDataSource implements DataSource {
   replyServiceReview = (id: string, reply: string) => this.post<ServiceReview>(`api/services/reviews/${id}/reply`, { reply });
   reportService = async (targetType: ServiceReportTarget, targetId: string, reason: string) => {
     await this.post<unknown>('api/services/reports', { targetType, targetId, reason });
+  };
+
+  // Voyages
+  getVoyagesInfo = () => this.get<VoyagesInfo>('api/trips/info');
+  searchTrips = (f: TripSearch, cursor?: string | null) =>
+    this.get<TripPage>(`api/trips${this.q({
+      from: f.from ?? undefined, to: f.to ?? undefined, fromCity: f.fromCity ?? undefined, toCity: f.toCity ?? undefined, after: f.after ?? undefined,
+      before: f.before ?? undefined, category: f.category ?? undefined, cursor: cursor ?? undefined, take: '20',
+    })}`);
+  getTrip = (id: string) => this.get<TripDetail>(`api/trips/${id}`);
+  publishTrip = (input: TripInput) => this.post<TripDetail>('api/trips', input);
+  updateTrip = (id: string, input: TripInput) => this.request<TripDetail>('PUT', `api/trips/${id}`, input);
+  cancelTrip = (id: string) => this.post<TripDetail>(`api/trips/${id}/cancel`);
+  getMyTrips = () => this.get<MyTrip[]>('api/trips/mine');
+  requestBooking = (tripId: string, input: BookingInput) => this.post<Booking>(`api/trips/${tripId}/bookings`, input);
+  getMyBookings = () => this.get<Booking[]>('api/bookings/mine');
+  respondBooking = (id: string, action: 'accept' | 'decline' | 'cancel', reason?: string) =>
+    this.post<Booking>(`api/bookings/${id}/${action}`, action === 'decline' ? { reason: reason ?? null } : {});
+  issueDeliveryCode = (id: string) => this.post<DeliveryCode>(`api/bookings/${id}/code`);
+  deliverBooking = (id: string, code: string) => this.post<Booking>(`api/bookings/${id}/deliver`, { code });
+  disputeBooking = (id: string, reason: string) => this.post<Booking>(`api/bookings/${id}/dispute`, { reason });
+  reviewBooking = (id: string, rating: number, comment: string | null) => this.post<VoyageReview>(`api/bookings/${id}/review`, { rating, comment });
+  getVoyageStats = (userId: string) => this.get<VoyageStats>(`api/trips/users/${userId}/stats`);
+  getVoyageReviews = (userId: string) => this.get<VoyageReviewPage>(`api/trips/users/${userId}/reviews`);
+  getRouteAlerts = () => this.get<RouteAlert[]>('api/trips/alerts');
+  createRouteAlert = (input: RouteAlertInput) => this.post<RouteAlert>('api/trips/alerts', input);
+  deleteRouteAlert = async (id: string) => {
+    await this.request<void>('DELETE', `api/trips/alerts/${id}`);
+  };
+  reportVoyage = async (targetType: VoyageReportTarget, targetId: string, reason: string) => {
+    await this.post<unknown>('api/trips/reports', { targetType, targetId, reason });
   };
 
   // Notifications

@@ -5,12 +5,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CommunityTile, EventTile, PostCard, usePostContext } from '@/components/cards';
 import { JobTile } from '@/components/jobs';
 import { CategoryGrid } from '@/components/services';
+import { TripTile } from '@/components/voyages';
 import { Avatar, EmptyState, ErrorState, Icon, IconButton, Loading, Muted, Screen, SectionTitle, T } from '@/components/ui';
 import { useTabBarSpace } from '@/components/glass';
 import { useMe } from '@/core/session';
 import { depth, useColors } from '@/core/theme';
 import { initials } from '@/data/types';
-import { useCommunities, useEvents, useFeed, useJobs, useServiceCategories, useUnreadNotifications } from '@/features/queries';
+import { useCommunities, useEvents, useFeed, useJobs, useServiceCategories, useTripSearch, useUnreadNotifications } from '@/features/queries';
 import { errorMessage } from '@/data/types';
 
 export default function Home() {
@@ -22,6 +23,7 @@ export default function Home() {
   const events = useEvents({});
   const jobs = useJobs({});
   const serviceCategories = useServiceCategories().data ?? [];
+  const trips = useTripSearch({});
   const unread = useUnreadNotifications().data ?? 0;
   const [refreshing, setRefreshing] = useState(false);
   const bottom = useTabBarSpace();
@@ -34,10 +36,11 @@ export default function Home() {
   const suggestions = (communities.data ?? []).filter((x) => !x.memberIds.includes(me.id)).slice(0, 8);
   const upcoming = (events.data ?? []).slice(0, 5);
   const latestJobs = (jobs.data?.pages[0]?.items ?? []).slice(0, 5);
+  const nextTrips = (trips.data?.pages[0]?.items ?? []).slice(0, 6);
 
   const refresh = async () => {
     setRefreshing(true);
-    await Promise.all([feed.refetch(), communities.refetch(), events.refetch(), jobs.refetch()]);
+    await Promise.all([feed.refetch(), communities.refetch(), events.refetch(), jobs.refetch(), trips.refetch()]);
     setRefreshing(false);
   };
 
@@ -67,6 +70,22 @@ export default function Home() {
           <CategoryGrid categories={serviceCategories}
             onSelect={(cat) => router.push({ pathname: '/services/search', params: { categoryId: cat.id } })} />
         </>
+      )}
+
+      <SectionTitle title="Qui part au pays ?" action="Voir tout" onAction={() => router.push('/voyages')} />
+      {nextTrips.length > 0 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hList}>
+          {nextTrips.map((t) => <TripTile key={t.id} t={t} />)}
+        </ScrollView>
+      ) : (
+        <Pressable accessibilityRole="button" onPress={() => router.push('/voyages/publish')}
+          style={[styles.tripCta, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Icon name="airplane-takeoff" size={26} color={c.primary} />
+          <View style={{ flex: 1 }}>
+            <T v="label">Vous partez bientôt ?</T>
+            <Muted>Proposez vos kilos libres aux membres qui veulent envoyer un colis.</Muted>
+          </View>
+        </Pressable>
       )}
 
       {latestJobs.length > 0 && (
@@ -126,5 +145,6 @@ export default function Home() {
 const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 10, borderBottomWidth: 1, zIndex: 2 },
   hList: { paddingHorizontal: 16 },
+  tripCta: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, padding: 14, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth },
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 20 },
 });

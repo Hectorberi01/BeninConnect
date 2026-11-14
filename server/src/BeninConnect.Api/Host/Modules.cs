@@ -10,6 +10,7 @@ using BeninConnect.Modules.Messaging.Api;
 using BeninConnect.Modules.Moderation.Api;
 using BeninConnect.Modules.Notifications.Api;
 using BeninConnect.Modules.Services.Api;
+using BeninConnect.Modules.Voyages.Api;
 using BeninConnect.Shared.Api;
 
 namespace BeninConnect.Host;
@@ -30,6 +31,7 @@ public static class ModuleCatalog
         new MediaModule(),
         new EditorialModule(),
         new JobsModule(),
-        new ServicesModule()
+        new ServicesModule(),
+        new VoyagesModule()
     ];
 }

@@ -10,6 +10,7 @@ import type {
   Community, CommunityEvent, CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, NotificationCategory,
   OutgoingFile, Paged, Post, PostFilter, UpdatePostRequest, UpdateProfileRequest, JobFilter, JobOffer, JobPage,
   DocumentKind, OfferingInput, ProviderDetail, ProviderInput, ProviderPage, ServiceReportTarget, ServiceRequestItem, ServiceSearch,
+  BookingInput, RouteAlertInput, TripInput, TripPage, TripSearch, VoyageReportTarget,
 } from '@/data/types';
 import { errorMessage, toggleReaction } from '@/data/types';
 
@@ -696,6 +697,138 @@ export function useReportService() {
   return useMutation({
     mutationFn: ({ target, id, reason }: { target: ServiceReportTarget; id: string; reason: string }) => data().reportService(target, id, reason),
     onSuccess: () => toast('Merci. Notre équipe va examiner ce signalement.', 'success'),
+    onError,
+  });
+}
+
+// --- Voyages ---------------------------------------------------------------------------------
+
+export const useVoyagesInfo = () => useQuery({ queryKey: ['voyages-info'], queryFn: () => data().getVoyagesInfo(), staleTime: 3_600_000 });
+
+export const useTripSearch = (filter: TripSearch) =>
+  useInfiniteQuery({
+    queryKey: ['trips', filter],
+    queryFn: ({ pageParam }) => data().searchTrips(filter, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last: TripPage) => last.nextCursor,
+  });
+
+export const useTrip = (id: string) => useQuery({ queryKey: ['trip', id], queryFn: () => data().getTrip(id), enabled: !!id });
+
+export const useMyTrips = () => useQuery({ queryKey: ['my-trips'], queryFn: () => data().getMyTrips() });
+
+export const useMyBookings = () => useQuery({ queryKey: ['my-bookings'], queryFn: () => data().getMyBookings() });
+
+export const useVoyageStats = (userId: string) =>
+  useQuery({ queryKey: ['voyage-stats', userId], queryFn: () => data().getVoyageStats(userId), retry: false });
+
+export const useVoyageReviews = (userId: string) => useQuery({ queryKey: ['voyage-reviews', userId], queryFn: () => data().getVoyageReviews(userId) });
+
+export const useRouteAlerts = () => useQuery({ queryKey: ['route-alerts'], queryFn: () => data().getRouteAlerts() });
+
+/** Tout ce qui touche un trajet ou une réservation est rechargé après une action. */
+function refreshVoyages(qc: QueryClient) {
+  for (const key of ['trips', 'trip', 'my-trips', 'my-bookings', 'voyage-stats']) qc.invalidateQueries({ queryKey: [key] });
+}
+
+export function useSaveTrip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: TripInput }) => (id ? data().updateTrip(id, input) : data().publishTrip(input)),
+    onSuccess: (_, { id }) => {
+      refreshVoyages(qc);
+      toast(id ? 'Trajet modifié.' : 'Trajet publié : les membres intéressés sont prévenus.', 'success');
+    },
+    onError,
+  });
+}
+
+export function useCancelTrip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => data().cancelTrip(id),
+    onSuccess: () => { refreshVoyages(qc); toast('Trajet annulé : vos expéditeurs sont prévenus.', 'success'); },
+    onError,
+  });
+}
+
+export function useRequestBooking() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tripId, input }: { tripId: string; input: BookingInput }) => data().requestBooking(tripId, input),
+    onSuccess: () => { refreshVoyages(qc); toast('Demande envoyée au voyageur.', 'success'); },
+    onError,
+  });
+}
+
+const BOOKING_TOASTS = { accept: 'Réservation acceptée : la conversation est ouverte.', decline: 'Réservation refusée.', cancel: 'Réservation annulée.' };
+
+export function useRespondBooking() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, action, reason }: { id: string; action: 'accept' | 'decline' | 'cancel'; reason?: string }) => data().respondBooking(id, action, reason),
+    onSuccess: (_, { action }) => {
+      refreshVoyages(qc);
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+      toast(BOOKING_TOASTS[action], 'success');
+    },
+    onError,
+  });
+}
+
+export function useIssueDeliveryCode() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => data().issueDeliveryCode(id), onSuccess: () => refreshVoyages(qc), onError });
+}
+
+export function useDeliverBooking() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, code }: { id: string; code: string }) => data().deliverBooking(id, code),
+    onSuccess: () => { refreshVoyages(qc); toast('Livraison confirmée.', 'success'); },
+    onSettled: () => refreshVoyages(qc), // essais restants à jour même en cas d'erreur
+  });
+}
+
+export function useDisputeBooking() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => data().disputeBooking(id, reason),
+    onSuccess: () => { refreshVoyages(qc); toast('Litige ouvert : l’équipe va examiner la situation.', 'success'); },
+    onError,
+  });
+}
+
+export function useReviewBooking() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, rating, comment }: { id: string; rating: number; comment: string | null }) => data().reviewBooking(id, rating, comment),
+    onSuccess: () => {
+      refreshVoyages(qc);
+      qc.invalidateQueries({ queryKey: ['voyage-reviews'] });
+      toast('Merci pour votre avis.', 'success');
+    },
+    onError,
+  });
+}
+
+export function useRouteAlertActions() {
+  const qc = useQueryClient();
+  const refresh = () => qc.invalidateQueries({ queryKey: ['route-alerts'] });
+  return {
+    create: useMutation({
+      mutationFn: (input: RouteAlertInput) => data().createRouteAlert(input),
+      onSuccess: () => { refresh(); toast('Alerte créée : vous serez prévenu dès qu’un trajet correspond.', 'success'); },
+      onError,
+    }),
+    remove: useMutation({ mutationFn: (id: string) => data().deleteRouteAlert(id), onSuccess: refresh, onError }),
+  };
+}
+
+export function useReportVoyage() {
+  return useMutation({
+    mutationFn: ({ target, id, reason }: { target: VoyageReportTarget; id: string; reason: string }) => data().reportVoyage(target, id, reason),
+    onSuccess: () => toast('Merci, l’équipe va examiner ce signalement.', 'success'),
     onError,
   });
 }

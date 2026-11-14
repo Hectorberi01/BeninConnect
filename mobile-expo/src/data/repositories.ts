@@ -3,6 +3,8 @@ import type {
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, DocumentKind, EventFilter, JobFilter, JobFilters, JobOffer, JobOfferSummary, JobPage,
   MembershipStatus, Message, MyProvider, OfferingInput, ProviderCard, ProviderDetail, ProviderDocument, ProviderInput, ProviderPage, ReviewPage,
   ServiceCategory, ServiceOffering, ServiceReportTarget, ServiceRequestItem, ServiceReview, ServiceSearch, ServicesInfo,
+  Booking, BookingInput, DeliveryCode, MyTrip, RouteAlert, RouteAlertInput, TripDetail, TripInput, TripPage, TripSearch, VoyageReportTarget,
+  VoyageReview, VoyageReviewPage, VoyagesInfo, VoyageStats,
   NotificationCategory, OutgoingFile, Paged, Post, ReportReason, ReportTarget, PostFilter, RegisterRequest, UpdatePostRequest, UpdateProfileRequest, User, LocalPhoto, LocalVideo } from './types';
 
 /**
@@ -153,6 +155,29 @@ export interface DataSource {
   editServiceReview(id: string, rating: number, comment: string | null): Promise<ServiceReview>;
   replyServiceReview(id: string, reply: string): Promise<ServiceReview>;
   reportService(target: ServiceReportTarget, id: string, reason: string): Promise<void>;
+
+  // Voyages : des membres proposent des kilos sur leur trajet (mise en relation, aucun paiement)
+  getVoyagesInfo(): Promise<VoyagesInfo>;
+  searchTrips(filter: TripSearch, cursor?: string | null): Promise<TripPage>;
+  getTrip(id: string): Promise<TripDetail>;
+  publishTrip(input: TripInput): Promise<TripDetail>;
+  updateTrip(id: string, input: TripInput): Promise<TripDetail>;
+  cancelTrip(id: string): Promise<TripDetail>;
+  getMyTrips(): Promise<MyTrip[]>;
+  requestBooking(tripId: string, input: BookingInput): Promise<Booking>;
+  getMyBookings(): Promise<Booking[]>;
+  respondBooking(id: string, action: 'accept' | 'decline' | 'cancel', reason?: string): Promise<Booking>;
+  /** Nouveau code de remise (l'ancien ne marche plus) : montré une seule fois à l'expéditeur. */
+  issueDeliveryCode(id: string): Promise<DeliveryCode>;
+  deliverBooking(id: string, code: string): Promise<Booking>;
+  disputeBooking(id: string, reason: string): Promise<Booking>;
+  reviewBooking(id: string, rating: number, comment: string | null): Promise<VoyageReview>;
+  getVoyageStats(userId: string): Promise<VoyageStats>;
+  getVoyageReviews(userId: string): Promise<VoyageReviewPage>;
+  getRouteAlerts(): Promise<RouteAlert[]>;
+  createRouteAlert(input: RouteAlertInput): Promise<RouteAlert>;
+  deleteRouteAlert(id: string): Promise<void>;
+  reportVoyage(target: VoyageReportTarget, id: string, reason: string): Promise<void>;
 
   // Notifications
   getNotifications(category?: NotificationCategory): Promise<AppNotification[]>;

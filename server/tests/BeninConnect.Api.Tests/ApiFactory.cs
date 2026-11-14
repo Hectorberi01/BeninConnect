@@ -50,6 +50,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Jobs:WorkerEnabled", "false"); // imports lancés par les tests seulement
         builder.UseSetting("Jobs:RequestDelayMs", "0");
         builder.UseSetting("Services:WorkerEnabled", "false");
+        builder.UseSetting("Voyages:WorkerEnabled", "false");
         Configure(builder);
     }
 

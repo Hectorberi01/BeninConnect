@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import {
   BriefcaseBusiness, CalendarDays, Contact, Handshake, ListChecks, ShieldAlert, Smartphone, Tags, DatabaseBackup, Download, FileText, Flag, KeyRound, LayoutDashboard, LogOut, Menu, Newspaper, ScrollText, Server, ShieldCheck, Users, UsersRound, X,
+  Plane,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ComponentType, useState } from 'react'
@@ -48,6 +49,7 @@ export const NAV: { section: string; items: Item[] }[] = [
       { to: '/services/categories', label: 'Catégories et réglages', icon: Tags, permission: 'ServicesManage' },
     ],
   },
+  { section: 'Voyages', items: [{ to: '/voyages', label: 'Trajets et litiges', icon: Plane, permission: 'ContentModerate' }] },
   { section: 'Finance', items: [{ to: '/exports', label: 'Exports', icon: Download, permission: 'ExportsDownload' }] },
   {
     section: 'Plateforme',

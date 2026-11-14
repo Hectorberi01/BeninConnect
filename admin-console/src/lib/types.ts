@@ -654,3 +654,106 @@ export interface AdminServiceDocument {
   ifu: string | null
   verificationLevel: VerificationLevel
 }
+
+// --- Voyages (« Qui part au pays ? ») ---
+
+export type ParcelCategory = 'Documents' | 'Clothes' | 'DryFood' | 'Electronics' | 'Cosmetics' | 'Other'
+export type TripStatus = 'Open' | 'Full' | 'Departed' | 'Cancelled'
+export type TripHiddenReason = 'None' | 'Reports' | 'Admin' | 'Suspended'
+export type BookingStatus = 'Pending' | 'Accepted' | 'Declined' | 'Cancelled' | 'Delivered' | 'Disputed'
+export type AdminTripView = 'All' | 'Upcoming' | 'Hidden' | 'Reported'
+
+export interface VoyagesOverview {
+  openTrips: number
+  upcomingTrips: number
+  pendingBookings: number
+  acceptedBookings: number
+  deliveredBookings: number
+  disputes: number
+  openReports: number
+  hiddenTrips: number
+  deliveredLast30Days: number
+  topRoutes: { label: string; count: number }[]
+}
+
+export interface AdminTrip {
+  id: string
+  travelerId: string
+  travelerName: string
+  fromCountry: string
+  fromCity: string
+  toCountry: string
+  toCity: string
+  departureDate: string
+  capacityKg: number
+  reservedKg: number
+  status: TripStatus
+  hiddenReason: TripHiddenReason
+  hiddenNote: string | null
+  reportCount: number
+  bookingCount: number
+  createdAt: string
+}
+
+export interface AdminBooking {
+  id: string
+  tripId: string
+  route: string
+  departureDate: string
+  senderId: string
+  senderName: string
+  travelerId: string
+  travelerName: string
+  weightKg: number
+  category: ParcelCategory
+  description: string
+  status: BookingStatus
+  statusBeforeDispute: BookingStatus | null
+  disputeReason: string | null
+  disputedBy: string | null
+  disputedAt: string | null
+  resolutionNote: string | null
+  deliveryAttempts: number
+  createdAt: string
+  deliveredAt: string | null
+}
+
+export interface AdminVoyageReport {
+  id: string
+  targetType: 'Trip' | 'Booking' | 'Review'
+  targetId: string
+  targetLabel: string
+  tripId: string | null
+  authorId: string
+  authorName: string
+  reason: string
+  createdAt: string
+  handled: boolean
+  decision: string | null
+}
+
+export interface AdminVoyageReview {
+  id: string
+  bookingId: string
+  authorName: string
+  targetName: string
+  aboutTraveler: boolean
+  rating: number
+  comment: string | null
+  isHidden: boolean
+  hiddenReason: string | null
+  reportCount: number
+  createdAt: string
+}
+
+export interface AdminTripDetail {
+  trip: AdminTrip
+  acceptedCategories: ParcelCategory[]
+  pricePerKg: number | null
+  currency: string
+  dropOffZones: string | null
+  notes: string | null
+  bookings: AdminBooking[]
+  reports: AdminVoyageReport[]
+  reviews: AdminVoyageReview[]
+}

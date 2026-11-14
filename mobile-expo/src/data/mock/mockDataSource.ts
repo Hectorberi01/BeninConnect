@@ -3,7 +3,7 @@ import type { DataSource } from '../repositories';
 import { INTERESTS, REACTIONS } from '../repositories';
 import type {
   AppNotification, Comment, Community, CommunityEvent, CommunityMember, Conversation, CreateEventRequest, EventFilter, JobFilter, JobFilters, JobOffer, JobPage,
-  DocumentKind, OfferingInput, ProviderInput, ServiceReportTarget, ServiceSearch,
+  DocumentKind, OfferingInput, ProviderInput, ServiceReportTarget, ServiceSearch, BookingInput, RouteAlertInput, TripInput, TripSearch, VoyageReportTarget,
   MembershipStatus, Message, NotificationCategory, OutgoingFile, Paged, Post, PostFilter, User, LocalPhoto, LocalVideo, ReportReason, ReportTarget,
 } from '../types';
 import { AppError, displayName, isEventFull, membershipStatus, toggleReaction } from '../types';
@@ -13,6 +13,7 @@ import { createMockStore, type MockStore } from './factory';
 import { newId } from './random';
 import { createMockJobs } from './jobs';
 import { MockServices } from './services';
+import { MockVoyages, VOYAGES_INFO } from './voyages';
 
 const checkReaction = (emoji: string) => {
   if (!REACTIONS.includes(emoji.trim())) throw new AppError("Cette réaction n'est pas disponible.", 400);
@@ -843,6 +844,34 @@ export class MockDataSource implements DataSource {
   async editServiceReview(id: string, rating: number, comment: string | null) { await this.net(); return this.services.editReview(id, rating, comment); }
   async replyServiceReview(): Promise<never> { throw new AppError('Indisponible en mode démonstration.', 400); }
   async reportService(_target: ServiceReportTarget, _id: string, reason: string) {
+    await this.net();
+    if (reason.trim().length < 3) throw new AppError('Indiquez le motif du signalement.', 400);
+  }
+
+  // --- Voyages (exemples hors ligne) -------------------------------------------------------
+
+  private voyages = new MockVoyages(() => this.userId, (id) => this.store.users.find((u) => u.id === id));
+
+  async getVoyagesInfo() { return VOYAGES_INFO; }
+  async searchTrips(f: TripSearch) { await this.net(); return this.voyages.search(f); }
+  async getTrip(id: string) { await this.net(); return this.voyages.get(id); }
+  async publishTrip(input: TripInput) { await this.net(); return this.voyages.publish(input); }
+  async updateTrip(id: string, input: TripInput) { await this.net(); return this.voyages.publish(input, id); }
+  async cancelTrip(id: string) { await this.net(); return this.voyages.cancel(id); }
+  async getMyTrips() { await this.net(); return this.voyages.mine(); }
+  async requestBooking(tripId: string, input: BookingInput) { await this.net(); return this.voyages.request(tripId, input); }
+  async getMyBookings() { await this.net(); return this.voyages.myBookings(); }
+  async respondBooking(id: string, action: 'accept' | 'decline' | 'cancel') { await this.net(); return this.voyages.respond(id, action); }
+  async issueDeliveryCode(id: string) { await this.net(); return this.voyages.issueCode(id); }
+  async deliverBooking(id: string, code: string) { await this.net(); return this.voyages.deliver(id, code); }
+  async disputeBooking(id: string, reason: string) { await this.net(); return this.voyages.dispute(id, reason); }
+  async reviewBooking(id: string, rating: number, comment: string | null) { await this.net(); return this.voyages.review(id, rating, comment); }
+  async getVoyageStats(userId: string) { await this.net(); return this.voyages.stats(userId); }
+  async getVoyageReviews(userId: string) { await this.net(); return this.voyages.reviewPage(userId); }
+  async getRouteAlerts() { await this.net(); return this.voyages.alertList(); }
+  async createRouteAlert(input: RouteAlertInput) { await this.net(); return this.voyages.addAlert(input); }
+  async deleteRouteAlert(id: string) { await this.net(); this.voyages.removeAlert(id); }
+  async reportVoyage(_target: VoyageReportTarget, _id: string, reason: string) {
     await this.net();
     if (reason.trim().length < 3) throw new AppError('Indiquez le motif du signalement.', 400);
   }

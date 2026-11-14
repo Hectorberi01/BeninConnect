@@ -27,6 +27,15 @@ public sealed class ServicesUnitTests
         return (ServiceRequest.Create(offering, provider, client, "Bonjour, disponible samedi ?", null, "Paris", Now), provider, client);
     }
 
+    [Theory]
+    [InlineData("+33610297185", "+33610297185")]
+    [InlineData("\u202A+33610297185\u202C", "+33610297185")] // marques de direction ajoutées par iOS
+    [InlineData("+33\u00A06\u00A010\u00A029\u00A071\u00A085", "+33 6 10 29 71 85")]
+    [InlineData("06.10.29.71.85", "06 10 29 71 85")]
+    [InlineData("+229 01 97 00 00 00", "+229 01 97 00 00 00")]
+    [InlineData("  ", null)]
+    public void Phone_numbers_are_normalized(string input, string? expected) => Assert.Equal(expected, ServiceRules.NormalizePhone(input));
+
     [Fact]
     public void A_request_goes_from_sent_to_completed_and_rejects_invalid_steps()
     {

@@ -117,8 +117,8 @@ public sealed partial class ProviderProfile
             throw new DomainException("Indiquez si vous vous déplacez, si vous recevez, ou les deux.");
         }
 
-        var phone = ServiceRules.CleanOrNull(d.Phone, 20);
-        if (phone is not null && !PhonePattern().IsMatch(phone))
+        var phone = ServiceRules.NormalizePhone(d.Phone);
+        if (phone is not null && (!PhonePattern().IsMatch(phone) || phone.Count(char.IsAsciiDigit) is < 8 or > 15))
         {
             throw new DomainException("Numéro de téléphone invalide (format international conseillé : +33…, +229…).");
         }
@@ -276,7 +276,7 @@ public sealed partial class ProviderProfile
         return text.Length is >= 3 and <= 500 ? text : throw new DomainException("Indiquez le motif (3 à 500 caractères).");
     }
 
-    [GeneratedRegex(@"^\+?[0-9 .\-]{8,20}$")]
+    [GeneratedRegex(@"^\+?[0-9][0-9 ]*$")]
     private static partial Regex PhonePattern();
 
     [GeneratedRegex(@"^\d{14}$")]
