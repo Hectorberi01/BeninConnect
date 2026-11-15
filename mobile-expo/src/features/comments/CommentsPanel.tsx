@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { type ComponentRef, type ReactElement, useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Dimensions, FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ReactionBar, useReactionPicker } from '@/components/reactions';
 import { MentionSuggestions, RichText } from '@/components/social';
@@ -34,7 +34,9 @@ export function useKeyboardHeight() {
   const [height, setHeight] = useState(0);
   useEffect(() => {
     const ios = Platform.OS === 'ios';
-    const show = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', (e) => setHeight(e.endCoordinates.height));
+    // Android (bord à bord) : la hauteur fournie oublie la barre de navigation, on part du haut du clavier
+    const show = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', (e) =>
+      setHeight(ios ? e.endCoordinates.height : Math.max(0, Dimensions.get('screen').height - e.endCoordinates.screenY)));
     const hide = Keyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', () => setHeight(0));
     return () => { show.remove(); hide.remove(); };
   }, []);
@@ -205,7 +207,7 @@ export function CommentsPanel({ post, header, focus, sheet = false }: {
 
   const replyAuthor = replyTo ? authors.get(replyTo.authorId) : undefined;
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} enabled={!sheet} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} enabled={!sheet} behavior="padding">
       <FlatList
         ref={list}
         data={rows}

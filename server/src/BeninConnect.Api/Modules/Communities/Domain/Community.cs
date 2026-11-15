@@ -129,6 +129,20 @@ public sealed class Community
     }
 
     public void CancelJoinRequest(Guid userId) => _joinRequests.RemoveAll(r => r.UserId == userId);
+
+    /// <summary>Créateur et modérateurs.</summary>
+    public bool CanManage(Guid userId) =>
+        OwnerId == userId || _members.Any(m => m.UserId == userId && m.Role == CommunityRole.Moderator);
+
+    public void ChangeCover(Guid userId, string coverImage)
+    {
+        if (!CanManage(userId))
+        {
+            throw new ForbiddenException("Seuls le créateur et les modérateurs peuvent changer la couverture.");
+        }
+
+        CoverImage = coverImage;
+    }
 }
 
 public sealed class CommunityMember

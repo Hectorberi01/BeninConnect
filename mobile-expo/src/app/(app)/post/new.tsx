@@ -6,6 +6,7 @@ import { ImageGrid } from '@/components/cards';
 import { MentionSuggestions } from '@/components/social';
 import { FormError, FormScroll } from '@/components/Form';
 import { Avatar, Button, Header, Icon, Muted, Screen, Select, T } from '@/components/ui';
+import { ImageCropper } from '@/components/ImageCropper';
 import { DEV_TOOLS } from '@/core/config';
 import { confirm } from '@/core/dialog';
 import { imagePaths, imageSource } from '@/core/images';
@@ -69,6 +70,12 @@ export default function CreatePost() {
   };
   const removeVideo = () => setVideo(null);
   const removePhoto = (p: Photo) => setImages((list) => list.filter((x) => x !== p));
+  // Recadrage d'une photo choisie sur le téléphone (remplace l'originale)
+  const [cropping, setCropping] = useState<LocalPhoto | null>(null);
+  const cropped = (photo: LocalPhoto) => {
+    setImages((list) => list.map((x) => (x === cropping ? photo : x)));
+    setCropping(null);
+  };
   const addPhotos = (list: Photo[]) => {
     setImages((old) => [...old, ...list].slice(0, MAX_IMAGES));
     setVideo(null);
@@ -207,7 +214,15 @@ export default function CreatePost() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8 }}>
             {images.map((p, i) => (
               <View key={photoKey(p)} style={styles.thumb}>
-                <Image source={imageSource(photoKey(p))} style={StyleSheet.absoluteFill} contentFit="cover" />
+                <Pressable accessibilityRole="imagebutton" accessibilityLabel={`Recadrer la photo ${i + 1}`} style={StyleSheet.absoluteFill}
+                  disabled={typeof p === 'string'} onPress={() => typeof p !== 'string' && setCropping(p)}>
+                  <Image source={imageSource(photoKey(p))} style={StyleSheet.absoluteFill} contentFit="cover" />
+                </Pressable>
+                {typeof p !== 'string' && (
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Recadrer la photo ${i + 1}`} onPress={() => setCropping(p)} style={styles.crop}>
+                    <Icon name="crop" size={16} color="#FFFFFF" />
+                  </Pressable>
+                )}
                 {i === 0 && images.length > 1 && <View style={styles.first}><T color="#FFFFFF" style={{ fontSize: 11 }}>Couverture</T></View>}
                 <Pressable accessibilityRole="button" accessibilityLabel={`Retirer la photo ${i + 1}`} onPress={() => removePhoto(p)} style={styles.remove}>
                   <Icon name="close" size={16} color="#FFFFFF" />
@@ -259,6 +274,7 @@ export default function CreatePost() {
         <Select label="Visibilité" value={visibility} onChange={setVisibility}
           options={VISIBILITIES.filter((x) => x.value !== 'CommunityMembers' || communityId)} />
       </FormScroll>
+      <ImageCropper photo={cropping} onCancel={() => setCropping(null)} onDone={cropped} />
     </Screen>
   );
 }
@@ -273,5 +289,6 @@ const styles = StyleSheet.create({
     position: 'absolute', left: 10, bottom: 10, flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 10, height: 30, borderRadius: 15, backgroundColor: 'rgba(0,0,0,0.6)',
   },
+  crop: { position: 'absolute', bottom: 8, right: 8, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
   remove: { position: 'absolute', top: 8, right: 8, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
 });

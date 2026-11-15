@@ -38,7 +38,7 @@ function BookTrip() {
   return (
     <Screen>
       <Header title="Réserver des kilos" />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
           <TripRoute t={t} big />
           <Muted style={{ marginBottom: 12 }}>{`${tripDay(t.departureDate, true)} · ${t.traveler.name} · ${kg(t.remainingKg)} disponibles`}</Muted>

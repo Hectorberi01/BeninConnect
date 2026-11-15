@@ -3,6 +3,7 @@ import { useAppBadge, usePushNotifications } from '@/core/push';
 import { useSession } from '@/core/session';
 import { useColors } from '@/core/theme';
 import { CommentsSheetHost } from '@/features/comments/CommentsSheet';
+import { ImageViewerHost } from '@/components/ImageViewer';
 import { useUnreadNotifications } from '@/features/queries';
 import { useRealtime } from '@/features/realtime';
 
@@ -33,6 +34,7 @@ function SignedIn({ background }: { background: string }) {
       <Stack.Screen name="voyages/review" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
     </Stack>
     <CommentsSheetHost />
+    <ImageViewerHost />
     </>
   );
 }

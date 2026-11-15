@@ -94,7 +94,7 @@ function Form({ provider, existing, tree, first }: { provider: MyProvider; exist
   return (
     <>
       <Header title={existing ? 'Modifier l’offre' : first ? 'Votre première offre' : 'Nouvelle offre'} />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
           <Select label="Catégorie" value={categoryId} onChange={setCategoryId} placeholder="Choisir une catégorie"
             options={leaves.map((x) => ({ value: x.id as string | null, label: `${x.parent} · ${x.name}`, description: x.requiresQualification ? 'Métier réglementé' : undefined }))} />

@@ -22,6 +22,7 @@ import { blockUser, unblockUser, useIsBlocked } from '@/features/block';
 import { reportContent } from '@/features/report';
 import { sendTyping, useIsTyping } from '@/features/realtime';
 import { useVoiceRecorder } from '@/features/voice';
+import { useKeyboardOpen } from '@/features/comments/CommentsPanel';
 
 export default function Conversation() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -37,6 +38,7 @@ type Row = { kind: 'day'; key: string; label: string } | { kind: 'message'; key:
 
 function Chat({ summary }: { summary: ConversationSummary }) {
   const c = useColors();
+  const keyboardOpen = useKeyboardOpen();
   const insets = useSafeAreaInsets();
   const me = useMe();
   const id = summary.conversation.id;
@@ -188,7 +190,7 @@ function Chat({ summary }: { summary: ConversationSummary }) {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
       <View style={[styles.header, { paddingTop: insets.top + 6, backgroundColor: c.surface, borderColor: c.border }]}>
         <IconButton name="arrow-left" label="Retour" onPress={() => router.back()} />
         <Pressable accessibilityRole="button" accessibilityLabel={`Profil de ${displayName(other)}`} style={styles.who}
@@ -238,7 +240,7 @@ function Chat({ summary }: { summary: ConversationSummary }) {
           {blockedByMe && <T v="label" color={c.primary} onPress={() => unblockUser(other)}>Débloquer</T>}
         </View>
       ) : (
-      <View style={[styles.composer, { backgroundColor: c.surface, borderColor: c.border, paddingBottom: insets.bottom + 8 }]}>
+      <View style={[styles.composer, { backgroundColor: c.surface, borderColor: c.border, paddingBottom: keyboardOpen ? 8 : insets.bottom + 8 }]}>
         {editing ? (
           <View style={[styles.editing, { borderColor: c.primary }]}>
             <Icon name="pencil-outline" size={18} color={c.primary} />

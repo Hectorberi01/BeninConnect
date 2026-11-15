@@ -8,7 +8,7 @@ import { Icon, T } from './ui';
 export function FormScroll({ children, header, footer }: { children: ReactNode; header?: ReactNode; footer?: ReactNode }) {
   const insets = useSafeAreaInsets();
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
       {header}
       <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <View style={styles.inner}>{children}</View>

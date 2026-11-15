@@ -1,11 +1,15 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { ImageGrid } from '@/components/cards';
 import { FormError, FormScroll } from '@/components/Form';
-import { Button, Header, Muted, Screen, Segmented, Select, T, TextField } from '@/components/ui';
+import { Button, Header, Icon, Muted, Screen, Segmented, Select, T, TextField } from '@/components/ui';
 import { CityField, CountryField } from '@/components/places';
-import { imagePaths } from '@/core/images';
+import { imagePaths, imageSource } from '@/core/images';
+import { askPhotoSource, pickPhoto } from '@/core/photos';
+import { toast } from '@/core/toast';
+import { data } from '@/data';
 import { useMe } from '@/core/session';
 import * as v from '@/core/validation';
 import type { CommunityVisibility } from '@/data/types';
@@ -21,9 +25,26 @@ export default function CreateCommunity() {
   const [category, setCategory] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<CommunityVisibility>('Public');
   const [cover, setCover] = useState<string | null>(covers[0] ?? null);
+  const [uploading, setUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const set = (k: keyof typeof form) => (value: string) => setForm((f) => ({ ...f, [k]: value }));
+
+  // Photo du téléphone, envoyée tout de suite (format 16:9 de la couverture)
+  const importCover = async () => {
+    const choice = await askPhotoSource('Image de couverture');
+    if (choice !== 'library' && choice !== 'camera') return;
+    const photo = await pickPhoto(choice, { aspect: [16, 9] });
+    if (!photo) return;
+    setUploading(true);
+    try {
+      setCover(await data().uploadImage(photo));
+    } catch (e) {
+      toast(`Envoi de la photo impossible : ${errorMessage(e)}`, 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const submit = () => {
     setFormError(null);
@@ -66,9 +87,22 @@ export default function CreateCommunity() {
             : "Les membres doivent être acceptés ; le contenu n'est visible que par eux."}
         </Muted>
         <T v="label" style={{ marginBottom: 8 }}>Image de couverture</T>
+        <Pressable accessibilityRole="button" accessibilityLabel="Importer une photo de couverture" onPress={importCover} disabled={uploading} style={styles.preview}>
+          {cover && <Image source={imageSource(cover)} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />}
+          <View style={styles.import}>
+            {uploading ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Icon name="image-plus" size={18} color="#FFFFFF" />}
+            <T v="label" color="#FFFFFF">{uploading ? 'Envoi…' : 'Importer une photo'}</T>
+          </View>
+        </Pressable>
+        <Muted style={{ marginTop: 10, marginBottom: 6 }}>Ou choisissez une image proposée :</Muted>
         <ImageGrid paths={covers} selected={cover} onSelect={setCover} columns={3} />
-        <Button title="Créer la communauté" onPress={submit} loading={create.isPending} style={{ marginTop: 20 }} />
+        <Button title="Créer la communauté" onPress={submit} loading={create.isPending} disabled={uploading} style={{ marginTop: 20 }} />
       </FormScroll>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  preview: { width: '100%', aspectRatio: 16 / 9, borderRadius: 16, overflow: 'hidden', backgroundColor: '#1F2937', alignItems: 'center', justifyContent: 'center' },
+  import: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.55)' },
+});

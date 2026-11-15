@@ -58,7 +58,15 @@ public sealed record CreateCommunityCommand(
             .Concat(Rules.Length(nameof(Description), Description, "La description", 10, 500))
             .Concat(CommunitiesCatalog.Categories.Contains(Category) ? [] : new[] { (nameof(Category), "Choisissez une catégorie.") })
             .Concat(Rules.Required(nameof(Country), Country, "Le pays"))
-            .Concat(Rules.Required(nameof(City), City, "La ville"));
+            .Concat(Rules.Required(nameof(City), City, "La ville"))
+            .Concat(Rules.ImagePath(nameof(CoverImage), CoverImage));
+}
+
+/// <summary>Photo de couverture : image proposée (Covers/…) ou envoyée (uploads/…).</summary>
+public sealed record ChangeCommunityCoverCommand(Guid CommunityId, string CoverImage) : ICommand<CommunityDto>, IValidatable
+{
+    public IEnumerable<(string, string)> Validate() =>
+        Rules.Required(nameof(CoverImage), CoverImage, "La photo").Concat(Rules.ImagePath(nameof(CoverImage), CoverImage));
 }
 
 public sealed record JoinCommunityCommand(Guid CommunityId) : ICommand<MembershipDto>;
@@ -70,6 +78,7 @@ public sealed record CancelJoinRequestCommand(Guid CommunityId) : ICommand<Membe
 public sealed class CommunityHandlers(ICommunitiesDb db, IIdentityModule identity, IEventBus bus, ICurrentUser me, TimeProvider clock) :
     IRequestHandler<GetCommunitiesQuery, IReadOnlyList<CommunityDto>>,
     IRequestHandler<GetCommunityQuery, CommunityDto>,
+    IRequestHandler<ChangeCommunityCoverCommand, CommunityDto>,
     IRequestHandler<GetCommunitiesByIdsQuery, IReadOnlyList<CommunityDto>>,
     IRequestHandler<GetMemberCommunitiesQuery, IReadOnlyList<CommunityDto>>,
     IRequestHandler<GetCommunityCategoriesQuery, IReadOnlyList<string>>,
@@ -179,6 +188,14 @@ public sealed class CommunityHandlers(ICommunitiesDb db, IIdentityModule identit
         community.CancelJoinRequest(me.Id);
         await db.SaveChangesAsync(ct);
         return new MembershipDto(community.StatusFor(me.Id));
+    }
+
+    public async Task<CommunityDto> Handle(ChangeCommunityCoverCommand request, CancellationToken ct)
+    {
+        var community = await LoadAsync(request.CommunityId, ct);
+        community.ChangeCover(me.Id, request.CoverImage);
+        await db.SaveChangesAsync(ct);
+        return community.ToDto();
     }
 
     private async Task<Community> LoadAsync(Guid id, CancellationToken ct) =>

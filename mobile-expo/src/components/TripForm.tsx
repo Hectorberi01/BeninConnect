@@ -96,7 +96,7 @@ export function TripForm({ id, onSaved, onClose }: { id?: string; onSaved: (trip
       ) : (
         <Header title={title} subtitle={subtitle} onBack={step === 2 ? () => setStep(1) : undefined} />
       )}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
           {step === 1 ? (
             <>

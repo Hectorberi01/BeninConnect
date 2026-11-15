@@ -212,6 +212,7 @@ export class ApiDataSource implements DataSource {
   getMembers = (id: string) => this.get<CommunityMember[]>(`api/communities/${id}/members`);
   getMyJoinRequests = () => this.get<string[]>('api/communities/join-requests/mine');
   createCommunity = (r: CreateCommunityRequest) => this.post<Community>('api/communities', r);
+  changeCommunityCover = (id: string, coverImage: string) => this.request<Community>('PUT', `api/communities/${id}/cover`, { coverImage });
   joinCommunity = async (id: string) => (await this.post<{ status: MembershipStatus }>(`api/communities/${id}/join`)).status;
   leaveCommunity = async (id: string) => (await this.request<{ status: MembershipStatus }>('DELETE', `api/communities/${id}/membership`)).status;
   cancelJoinRequest = async (id: string) => (await this.request<{ status: MembershipStatus }>('DELETE', `api/communities/${id}/join-request`)).status;

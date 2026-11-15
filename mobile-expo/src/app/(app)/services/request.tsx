@@ -43,7 +43,7 @@ export default function RequestQuote() {
   return (
     <Screen>
       <Header title="Demander un devis" />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
           <T v="h3">{title}</T>
           <Muted style={{ marginBottom: 16 }}>{provider}</Muted>

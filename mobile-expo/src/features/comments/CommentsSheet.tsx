@@ -1,6 +1,6 @@
 import { usePathname } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { Animated, Dimensions, Modal, PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Dimensions, Modal, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { create } from 'zustand';
 import { Muted, QueryView, T } from '@/components/ui';
 import { useColors } from '@/core/theme';
@@ -43,7 +43,7 @@ function Sheet({ postId }: { postId: string }) {
     },
   })).current;
   // Clavier ouvert : la fenêtre remonte au-dessus et occupe l'espace restant
-  const screen = Dimensions.get('window').height;
+  const screen = Dimensions.get(Platform.OS === 'android' ? 'screen' : 'window').height;
   const height = keyboard ? screen - keyboard - insets.top - 8 : screen * 0.75;
   const count = query.data?.commentCount ?? 0;
 

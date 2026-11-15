@@ -39,6 +39,8 @@ public sealed class CommunitiesModule : IModule
             var created = await s.Send(c, ct);
             return Results.Created($"/api/communities/{created.Id}", created);
         });
+        communities.MapPut("/{id:guid}/cover", (Guid id, CoverRequest r, ISender s, CancellationToken ct) =>
+            s.Send(new ChangeCommunityCoverCommand(id, r.CoverImage), ct));
         communities.MapPost("/{id:guid}/join", (Guid id, ISender s, CancellationToken ct) => s.Send(new JoinCommunityCommand(id), ct));
         communities.MapDelete("/{id:guid}/membership", (Guid id, ISender s, CancellationToken ct) => s.Send(new LeaveCommunityCommand(id), ct));
         communities.MapDelete("/{id:guid}/join-request", (Guid id, ISender s, CancellationToken ct) => s.Send(new CancelJoinRequestCommand(id), ct));
@@ -56,3 +58,5 @@ public sealed class CommunitiesModule : IModule
         }).RequirePermission(Permission.CommunitiesManage);
     }
 }
+
+public sealed record CoverRequest(string CoverImage);

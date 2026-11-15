@@ -341,12 +341,15 @@ export function Avatar({ initials, color, size = 44, onPress, image }: {
   return onPress ? <Pressable accessibilityRole="button" accessibilityLabel={`Profil ${initials}`} onPress={onPress}>{body}</Pressable> : body;
 }
 
-export function Cover({ path, height = 160, style, children }: { path: string | null | undefined; height?: number; style?: StyleProp<ViewStyle>; children?: ReactNode }) {
+export function Cover({ path, height = 160, style, children, onPress }: {
+  path: string | null | undefined; height?: number; style?: StyleProp<ViewStyle>; children?: ReactNode; onPress?: () => void;
+}) {
   const c = useColors();
   const source = imageSource(path);
   return (
     <View style={[{ height, backgroundColor: c.primaryLight, overflow: 'hidden' }, style]}>
       {source && <Image source={source} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} accessibilityIgnoresInvertColors />}
+      {source && onPress && <Pressable accessibilityRole="imagebutton" accessibilityLabel="Agrandir la photo" onPress={onPress} style={StyleSheet.absoluteFill} />}
       {children}
     </View>
   );

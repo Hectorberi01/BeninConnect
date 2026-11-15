@@ -22,6 +22,7 @@ import { displayName, errorMessage, initials, location } from '@/data/types';
 import { useMemberCommunities, usePosts, useSavedPosts, useUpdateProfile, useUser, useVoyagesEnabled } from './queries';
 import { VoyageBlock } from './VoyageBlock';
 import { usePullRefresh } from '@/core/refresh';
+import { openImages } from '@/components/ImageViewer';
 
 type PostTab = 'grid' | 'list' | 'saved';
 
@@ -60,7 +61,8 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
   // Changement direct de la photo de profil ou de couverture (sans passer par « Modifier le profil »).
   const changeImage = async (kind: 'avatar' | 'cover') => {
     const current = kind === 'avatar' ? me.avatarImage : me.coverImage;
-    const choice = await askPhotoSource(kind === 'avatar' ? 'Photo de profil' : 'Photo de couverture', { remove: !!current });
+    const choice = await askPhotoSource(kind === 'avatar' ? 'Photo de profil' : 'Photo de couverture', { remove: !!current, view: !!current });
+    if (choice === 'view') return openImages([current]);
     if (!choice || choice === 'demo') return;
     let path = '';
     if (choice !== 'remove') {
@@ -113,7 +115,7 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
       contentContainerStyle={{ paddingBottom: showBack ? insets.bottom + 32 : tabSpace }}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.primary} />}
     >
-      <Cover path={shownUser.coverImage} height={150 + insets.top}>
+      <Cover path={shownUser.coverImage} height={150 + insets.top} onPress={() => openImages([shownUser.coverImage])}>
         <View style={[styles.coverBar, { top: insets.top + 4 }]}>
           {showBack ? <RoundButton icon="arrow-left" label="Retour" onPress={() => router.back()} /> : <View />}
           {isMe
@@ -138,7 +140,7 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
       <View style={{ paddingHorizontal: 16 }}>
         <View style={[styles.avatarRing, { backgroundColor: c.glassStrong, borderColor: c.glassBorder }, depth(c, 2)]}>
           <Avatar initials={initials(shownUser)} color={shownUser.avatarColor} image={shownUser.avatarImage} size={92}
-            onPress={isMe && !changing ? () => changeImage('avatar') : undefined} />
+            onPress={isMe ? (changing ? undefined : () => changeImage('avatar')) : shownUser.avatarImage ? () => openImages([shownUser.avatarImage]) : undefined} />
           {isMe && (
             <View pointerEvents="none" style={[styles.avatarCamera, { backgroundColor: c.primary, borderColor: c.surface }]}>
               {changing === 'avatar' ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Icon name="camera" size={15} color="#FFFFFF" />}

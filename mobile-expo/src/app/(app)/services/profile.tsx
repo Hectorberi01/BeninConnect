@@ -95,7 +95,7 @@ function Form({ existing }: { existing: MyProvider | null }) {
       <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 16, paddingTop: 8 }}>
         {STEPS.map((s, i) => <View key={s} style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: i <= step ? c.primary : c.border }} />)}
       </View>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
           {step === 0 && <>
             <View style={{ alignItems: 'center', marginBottom: 16, gap: 8 }}>

@@ -481,6 +481,17 @@ export class MockDataSource implements DataSource {
     return this.store.joinRequests.filter((r) => r.userId === this.userId).map((r) => r.communityId);
   }
 
+  async changeCommunityCover(id: string, coverImage: string) {
+    await this.net();
+    const community = this.store.communities.find((c) => c.id === id);
+    if (!community) throw new AppError('Communauté introuvable.', 404);
+    if (community.ownerId !== this.userId && !community.moderatorIds.includes(this.userId)) {
+      throw new AppError('Seuls le créateur et les modérateurs peuvent changer la couverture.', 403);
+    }
+    community.coverImage = coverImage;
+    return community;
+  }
+
   async createCommunity(r: Parameters<DataSource['createCommunity']>[0]) {
     await this.net();
     this.validate({

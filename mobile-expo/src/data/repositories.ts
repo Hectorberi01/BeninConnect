@@ -81,6 +81,8 @@ export interface DataSource {
   getMembers(communityId: string): Promise<CommunityMember[]>;
   getMyJoinRequests(): Promise<string[]>;
   createCommunity(request: CreateCommunityRequest): Promise<Community>;
+  /** Créateur et modérateurs : Covers/… ou uploads/…. */
+  changeCommunityCover(communityId: string, coverImage: string): Promise<Community>;
   joinCommunity(id: string): Promise<MembershipStatus>;
   leaveCommunity(id: string): Promise<MembershipStatus>;
   cancelJoinRequest(id: string): Promise<MembershipStatus>;

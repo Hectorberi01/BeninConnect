@@ -5,14 +5,15 @@ import type { LocalPhoto, LocalVideo } from '@/data/types';
 import { info } from './dialog';
 
 export type PhotoSource = 'library' | 'camera';
-export type PhotoChoice = PhotoSource | 'remove' | 'demo';
+export type PhotoChoice = PhotoSource | 'remove' | 'demo' | 'view';
 
 /** Feuille de choix : galerie, appareil photo et options propres à l'écran. */
-export function askPhotoSource(title: string, extra: { remove?: boolean; demo?: string } = {}): Promise<PhotoChoice | null> {
+export function askPhotoSource(title: string, extra: { remove?: boolean; demo?: string; view?: boolean } = {}): Promise<PhotoChoice | null> {
   // Pas d'appareil photo ni de feuille d'actions sur le web : directement la galerie.
   if (Platform.OS === 'web') return Promise.resolve('library');
   return new Promise((resolve) => {
     Alert.alert(title, undefined, [
+      ...(extra.view ? [{ text: 'Voir la photo', onPress: () => resolve('view' as const) }] : []),
       { text: 'Choisir dans la galerie', onPress: () => resolve('library') },
       { text: 'Prendre une photo', onPress: () => resolve('camera') },
       ...(extra.demo ? [{ text: extra.demo, onPress: () => resolve('demo' as const) }] : []),

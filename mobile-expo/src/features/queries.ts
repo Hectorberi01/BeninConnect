@@ -273,6 +273,18 @@ export function useMembership() {
   };
 }
 
+export function useChangeCommunityCover() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, coverImage }: { id: string; coverImage: string }) => data().changeCommunityCover(id, coverImage),
+    onSuccess: () => {
+      refreshCommunities(qc);
+      toast('Couverture mise à jour.', 'success');
+    },
+    onError,
+  });
+}
+
 export function useCreateCommunity() {
   const qc = useQueryClient();
   return useMutation({

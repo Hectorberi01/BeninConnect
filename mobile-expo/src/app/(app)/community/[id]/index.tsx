@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EventCard, MembershipButton, PostCard, useCommunityStatus, usePostContext, UserRow } from '@/components/cards';
 import { Button, Cover, EmptyState, Icon, IconButton, Muted, QueryView, Screen, Segmented, T, Tag } from '@/components/ui';
@@ -8,7 +8,13 @@ import * as fmt from '@/core/format';
 import { useColors } from '@/core/theme';
 import type { Community } from '@/data/types';
 import { location } from '@/data/types';
-import { useCommunity, useCommunityEvents, useMembers, usePosts } from '@/features/queries';
+import { useChangeCommunityCover, useCommunity, useCommunityEvents, useMembers, usePosts } from '@/features/queries';
+import { openImages } from '@/components/ImageViewer';
+import { askPhotoSource, pickPhoto } from '@/core/photos';
+import { useMe } from '@/core/session';
+import { toast } from '@/core/toast';
+import { data } from '@/data';
+import { errorMessage } from '@/data/types';
 import { reportContent } from '@/features/report';
 import { roleLabel } from '@/features/rules';
 import { usePullRefresh } from '@/core/refresh';
@@ -33,12 +39,34 @@ function Details({ community }: { community: Community }) {
   const events = useCommunityEvents(community.id, !restricted);
   const ctx = usePostContext(posts.data ?? []);
 
+  // Couverture : créateur et modérateurs
+  const me = useMe();
+  const canManage = community.ownerId === me.id || community.moderatorIds.includes(me.id);
+  const changeCover = useChangeCommunityCover();
+  const [uploading, setUploading] = useState(false);
+  const editCover = async () => {
+    const choice = await askPhotoSource('Photo de couverture', { view: !!community.coverImage });
+    if (choice === 'view') return openImages([community.coverImage]);
+    if (choice !== 'library' && choice !== 'camera') return;
+    const photo = await pickPhoto(choice, { aspect: [16, 9] });
+    if (!photo) return;
+    setUploading(true);
+    try {
+      const path = await data().uploadImage(photo);
+      await changeCover.mutateAsync({ id: community.id, coverImage: path });
+    } catch (e) {
+      toast(`Envoi de la photo impossible : ${errorMessage(e)}`, 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const pull = usePullRefresh(() => Promise.all([posts.refetch(), members.refetch(), events.refetch()]));
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.primary} />}>
-      <Cover path={community.coverImage} height={190 + insets.top}>
+      <Cover path={community.coverImage} height={190 + insets.top} onPress={() => openImages([community.coverImage])}>
         <View style={[styles.back, { top: insets.top + 4 }]}>
           <IconButton name="arrow-left" label="Retour" color="#FFFFFF" onPress={() => router.back()} />
         </View>
@@ -46,6 +74,13 @@ function Details({ community }: { community: Community }) {
           <View style={[styles.back, { top: insets.top + 4, left: undefined, right: 8 }]}>
             <IconButton name="flag-outline" label="Signaler la communauté" color="#FFFFFF" onPress={() => reportContent('Community', community.id)} />
           </View>
+        )}
+        {canManage && (
+          <Pressable accessibilityRole="button" accessibilityLabel="Changer la photo de couverture" onPress={editCover} disabled={uploading}
+            style={({ pressed }) => [styles.coverButton, pressed && { opacity: 0.7 }]}>
+            {uploading ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Icon name="camera-outline" size={18} color="#FFFFFF" />}
+            <T v="label" color="#FFFFFF">Couverture</T>
+          </Pressable>
         )}
       </Cover>
 
@@ -120,6 +155,7 @@ function Details({ community }: { community: Community }) {
 }
 
 const styles = StyleSheet.create({
+  coverButton: { position: 'absolute', right: 12, bottom: 12, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.5)' },
   back: { position: 'absolute', left: 8, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)' },
   body: { padding: 16, paddingBottom: 20 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, flexWrap: 'wrap' },

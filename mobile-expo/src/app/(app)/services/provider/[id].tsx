@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import * as Linking from 'expo-linking';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { askServiceReport, durationText, initialsOf, Notice, Rating, Stars, VerificationTag } from '@/components/services';
 import { Avatar, Button, Card, Header, Icon, type IconName, IconButton, Muted, QueryView, Screen, SectionTitle, T, Tag, TextField } from '@/components/ui';
@@ -12,6 +12,7 @@ import { useColors } from '@/core/theme';
 import { data } from '@/data';
 import { LEGAL_STATUS_LABELS, servicePrice, type ProviderDetail, type ServiceReview } from '@/data/types';
 import { useProvider, useReplyServiceReview, useReportService, useServicesInfo, useToggleProviderFavorite } from '@/features/queries';
+import { openImages } from '@/components/ImageViewer';
 
 export default function ProviderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -56,7 +57,8 @@ function Details({ p }: { p: ProviderDetail }) {
       } />
       <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
         <View style={{ alignItems: 'center', padding: 16, gap: 6 }}>
-          <Avatar initials={initialsOf(p.displayName)} color={c.primary} image={p.photoPath} size={88} />
+          <Avatar initials={initialsOf(p.displayName)} color={c.primary} image={p.photoPath} size={88}
+            onPress={p.photoPath ? () => openImages([p.photoPath]) : undefined} />
           <T v="h2" style={{ textAlign: 'center' }}>{p.displayName}</T>
           <Rating average={p.ratingAverage} count={p.ratingCount} />
           <View style={styles.tags}>
@@ -87,7 +89,11 @@ function Details({ p }: { p: ProviderDetail }) {
             {!!o.description && <T style={{ marginTop: 6 }}>{o.description}</T>}
             {o.images.length > 0 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10 }}>
-                {o.images.map((path) => <Image key={path} source={imageSource(path)} style={styles.photo} contentFit="cover" accessibilityLabel="Réalisation" />)}
+                {o.images.map((path, i) => (
+                  <Pressable key={path} accessibilityRole="imagebutton" accessibilityLabel="Agrandir la réalisation" onPress={() => openImages(o.images, i)}>
+                    <Image source={imageSource(path)} style={styles.photo} contentFit="cover" />
+                  </Pressable>
+                ))}
               </ScrollView>
             )}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
