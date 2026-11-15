@@ -14,11 +14,13 @@ import { toast } from '@/core/toast';
 import { data, setDataSource } from '@/data';
 import { displayName, initials } from '@/data/types';
 import { signOut } from '@/features/ProfileView';
+import { useOpenSupport } from '@/features/queries';
 
 export default function Settings() {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const me = useMe();
+  const openSupport = useOpenSupport();
   const prefs = usePreferences();
   const [source, setSource] = useState<DataSourceKind>(prefs.dataSource);
   const [apiUrl, setApiUrl] = useState(prefs.apiUrl);
@@ -115,6 +117,9 @@ export default function Settings() {
         )}
 
         <Group title="À propos">
+          <ListRow icon="lifebuoy" label="Contacter l'équipe BéninConnect" onPress={() => openSupport.mutate(undefined, {
+            onSuccess: (conversation) => router.push(`/conversation/${conversation.id}`),
+          })} />
           <ListRow icon="information-outline" label="À propos de BéninConnect" value={version} onPress={() => info('À propos de BéninConnect',
             (demo
               ? `BéninConnect Community — démonstration (version ${version}).\n\nToutes les personnes, communautés, publications et événements sont fictifs.\n\n`

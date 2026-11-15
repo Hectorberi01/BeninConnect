@@ -18,6 +18,7 @@ const CommunitiesPage = lazy(() => import('@/pages/Communities').then((m) => ({ 
 const DashboardPage = lazy(() => import('@/pages/Dashboard').then((m) => ({ default: m.DashboardPage })))
 const EventsPage = lazy(() => import('@/pages/Events').then((m) => ({ default: m.EventsPage })))
 const EditorialPage = lazy(() => import('@/pages/Editorial').then((m) => ({ default: m.EditorialPage })))
+const SupportPage = lazy(() => import('@/pages/Support').then((m) => ({ default: m.SupportPage })))
 const JobsPage = lazy(() => import('@/pages/Jobs').then((m) => ({ default: m.JobsPage })))
 const JobOffersPage = lazy(() => import('@/pages/JobOffers').then((m) => ({ default: m.JobOffersPage })))
 const ServicesDashboardPage = lazy(() => import('@/pages/services/ServicesDashboard').then((m) => ({ default: m.ServicesDashboardPage })))
@@ -59,6 +60,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="communities" element={<Guard permission="CommunitiesManage"><CommunitiesPage /></Guard>} />
                 <Route path="events" element={<Guard permission="EventsManage"><EventsPage /></Guard>} />
                 <Route path="banners" element={<Guard permission="BannersManage"><BannersPage /></Guard>} />
+                <Route path="support" element={<Guard permission="SupportManage"><SupportPage /></Guard>} />
                 <Route path="editorial" element={<Guard permission="EditorialManage"><EditorialPage /></Guard>} />
                 <Route path="jobs" element={<Guard permission="JobsManage"><JobsPage /></Guard>} />
                 <Route path="jobs/offers" element={<Guard permission="JobsManage"><JobOffersPage /></Guard>} />

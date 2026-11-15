@@ -98,5 +98,12 @@ public sealed class IdentityModuleService(IdentityDbContext db, TimeProvider clo
         return user.Id;
     }
 
+    public async Task<Guid> GetOfficialAccountAsync(CancellationToken ct)
+    {
+        var existing = await db.Users.AsNoTracking().Where(u => u.IsOfficial).OrderBy(u => u.JoinedAt).Select(u => (Guid?)u.Id).FirstOrDefaultAsync(ct);
+        return existing ?? await EnsureOfficialAccountAsync("BéninConnect", "officiel@monbenin.com",
+            "Compte officiel de BéninConnect : actualités, culture et vie de la diaspora béninoise. Publications vérifiées par notre équipe.", ct);
+    }
+
     public async Task<IReadOnlyList<LabelCount>> CountTablesAsync(CancellationToken ct) => [new("Membres", await db.Users.CountAsync(ct))];
 }

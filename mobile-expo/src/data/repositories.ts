@@ -110,6 +110,8 @@ export interface DataSource {
   attachmentUrl(message: Message): string | null;
   markConversationRead(conversationId: string): Promise<number>;
   startConversation(otherUserId: string): Promise<Conversation>;
+  /** Discussion avec le compte officiel (support), créée au besoin. */
+  openSupport(): Promise<Conversation>;
   getUnreadMessageCount(): Promise<number>;
 
   // Événements

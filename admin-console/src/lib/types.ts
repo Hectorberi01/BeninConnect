@@ -6,6 +6,7 @@ export type Permission =
   | 'DashboardView' | 'MembersView' | 'MembersSuspend' | 'ContentModerate' | 'ReportsManage' | 'CommunitiesManage'
   | 'EventsManage' | 'ExportsDownload' | 'AdminsManage' | 'AuditView' | 'SystemView' | 'SystemReset' | 'BackupsManage'
   | 'EditorialManage' | 'JobsManage' | 'ServicesManage' | 'ServicesDelete' | 'BackgroundJobsManage' | 'AppVersionsManage' | 'BannersManage'
+  | 'SupportManage'
 
 export interface AdminMe {
   id: string
@@ -881,4 +882,45 @@ export interface HomeBanner {
   status: BannerStatus
   updatedAt: string
   updatedBy: string
+}
+
+// --- Support : messages des membres au compte officiel ---
+
+export interface SupportMember {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  city: string
+  country: string
+  avatarColor: string
+  avatarImage: string | null
+}
+
+export interface SupportAttachment { kind: 'Image' | 'Audio' | 'Document'; fileName: string }
+
+export interface SupportMessage {
+  id: string
+  senderId: string
+  content: string
+  sentAt: string
+  isRead: boolean
+  isDeleted: boolean
+  attachment: SupportAttachment | null
+  sharedPostId: string | null
+}
+
+export interface SupportConversation {
+  id: string
+  member: SupportMember
+  lastMessage: SupportMessage | null
+  unreadCount: number
+  updatedAt: string
+}
+
+export interface SupportThread {
+  id: string
+  member: SupportMember
+  officialId: string
+  messages: SupportMessage[]
 }

@@ -149,7 +149,7 @@ public sealed record DeleteConversationCommand(Guid ConversationId) : ICommand<C
 
 public sealed class ConversationHandlers(
     IMessagingDb db, IIdentityModule identity, IMediaModule media, IFeedModule feed, IPresence presence, IEventBus bus, IChatNotifier live,
-    ICurrentUser me, TimeProvider clock) :
+    ICurrentUser me, TimeProvider clock, ISender sender) :
     IRequestHandler<GetConversationsQuery, IReadOnlyList<ConversationSummaryDto>>,
     IRequestHandler<GetConversationQuery, ConversationSummaryDto>,
     IRequestHandler<GetMessagesQuery, IReadOnlyList<MessageDto>>,
@@ -333,7 +333,7 @@ public sealed class ConversationHandlers(
                     ?? throw new NotFoundException("Membre");
         if (other.IsOfficial)
         {
-            throw new DomainException("Le compte officiel BéninConnect ne reçoit pas de messages.");
+            return await sender.Send(new OpenSupportConversationCommand(), ct); // écrire au compte officiel = support
         }
 
         await EnsureNotBlockedAsync([request.OtherUserId], ct);

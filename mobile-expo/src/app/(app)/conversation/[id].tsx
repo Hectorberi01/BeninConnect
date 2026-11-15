@@ -167,7 +167,11 @@ function Chat({ summary }: { summary: ConversationSummary }) {
     }
   };
 
-  const openMenu = () => Alert.alert(displayName(other), undefined, [
+  // Support (compte officiel) : ni signalement ni blocage
+  const openMenu = () => Alert.alert(displayName(other), undefined, other.isOfficial ? [
+    { text: 'Supprimer la discussion', style: 'destructive', onPress: askDeleteConversation },
+    { text: 'Annuler', style: 'cancel' },
+  ] : [
     { text: 'Voir le profil', onPress: () => router.push(`/user/${other.id}`) },
     { text: 'Supprimer la discussion', style: 'destructive', onPress: askDeleteConversation },
     { text: 'Signaler ce membre', style: 'destructive', onPress: () => reportContent('User', other.id) },
@@ -197,11 +201,13 @@ function Chat({ summary }: { summary: ConversationSummary }) {
           onPress={() => router.push(`/user/${other.id}`)}>
           <View>
             <Avatar initials={initials(other)} color={other.avatarColor} image={other.avatarImage} size={38} />
-            {summary.otherOnline && !locked && <View style={[styles.online, { backgroundColor: c.success, borderColor: c.surface }]} />}
+            {summary.otherOnline && !locked && !other.isOfficial && <View style={[styles.online, { backgroundColor: c.success, borderColor: c.surface }]} />}
           </View>
           <View style={{ flex: 1 }}>
             <T v="label" style={{ fontSize: 15 }} lines={1}>{displayName(other)}</T>
-            <Muted lines={1} color={!locked && (typing || summary.otherOnline) ? c.primary : undefined}>{locked ? location(other) : status}</Muted>
+            {other.isOfficial
+              ? <Muted lines={1}>Équipe BéninConnect · réponse sous 48 h</Muted>
+              : <Muted lines={1} color={!locked && (typing || summary.otherOnline) ? c.primary : undefined}>{locked ? location(other) : status}</Muted>}
           </View>
         </Pressable>
         <IconButton name="dots-vertical" label="Options de la discussion" onPress={openMenu} />
@@ -223,8 +229,10 @@ function Chat({ summary }: { summary: ConversationSummary }) {
             )}
           onContentSizeChange={() => list.current?.scrollToEnd({ animated: false })}
           ListFooterComponent={typing && !locked ? <Muted style={styles.typing}>{`${other.firstName} est en train d'écrire…`}</Muted> : undefined}
-          ListEmptyComponent={<EmptyState icon="hand-wave-outline" title="Dites bonjour !"
-            message={`Envoyez votre premier message à ${other.firstName}.`} />}
+          ListEmptyComponent={other.isOfficial
+            ? <EmptyState icon="lifebuoy" title="Comment pouvons-nous vous aider ?"
+              message="Une question, une idée, un problème ? Écrivez-nous ici : l'équipe BéninConnect vous répond dans cette discussion." />
+            : <EmptyState icon="hand-wave-outline" title="Dites bonjour !" message={`Envoyez votre premier message à ${other.firstName}.`} />}
           contentContainerStyle={{ paddingTop: 12, paddingBottom: 22, flexGrow: 1 }}
           keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
           onScrollToIndexFailed={(info) => list.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true })}

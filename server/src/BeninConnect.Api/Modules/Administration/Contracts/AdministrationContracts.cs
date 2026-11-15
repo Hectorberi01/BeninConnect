@@ -24,7 +24,8 @@ public enum Permission
     ServicesDelete, // SuperAdmin uniquement
     BackgroundJobsManage, // tâches planifiées : SuperAdmin et Developer
     AppVersionsManage, // versions de l'application et relances : SuperAdmin, Admin et Developer
-    BannersManage // bannières de l'accueil : SuperAdmin et Admin
+    BannersManage, // bannières de l'accueil : SuperAdmin et Admin
+    SupportManage // messages des membres au compte officiel : SuperAdmin, Admin et Moderator
 }
 
 public sealed record AdminInfo(Guid Id, string DisplayName, string Role);

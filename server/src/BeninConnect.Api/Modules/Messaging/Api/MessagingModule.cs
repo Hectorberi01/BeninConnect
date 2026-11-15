@@ -51,6 +51,7 @@ public sealed class MessagingModule : IModule
         var conversations = app.MapGroup("/api/conversations").WithTags("Messagerie").RequireAuthorization();
         conversations.MapGet("", (ISender s, CancellationToken ct) => s.Send(new GetConversationsQuery(), ct));
         conversations.MapGet("/unread-count", (ISender s, CancellationToken ct) => s.Send(new GetUnreadMessageCountQuery(), ct));
+        conversations.MapPost("/support", (ISender s, CancellationToken ct) => s.Send(new OpenSupportConversationCommand(), ct));
         conversations.MapPost("/direct", (StartConversationRequest r, ISender s, CancellationToken ct) => s.Send(new StartDirectConversationCommand(r.OtherUserId), ct));
         conversations.MapGet("/{id:guid}", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetConversationQuery(id), ct));
         conversations.MapDelete("/{id:guid}", (Guid id, ISender s, CancellationToken ct) => s.Send(new DeleteConversationCommand(id), ct));
@@ -100,6 +101,14 @@ public sealed class MessagingModule : IModule
             .RequirePermission(Permission.DashboardView);
         admin.MapPost("/encryption/run", (ISender s, CancellationToken ct) => s.Send(new StartMessageEncryptionCommand(), ct))
             .RequirePermission(Permission.DashboardView);
+
+        // Console : messages des membres au compte officiel
+        var support = app.MapGroup("/api/admin/support").WithTags("Administration").RequirePermission(Permission.SupportManage);
+        support.MapGet("", (bool? unread, ISender s, CancellationToken ct) => s.Send(new GetSupportConversationsQuery(unread == true), ct));
+        support.MapGet("/unread-count", (ISender s, CancellationToken ct) => s.Send(new GetSupportUnreadCountQuery(), ct));
+        support.MapGet("/{id:guid}", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetSupportThreadQuery(id), ct));
+        support.MapPost("/{id:guid}/messages", (Guid id, ContentRequest r, ISender s, CancellationToken ct) => s.Send(new ReplySupportCommand(id, r.Content), ct));
+        support.MapPost("/{id:guid}/read", (Guid id, ISender s, CancellationToken ct) => s.Send(new MarkSupportReadCommand(id), ct));
 
         if (app.ServiceProvider.GetRequiredService<IHostEnvironment>().IsDevelopment())
         {

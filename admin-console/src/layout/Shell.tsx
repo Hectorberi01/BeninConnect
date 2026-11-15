@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import {
   BriefcaseBusiness, CalendarDays, Contact, Handshake, ListChecks, ShieldAlert, Smartphone, Tags, DatabaseBackup, Download, FileText, Flag, KeyRound, LayoutDashboard, LogOut, Menu, Newspaper, ScrollText, Server, ShieldCheck, Users, UsersRound, X,
-  GalleryHorizontal, MonitorSmartphone, Plane, Timer,
+  GalleryHorizontal, LifeBuoy, MonitorSmartphone, Plane, Timer,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ComponentType, useState } from 'react'
@@ -20,6 +20,7 @@ export const NAV: { section: string; items: Item[] }[] = [
     section: 'Modération',
     items: [
       { to: '/reports', label: 'Signalements', icon: Flag, permission: 'ReportsManage' },
+      { to: '/support', label: 'Support', icon: LifeBuoy, permission: 'SupportManage' },
       { to: '/members', label: 'Membres', icon: Users, permission: 'MembersView' },
       { to: '/posts', label: 'Publications', icon: FileText, permission: 'ContentModerate' },
     ],
@@ -74,6 +75,12 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     enabled: can('ReportsManage'),
     refetchInterval: 60_000,
   }).data ?? 0
+  const supportUnread = useQuery({
+    queryKey: ['support-unread'],
+    queryFn: () => api<{ count: number }>('api/admin/support/unread-count').then((r) => r.count),
+    enabled: can('SupportManage'),
+    refetchInterval: 30_000,
+  }).data ?? 0
 
   return (
     <div className="flex h-full flex-col">
@@ -105,6 +112,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                       <Icon className="relative size-4.5 transition-transform group-hover:scale-110" />
                       <span className="relative flex-1">{label}</span>
                       {to === '/reports' && openReports > 0 && <span className="relative"><Badge tone="danger">{openReports}</Badge></span>}
+                      {to === '/support' && supportUnread > 0 && <span className="relative"><Badge tone="danger">{supportUnread}</Badge></span>}
                     </>
                   )}
                 </NavLink>

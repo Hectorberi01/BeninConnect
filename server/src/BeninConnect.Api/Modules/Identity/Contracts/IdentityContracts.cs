@@ -38,6 +38,9 @@ public interface IIdentityModule
     /// <summary>Compte officiel (publications éditoriales) : créé s'il n'existe pas, renvoie son identifiant.</summary>
     Task<Guid> EnsureOfficialAccountAsync(string name, string email, string bio, CancellationToken ct);
 
+    /// <summary>Compte officiel existant (le plus ancien), sinon créé avec les valeurs par défaut. Sert aussi au support.</summary>
+    Task<Guid> GetOfficialAccountAsync(CancellationToken ct);
+
     /// <summary>Email en texte brut à un membre vérifié et non suspendu ; false sinon (aucun envoi).</summary>
     Task<bool> SendEmailAsync(Guid userId, string subject, string textBody, CancellationToken ct);
 }

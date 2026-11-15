@@ -183,14 +183,14 @@ public sealed class EditorialTests(EditorialFactory factory) : IClassFixture<Edi
         var login = await factory.CreateClient().PostAsJsonAsync("api/auth/login", new { email = "officiel@monbenin.com", password = "nimporte-quoi" });
         Assert.Equal(HttpStatusCode.BadRequest, login.StatusCode);
 
-        // Personne ne lit les messages du compte officiel : discussion refusée
+        // Écrire au compte officiel ouvre la discussion du support (la même à chaque fois)
         var official = (await moderator.GetFromJsonAsync<Overview>("api/admin/editorial"))!.OfficialAccountId;
         var member = factory.CreateClient();
         var token = await (await member.PostAsJsonAsync("api/auth/login", new { email = "demo@beninconnect.test", password = "Demo123!" })).Content.ReadFromJsonAsync<TokenBody>();
         member.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token!.Token);
-        var start = await member.PostAsJsonAsync("api/conversations/direct", new { otherUserId = official });
-        Assert.Equal(HttpStatusCode.BadRequest, start.StatusCode);
-        Assert.Contains("ne reçoit pas de messages", await start.Content.ReadAsStringAsync());
+        var direct = await (await member.PostAsJsonAsync("api/conversations/direct", new { otherUserId = official })).EnsureSuccessStatusCode().Content.ReadFromJsonAsync<JsonElement>();
+        var support = await (await member.PostAsync("api/conversations/support", null)).EnsureSuccessStatusCode().Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(direct.GetProperty("id").GetGuid(), support.GetProperty("id").GetGuid());
     }
 
     [Fact]

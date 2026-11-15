@@ -712,6 +712,18 @@ export class MockDataSource implements DataSource {
     return created;
   }
 
+  async openSupport() {
+    let official = this.store.users.find((u) => u.isOfficial);
+    if (!official) {
+      official = {
+        ...this.store.users[0]!, id: newId(), firstName: 'BéninConnect', lastName: '', email: 'officiel@monbenin.com', profession: '',
+        bio: 'Compte officiel de BéninConnect.', avatarColor: '#087F5B', avatarImage: null, isOfficial: true,
+      };
+      this.store.users.push(official);
+    }
+    return this.startConversation(official.id);
+  }
+
   async getUnreadMessageCount() {
     await this.net();
     const mine = new Set(this.store.conversations.filter((c) => c.participantIds.includes(this.userId)).map((c) => c.id));

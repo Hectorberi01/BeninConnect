@@ -314,6 +314,16 @@ export function upsertMessage(qc: QueryClient, message: Message) {
   });
 }
 
+/** Discussion avec l'équipe BéninConnect (compte officiel), créée au premier appui. */
+export function useOpenSupport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => data().openSupport(),
+    onSuccess: () => refreshMessaging(qc),
+    onError,
+  });
+}
+
 const refreshMessaging = (qc: QueryClient, id?: string) =>
   Promise.all([
     qc.invalidateQueries({ queryKey: ['conversations'] }),

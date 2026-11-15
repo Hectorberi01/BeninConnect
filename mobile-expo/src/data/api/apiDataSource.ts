@@ -253,6 +253,7 @@ export class ApiDataSource implements DataSource {
     this.post<Message>(`api/conversations/${id}/messages/${messageId}/reactions`, { emoji });
   markConversationRead = async (id: string) => (await this.post<{ count: number }>(`api/conversations/${id}/read`)).count;
   startConversation = (otherUserId: string) => this.post<Conversation>('api/conversations/direct', { otherUserId });
+  openSupport = () => this.post<Conversation>('api/conversations/support');
   getUnreadMessageCount = async () => (await this.get<{ count: number }>('api/conversations/unread-count')).count;
 
   // Événements

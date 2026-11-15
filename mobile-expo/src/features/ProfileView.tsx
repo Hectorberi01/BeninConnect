@@ -180,7 +180,7 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
           {isMe ? (
             <Button title="Modifier le profil" icon="pencil-outline" onPress={() => router.push('/profile/edit')} style={{ flex: 1 }} />
           ) : shownUser.isOfficial ? (
-            <View style={{ flex: 1 }} />
+            <Button title="Nous écrire" icon="lifebuoy" loading={starting} onPress={message} style={{ flex: 1 }} />
           ) : (
             <Button title="Envoyer un message" icon="message-outline" loading={starting} onPress={message} style={{ flex: 1 }} />
           )}
