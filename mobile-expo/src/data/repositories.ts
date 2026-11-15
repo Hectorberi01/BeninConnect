@@ -1,4 +1,4 @@
-import type { AppInstallationInfo, AppVersionStatus,
+import type { AppInstallationInfo, AppVersionStatus, HomeBanner,
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, DocumentKind, EventFilter, JobFilter, JobFilters, JobOffer, JobOfferSummary, JobPage,
   MembershipStatus, Message, MyProvider, OfferingInput, ProviderCard, ProviderDetail, ProviderDocument, ProviderInput, ProviderPage, ReviewPage,
@@ -197,6 +197,9 @@ export interface DataSource {
   // Versions de l'application
   /** Version installée sur ce téléphone (membre lu dans le jeton) ; renvoie le statut de mise à jour. */
   reportInstallation(info: AppInstallationInfo): Promise<AppVersionStatus>;
+
+  /** Bannières de l'accueil en ligne (vide : bannières par défaut de l'application). */
+  getHomeBanners(): Promise<HomeBanner[]>;
 }
 
 export const INTERESTS = [

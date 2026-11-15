@@ -13,7 +13,7 @@ public static class RolePermissions
         [
             Permission.DashboardView, Permission.MembersView, Permission.MembersSuspend, Permission.ContentModerate,
             Permission.ReportsManage, Permission.CommunitiesManage, Permission.EventsManage, Permission.ExportsDownload, Permission.AuditView,
-            Permission.EditorialManage, Permission.JobsManage, Permission.ServicesManage, Permission.AppVersionsManage
+            Permission.EditorialManage, Permission.JobsManage, Permission.ServicesManage, Permission.AppVersionsManage, Permission.BannersManage
         ],
         [AdminRole.Moderator] =
         [

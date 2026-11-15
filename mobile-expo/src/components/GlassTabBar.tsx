@@ -1,9 +1,10 @@
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { depth, font, glow, useColors } from '@/core/theme';
+import { CreateMenu } from './CreateMenu';
 import { Glass, TAB_BAR_HEIGHT } from './glass';
 import { Badge, Icon, type IconName } from './ui';
 
@@ -14,10 +15,11 @@ const TABS: Record<string, { label: string; icon: IconName; active: IconName }> 
   profile: { label: 'Profil', icon: 'account-circle-outline', active: 'account-circle' },
 };
 
-/** Barre d'onglets flottante en verre, bouton central « Publier » en relief. */
+/** Barre d'onglets flottante en verre, bouton central « + » en relief (menu de création). */
 export function GlassTabBar({ state, emitter, navigateToTab, unreadMessages }: BottomTabBarProps & { unreadMessages: number }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  const [menu, setMenu] = useState(false);
 
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(insets.bottom, 12) }]}>
@@ -29,7 +31,7 @@ export function GlassTabBar({ state, emitter, navigateToTab, unreadMessages }: B
             if (route.name === 'publish') {
               return (
                 <View key={route.key} style={styles.center}>
-                  <Pressable accessibilityRole="button" accessibilityLabel="Publier" onPress={() => router.push('/post/new')}
+                  <Pressable accessibilityRole="button" accessibilityLabel="Créer" onPress={() => setMenu(true)}
                     style={({ pressed }) => [styles.fabRing, { borderColor: c.glassBorder, backgroundColor: c.glassStrong }, glow(c.primaryGlow, 18), pressed && { transform: [{ scale: 0.94 }] }]}>
                     <LinearGradient colors={[c.primaryTop, c.primary, c.primaryDark]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={styles.fab}>
                       <LinearGradient colors={['rgba(255,255,255,0.45)', 'rgba(255,255,255,0)']} style={styles.fabShine} pointerEvents="none" />
@@ -61,6 +63,7 @@ export function GlassTabBar({ state, emitter, navigateToTab, unreadMessages }: B
           })}
         </Glass>
       </View>
+      <CreateMenu open={menu} onClose={() => setMenu(false)} />
     </View>
   );
 }

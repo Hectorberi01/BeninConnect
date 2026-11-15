@@ -1,18 +1,20 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CommunityTile, EventTile, PostCard, usePostContext } from '@/components/cards';
-import { JobTile } from '@/components/jobs';
-import { CategoryGrid } from '@/components/services';
-import { TripTile } from '@/components/voyages';
-import { Avatar, EmptyState, ErrorState, Icon, IconButton, Loading, Muted, Screen, SectionTitle, T } from '@/components/ui';
+import { EventTile, PostCard, usePostContext } from '@/components/cards';
+import {
+  HomeCommunityCard, HomeHeader, HomeHero, HomeJobCard, MyCommunities, PostSkeleton, QuickActions, ServiceShortcuts, Skeleton, SkeletonRow, VoyagesPromo,
+} from '@/components/home';
+import { EmptyState, ErrorState, Icon, Muted, Screen, SectionTitle } from '@/components/ui';
 import { useTabBarSpace } from '@/components/glass';
+import { usePreferences } from '@/core/preferences';
 import { useMe } from '@/core/session';
-import { depth, useColors } from '@/core/theme';
-import { initials } from '@/data/types';
-import { useCommunities, useEvents, useFeed, useJobs, useServiceCategories, useTripSearch, useUnreadNotifications, useVoyagesEnabled } from '@/features/queries';
+import { useColors } from '@/core/theme';
 import { errorMessage } from '@/data/types';
+import {
+  useCommunities, useEvents, useFeed, useHomeBanners, useJobs, useServiceCategories, useTripSearch, useUnreadNotifications, useUsersMap, useVoyagesEnabled,
+} from '@/features/queries';
 
 export default function Home() {
   const c = useColors();
@@ -22,36 +24,85 @@ export default function Home() {
   const communities = useCommunities();
   const events = useEvents({});
   const jobs = useJobs({});
-  const serviceCategories = useServiceCategories().data ?? [];
+  const services = useServiceCategories();
   const voyages = useVoyagesEnabled().enabled;
   const trips = useTripSearch({}, voyages);
+  const banners = useHomeBanners();
   const unread = useUnreadNotifications().data ?? 0;
   const [refreshing, setRefreshing] = useState(false);
   const bottom = useTabBarSpace();
+
+  // Bannière haute à la toute première visite seulement
+  const [compactHero] = useState(() => usePreferences.getState().homeIntroSeen);
+  useEffect(() => {
+    if (!usePreferences.getState().homeIntroSeen) usePreferences.getState().set({ homeIntroSeen: true });
+  }, []);
 
   const posts = useMemo(() => {
     const seen = new Set<string>();
     return (feed.data?.pages ?? []).flatMap((p) => p.items).filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)));
   }, [feed.data]);
   const ctx = usePostContext(posts);
-  const suggestions = (communities.data ?? []).filter((x) => !x.memberIds.includes(me.id)).slice(0, 8);
+  const all = communities.data ?? [];
+  const mine = all.filter((x) => x.memberIds.includes(me.id)).slice(0, 10);
+  const suggestions = all.filter((x) => !x.memberIds.includes(me.id)).slice(0, 8);
+  const members = useUsersMap(suggestions.flatMap((x) => x.memberIds.slice(0, 3)));
   const upcoming = (events.data ?? []).slice(0, 5);
-  const latestJobs = (jobs.data?.pages[0]?.items ?? []).slice(0, 5);
-  const nextTrips = (trips.data?.pages[0]?.items ?? []).slice(0, 6);
+  const latestJobs = (jobs.data?.pages[0]?.items ?? []).slice(0, 6);
+  const nextTrips = trips.data?.pages[0]?.items.length ?? 0;
 
   const refresh = async () => {
     setRefreshing(true);
-    await Promise.all([feed.refetch(), communities.refetch(), events.refetch(), jobs.refetch(), ...(voyages ? [trips.refetch()] : [])]);
+    await Promise.all([feed.refetch(), banners.refetch(), communities.refetch(), events.refetch(), jobs.refetch(), ...(voyages ? [trips.refetch()] : [])]);
     setRefreshing(false);
   };
 
   const header = (
     <View>
-      {suggestions.length > 0 && (
+      <HomeHeader unread={unread} top={insets.top} />
+      <HomeHero compact={compactHero} voyages={voyages} banners={banners.data} />
+      <QuickActions voyages={voyages} />
+
+      <SectionTitle title="Services entre membres" action="Voir tout" onAction={() => router.push('/services')} />
+      {services.isPending
+        ? <View style={styles.serviceSkeleton}>{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} height={88} radius={18} style={{ flex: 1 }} />)}</View>
+        : <ServiceShortcuts categories={services.data ?? []} />}
+
+      {mine.length > 0 && (
+        <>
+          <SectionTitle title="Mes communautés" action="Voir tout" onAction={() => router.navigate('/communities')} />
+          <MyCommunities communities={mine} />
+        </>
+      )}
+
+      {communities.isPending ? (
+        <>
+          <SectionTitle title="Communautés suggérées" />
+          <SkeletonRow width={250} height={196} />
+        </>
+      ) : suggestions.length > 0 && (
         <>
           <SectionTitle title="Communautés suggérées" action="Voir tout" onAction={() => router.navigate('/communities')} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hList}>
-            {suggestions.map((x) => <CommunityTile key={x.id} community={x} />)}
+            {suggestions.map((x) => (
+              <HomeCommunityCard key={x.id} community={x} members={x.memberIds.slice(0, 3).flatMap((id) => members.get(id) ?? [])} />
+            ))}
+          </ScrollView>
+        </>
+      )}
+
+      {voyages && <VoyagesPromo upcoming={nextTrips} />}
+
+      {jobs.isPending ? (
+        <>
+          <SectionTitle title="Offres d'emploi" />
+          <SkeletonRow width={270} height={124} />
+        </>
+      ) : latestJobs.length > 0 && (
+        <>
+          <SectionTitle title="Offres d'emploi" action="Voir tout" onAction={() => router.push('/jobs')} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hList}>
+            {latestJobs.map((j) => <HomeJobCard key={j.id} job={j} />)}
           </ScrollView>
         </>
       )}
@@ -65,87 +116,39 @@ export default function Home() {
         </>
       )}
 
-      {serviceCategories.length > 0 && (
-        <>
-          <SectionTitle title="Services entre membres" action="Voir tout" onAction={() => router.push('/services')} />
-          <CategoryGrid categories={serviceCategories}
-            onSelect={(cat) => router.push({ pathname: '/services/search', params: { categoryId: cat.id } })} />
-        </>
-      )}
-
-      {voyages && <SectionTitle title="Qui part au pays ?" action="Voir tout" onAction={() => router.push('/voyages')} />}
-      {!voyages ? null : nextTrips.length > 0 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hList}>
-          {nextTrips.map((t) => <TripTile key={t.id} t={t} />)}
-        </ScrollView>
-      ) : (
-        <Pressable accessibilityRole="button" onPress={() => router.push('/voyages/publish')}
-          style={[styles.tripCta, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <Icon name="airplane-takeoff" size={26} color={c.primary} />
-          <View style={{ flex: 1 }}>
-            <T v="label">Vous partez bientôt ?</T>
-            <Muted>Proposez vos kilos libres aux membres qui veulent envoyer un colis.</Muted>
-          </View>
-        </Pressable>
-      )}
-
-      {latestJobs.length > 0 && (
-        <>
-          <SectionTitle title="Offres d'emploi" action="Voir tout" onAction={() => router.push('/jobs')} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hList}>
-            {latestJobs.map((j) => <JobTile key={j.id} job={j} />)}
-          </ScrollView>
-        </>
-      )}
-
       <SectionTitle title="Fil d'actualité" />
     </View>
   );
 
-  const body = feed.isPending ? <Loading label="Chargement du fil…" />
-    : feed.error ? <ErrorState message={errorMessage(feed.error)} onRetry={() => feed.refetch()} />
-      : (
-        <FlatList
-          data={posts}
-          keyExtractor={(p) => p.id}
-          renderItem={({ item }) => (
-            <PostCard post={item} author={ctx.users.get(item.authorId)} community={item.communityId ? ctx.communities.get(item.communityId) : undefined} />
-          )}
-          ListHeaderComponent={header}
-          ListEmptyComponent={<EmptyState icon="newspaper-variant-outline" title="Votre fil est vide"
-            message="Rejoignez des communautés ou publiez votre premier message." action="Découvrir les communautés"
-            onAction={() => router.navigate('/communities')} />}
-          ListFooterComponent={posts.length === 0 ? undefined : feed.hasNextPage
-            ? <View style={styles.footer}>{feed.isFetchingNextPage ? <ActivityIndicator color={c.primary} /> : null}</View>
-            : <View style={styles.footer}><Icon name="check-circle-outline" color={c.primary} /><Muted>Vous êtes à jour</Muted></View>}
-          onEndReached={() => feed.hasNextPage && !feed.isFetchingNextPage && feed.fetchNextPage()}
-          onEndReachedThreshold={0.5}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.primary} colors={[c.primary]} />}
-          contentContainerStyle={{ paddingBottom: bottom }}
-        />
-      );
-
   return (
     <Screen>
-      <View style={[styles.top, { paddingTop: insets.top + 8, backgroundColor: c.glassStrong, borderColor: c.glassBorder }, depth(c, 1)]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Mon profil" onPress={() => router.navigate('/profile')}>
-          <Avatar initials={initials(me)} color={me.avatarColor} image={me.avatarImage} size={38} />
-        </Pressable>
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <T v="h3">{`Bonjour ${me.firstName}`}</T>
-          <Muted>Bienvenue sur BéninConnect</Muted>
-        </View>
-        <IconButton name="magnify" label="Rechercher" onPress={() => router.push('/search')} />
-        <IconButton name="bell-outline" label="Notifications" badge={unread} onPress={() => router.push('/notifications')} />
-      </View>
-      {body}
+      <FlatList
+        data={feed.isPending || feed.error ? [] : posts}
+        keyExtractor={(p) => p.id}
+        renderItem={({ item }) => (
+          <PostCard post={item} author={ctx.users.get(item.authorId)} community={item.communityId ? ctx.communities.get(item.communityId) : undefined} />
+        )}
+        ListHeaderComponent={header}
+        ListEmptyComponent={feed.isPending ? <View><PostSkeleton /><PostSkeleton /></View>
+          : feed.error ? <ErrorState message={errorMessage(feed.error)} onRetry={() => feed.refetch()} />
+            : <EmptyState icon="newspaper-variant-outline" title="Votre fil est vide"
+              message="Rejoignez des communautés ou publiez votre premier message." action="Découvrir les communautés"
+              onAction={() => router.navigate('/communities')} />}
+        ListFooterComponent={posts.length === 0 ? undefined : feed.hasNextPage
+          ? <View style={styles.footer}>{feed.isFetchingNextPage ? <ActivityIndicator color={c.primary} /> : null}</View>
+          : <View style={styles.footer}><Icon name="check-circle-outline" color={c.primary} /><Muted>Vous êtes à jour</Muted></View>}
+        onEndReached={() => feed.hasNextPage && !feed.isFetchingNextPage && feed.fetchNextPage()}
+        onEndReachedThreshold={0.5}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.primary} colors={[c.primary]} />}
+        contentContainerStyle={{ paddingBottom: bottom }}
+        keyboardDismissMode="on-drag"
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  top: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 10, borderBottomWidth: 1, zIndex: 2 },
-  hList: { paddingHorizontal: 16 },
-  tripCta: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, padding: 14, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth },
+  hList: { paddingHorizontal: 16, gap: 12 },
+  serviceSkeleton: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 20 },
 });

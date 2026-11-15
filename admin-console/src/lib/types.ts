@@ -5,7 +5,7 @@ export type AdminRole = 'SuperAdmin' | 'Admin' | 'Moderator' | 'Accountant' | 'D
 export type Permission =
   | 'DashboardView' | 'MembersView' | 'MembersSuspend' | 'ContentModerate' | 'ReportsManage' | 'CommunitiesManage'
   | 'EventsManage' | 'ExportsDownload' | 'AdminsManage' | 'AuditView' | 'SystemView' | 'SystemReset' | 'BackupsManage'
-  | 'EditorialManage' | 'JobsManage' | 'ServicesManage' | 'ServicesDelete' | 'BackgroundJobsManage' | 'AppVersionsManage'
+  | 'EditorialManage' | 'JobsManage' | 'ServicesManage' | 'ServicesDelete' | 'BackgroundJobsManage' | 'AppVersionsManage' | 'BannersManage'
 
 export interface AdminMe {
   id: string
@@ -861,4 +861,28 @@ export interface AppInstallation {
   status: UpdateStatus
   firstSeenAt: string
   lastSeenAt: string
+}
+
+export type BannerTheme = 'Green' | 'Night' | 'Ocean' | 'Sunset'
+export type BannerLayout = 'Illustration' | 'Background'
+export type BannerStatus = 'Live' | 'Scheduled' | 'Ended' | 'Hidden'
+
+export interface BannerAction { label: string; icon: string; target: string }
+
+export interface HomeBanner {
+  id: string
+  title: string
+  highlight: string | null
+  subtitle: string | null
+  imagePath: string | null
+  layout: BannerLayout
+  theme: BannerTheme
+  actions: BannerAction[]
+  isActive: boolean
+  position: number
+  startsAt: string | null
+  endsAt: string | null
+  status: BannerStatus
+  updatedAt: string
+  updatedBy: string
 }

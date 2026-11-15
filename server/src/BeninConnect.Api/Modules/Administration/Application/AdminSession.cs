@@ -9,6 +9,7 @@ public interface IAdministrationDb
 {
     DbSet<AdminUser> AdminUsers { get; }
     DbSet<AuditEntry> AuditEntries { get; }
+    DbSet<HomeBanner> Banners { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

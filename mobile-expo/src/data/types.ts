@@ -902,3 +902,18 @@ export interface AppVersionStatus {
   forceUpdate: boolean;
   storeUrl: string;
 }
+
+/** Bannière de l'accueil gérée dans la console (seulement celles en ligne). */
+export type BannerTheme = 'Green' | 'Night' | 'Ocean' | 'Sunset';
+
+export interface HomeBanner {
+  id: string;
+  title: string;
+  highlight: string | null;
+  subtitle: string | null;
+  imagePath: string | null;
+  layout: 'Illustration' | 'Background';
+  theme: BannerTheme;
+  /** target : écran de l'application (« communities », « voyages.publish »…) ou lien https. */
+  actions: { label: string; icon: string; target: string }[];
+}

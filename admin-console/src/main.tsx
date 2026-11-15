@@ -35,6 +35,7 @@ const PostsPage = lazy(() => import('@/pages/Posts').then((m) => ({ default: m.P
 const ReportsPage = lazy(() => import('@/pages/Reports').then((m) => ({ default: m.ReportsPage })))
 const BackgroundJobsPage = lazy(() => import('@/pages/BackgroundJobs').then((m) => ({ default: m.BackgroundJobsPage })))
 const AppVersionsPage = lazy(() => import('@/pages/AppVersions').then((m) => ({ default: m.AppVersionsPage })))
+const BannersPage = lazy(() => import('@/pages/Banners').then((m) => ({ default: m.BannersPage })))
 const SystemPage = lazy(() => import('@/pages/System').then((m) => ({ default: m.SystemPage })))
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false, staleTime: 15_000 } } })
@@ -57,6 +58,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="posts" element={<Guard permission="ContentModerate"><PostsPage /></Guard>} />
                 <Route path="communities" element={<Guard permission="CommunitiesManage"><CommunitiesPage /></Guard>} />
                 <Route path="events" element={<Guard permission="EventsManage"><EventsPage /></Guard>} />
+                <Route path="banners" element={<Guard permission="BannersManage"><BannersPage /></Guard>} />
                 <Route path="editorial" element={<Guard permission="EditorialManage"><EditorialPage /></Guard>} />
                 <Route path="jobs" element={<Guard permission="JobsManage"><JobsPage /></Guard>} />
                 <Route path="jobs/offers" element={<Guard permission="JobsManage"><JobOffersPage /></Guard>} />

@@ -10,6 +10,7 @@ using BeninConnect.Shared.Api;
 using BeninConnect.Shared.Application;
 using BeninConnect.Shared.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -68,6 +69,7 @@ public sealed class AdministrationModule : IModule
         services.AddKeyedScoped<IScheduledTask, BackupMirrorTask>(AdministrationTasks.BackupMirror);
         services.AddKeyedScoped<IScheduledTask, BackupVerifyTask>(AdministrationTasks.BackupVerify);
         services.AddKeyedScoped<IScheduledTask, AuditRetentionTask>(AdministrationTasks.AuditRetention);
+        services.AddScoped<IMediaReferences, AdministrationMediaReferences>();
 
         var jwt = builder.Configuration.GetSection(JwtOptions.Section).Get<JwtOptions>() ?? new JwtOptions();
         services.AddAuthentication().AddJwtBearer(AdminPolicies.Scheme, o =>
@@ -165,6 +167,27 @@ public sealed class AdministrationModule : IModule
             await s.Send(new DeleteBackupCommand(name), ct);
             return Results.NoContent();
         });
+
+        // Bannières de l'accueil de l'application
+        app.MapGet("/api/banners", (ISender s, CancellationToken ct) => s.Send(new GetAppBannersQuery(), ct)).WithTags("Application").RequireAuthorization();
+        var banners = admin.MapGroup("/banners").RequirePermission(Permission.BannersManage);
+        banners.MapGet("", (ISender s, CancellationToken ct) => s.Send(new GetBannersQuery(), ct));
+        banners.MapPost("", (BannerInput r, ISender s, CancellationToken ct) => s.Send(new CreateBannerCommand(r), ct));
+        banners.MapPut("/{id:guid}", (Guid id, BannerInput r, ISender s, CancellationToken ct) => s.Send(new UpdateBannerCommand(id, r), ct));
+        banners.MapDelete("/{id:guid}", async (Guid id, ISender s, CancellationToken ct) =>
+        {
+            await s.Send(new DeleteBannerCommand(id), ct);
+            return Results.NoContent();
+        });
+        banners.MapPut("/order", (ReorderBannersCommand c, ISender s, CancellationToken ct) => s.Send(c, ct));
+        banners.MapPost("/images", async (IFormFile? file, ISender s, CancellationToken ct) =>
+            {
+                await using var content = file?.OpenReadStream() ?? Stream.Null;
+                return await s.Send(new UploadBannerImageCommand(content, file?.Length ?? 0), ct);
+            })
+            .RequireRateLimiting(RateLimits.Uploads)
+            .DisableAntiforgery()
+            .WithMetadata(new RequestSizeLimitAttribute(11 * 1024 * 1024));
 
         admin.MapGet("/audit", (string? search, int? skip, int? take, Guid? targetId, ISender s, CancellationToken ct) =>
             s.Send(new GetAuditQuery(search, skip ?? 0, take ?? 50, targetId), ct)).RequirePermission(Permission.AuditView);

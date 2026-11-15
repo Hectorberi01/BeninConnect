@@ -20,6 +20,8 @@ export interface Preferences {
   notifyMessages: boolean;
   notifyEvents: boolean;
   simulateErrors: boolean;
+  /** Bannière d'accueil réduite après la première visite. */
+  homeIntroSeen: boolean;
 }
 
 export { DEFAULT_API_URL, PRODUCTION_API_URL };
@@ -39,6 +41,7 @@ const defaults: Omit<Preferences, 'loaded'> = {
   notifyMessages: true,
   notifyEvents: true,
   simulateErrors: false,
+  homeIntroSeen: false,
 };
 
 const KEY = 'beninconnect.preferences';

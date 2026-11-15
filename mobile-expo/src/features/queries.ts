@@ -702,6 +702,10 @@ export function useReportService() {
   });
 }
 
+/** Bannières de l'accueil (console) ; une erreur garde les bannières par défaut. */
+export const useHomeBanners = () =>
+  useQuery({ queryKey: ['home-banners'], queryFn: () => data().getHomeBanners(), staleTime: 5 * 60_000, retry: 1 });
+
 // --- Voyages ---------------------------------------------------------------------------------
 
 /** Module Voyages affiché par l'équipe ; false tant que la réponse n'est pas arrivée. */

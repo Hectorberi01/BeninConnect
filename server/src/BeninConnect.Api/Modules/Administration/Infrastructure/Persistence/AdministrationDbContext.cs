@@ -1,7 +1,9 @@
 using BeninConnect.Modules.Administration.Application;
 using BeninConnect.Modules.Administration.Domain;
+using System.Text.Json;
 using BeninConnect.Shared.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace BeninConnect.Modules.Administration.Infrastructure.Persistence;
 
@@ -12,6 +14,9 @@ public sealed class AdministrationDbContext(DbContextOptions<AdministrationDbCon
 
     public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
+    public DbSet<HomeBanner> Banners => Set<HomeBanner>();
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -36,6 +41,26 @@ public sealed class AdministrationDbContext(DbContextOptions<AdministrationDbCon
             e.Property(x => x.TargetType).HasMaxLength(32);
             e.Property(x => x.Details).HasMaxLength(500);
             e.HasIndex(x => x.At);
+        });
+
+        b.Entity<HomeBanner>(e =>
+        {
+            e.ToTable("banners");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Title).HasMaxLength(BannerRules.MaxTitle);
+            e.Property(x => x.Highlight).HasMaxLength(BannerRules.MaxTitle);
+            e.Property(x => x.Subtitle).HasMaxLength(BannerRules.MaxSubtitle);
+            e.Property(x => x.ImagePath).HasMaxLength(200);
+            e.Property(x => x.Layout).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Theme).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.UpdatedBy).HasMaxLength(80);
+            // Boutons en JSON (4 au plus)
+            e.Property(x => x.Actions).HasColumnType("jsonb").HasConversion(
+                v => JsonSerializer.Serialize(v, JsonOptions),
+                v => JsonSerializer.Deserialize<List<BannerAction>>(v, JsonOptions) ?? new List<BannerAction>(),
+                new ValueComparer<List<BannerAction>>((a, b) => a!.SequenceEqual(b!), v => v.Aggregate(0, (h, x) => HashCode.Combine(h, x)), v => v.ToList()));
+            e.HasIndex(x => x.Position);
         });
     }
 }

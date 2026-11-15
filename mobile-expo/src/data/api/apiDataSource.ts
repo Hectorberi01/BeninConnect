@@ -1,7 +1,7 @@
 import { DEV_TOOLS, PRODUCTION_API_URL } from '@/core/config';
 import type { DataSource } from '../repositories';
 import type {
-  AppInstallationInfo, AppVersionStatus,
+  AppInstallationInfo, AppVersionStatus, HomeBanner,
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, DocumentKind, EventFilter, JobFilter, JobFilters, JobOffer, JobOfferSummary, JobPage,
   MembershipStatus, Message, MyProvider, NotificationCategory, OfferingInput, ProviderCard, ProviderDetail, ProviderDocument, ProviderInput, ProviderPage,
@@ -376,4 +376,5 @@ export class ApiDataSource implements DataSource {
 
   // Versions de l'application
   reportInstallation = (info: AppInstallationInfo) => this.post<AppVersionStatus>('api/app/installations', info);
+  getHomeBanners = () => this.get<HomeBanner[]>('api/banners');
 }

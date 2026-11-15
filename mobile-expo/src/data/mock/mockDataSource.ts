@@ -2,7 +2,7 @@ import * as v from '@/core/validation';
 import type { DataSource } from '../repositories';
 import { INTERESTS, REACTIONS } from '../repositories';
 import type {
-  AppInstallationInfo, AppVersionStatus,
+  AppInstallationInfo, AppVersionStatus, HomeBanner,
   AppNotification, Comment, Community, CommunityEvent, CommunityMember, Conversation, CreateEventRequest, EventFilter, JobFilter, JobFilters, JobOffer, JobPage,
   DocumentKind, OfferingInput, ProviderInput, ServiceReportTarget, ServiceSearch, BookingInput, RouteAlertInput, TripInput, TripSearch, VoyageReportTarget,
   MembershipStatus, Message, NotificationCategory, OutgoingFile, Paged, Post, PostFilter, User, LocalPhoto, LocalVideo, ReportReason, ReportTarget,
@@ -901,6 +901,11 @@ export class MockDataSource implements DataSource {
   async getUnreadNotificationCount() {
     await this.net();
     return this.store.notifications.filter((n) => n.userId === this.userId && !n.isRead).length;
+  }
+
+  // Mode démo : bannières par défaut de l'application.
+  async getHomeBanners(): Promise<HomeBanner[]> {
+    return [];
   }
 
   // Mode démo : toujours à jour.
