@@ -7,7 +7,7 @@ import { Animated, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions,
 import { imageSource } from '@/core/images';
 import { useMe } from '@/core/session';
 import { depth, font, useColors, useIsDark } from '@/core/theme';
-import type { BannerTheme, Community, HomeBanner, JobOfferSummary, ServiceCategory, User } from '@/data/types';
+import type { Community, HomeBanner, JobOfferSummary, ServiceCategory, User } from '@/data/types';
 import { initials } from '@/data/types';
 import { useToggleJobFavorite } from '@/features/queries';
 import { MembershipButton } from './cards';
@@ -133,14 +133,6 @@ function IconCluster({ icons }: { icons: IconName[] }) {
   );
 }
 
-/** Dégradés des bannières (mêmes couleurs que l'aperçu de la console). */
-const THEMES: Record<BannerTheme, readonly [string, string, string]> = {
-  Green: BRAND,
-  Night: ['#334155', '#1E293B', '#0F172A'],
-  Ocean: ['#0EA5E9', '#0369A1', '#0C4A6E'],
-  Sunset: ['#F59E0B', '#EA580C', '#9A3412'],
-};
-
 /** Destinations des boutons de bannière ; une clé inconnue (application plus ancienne) est ignorée. */
 const SCREENS: Record<string, Href> = {
   communities: '/communities',
@@ -169,18 +161,10 @@ interface Slide {
   title: React.ReactNode;
   text?: string | null;
   more?: string;
-  image?: ReturnType<typeof imageSource> | null;
-  background?: boolean;
-  colors: readonly [string, string, string];
+  image?: number;
   icons?: IconName[];
   actions: { icon: IconName; label: string; onPress: () => void }[];
 }
-
-const titleWithHighlight = (title: string, highlight: string | null) => {
-  const at = highlight ? title.indexOf(highlight) : -1;
-  if (!highlight || at < 0) return title;
-  return <>{title.slice(0, at)}<Text style={{ color: YELLOW }}>{highlight}</Text>{title.slice(at + highlight.length)}</>;
-};
 
 /** Bannières par défaut, tant qu'aucune n'est en ligne dans la console. */
 function defaultSlides(voyages: boolean): Slide[] {
@@ -192,7 +176,6 @@ function defaultSlides(voyages: boolean): Slide[] {
       text: 'Échangez · Entraidez-vous',
       more: voyages ? 'Voyages · Services · Emplois' : 'Services · Événements · Emplois',
       image: HERO,
-      colors: BRAND,
       actions: [
         { icon: 'account-group-outline', label: 'Communautés', onPress: go('/communities') },
         { icon: 'briefcase-outline', label: 'Emplois', onPress: go('/jobs') },
@@ -204,7 +187,6 @@ function defaultSlides(voyages: boolean): Slide[] {
       key: 'services',
       title: <>Besoin d'un{'\n'}coup de main ?</>,
       text: 'Coiffure, transport, cours… trouvez un membre de confiance près de chez vous.',
-      colors: BRAND,
       icons: ['hand-heart-outline', 'truck-outline', 'school-outline'],
       actions: [
         { icon: 'magnify', label: 'Trouver un service', onPress: go('/services') },
@@ -216,7 +198,6 @@ function defaultSlides(voyages: boolean): Slide[] {
         key: 'voyages',
         title: <>Qui part{'\n'}au pays ?</>,
         text: "Envoyez un colis avec un membre qui voyage entre l'Europe et le Bénin.",
-        colors: BRAND,
         icons: ['airplane', 'bag-suitcase-outline', 'package-variant-closed'],
         actions: [
           { icon: 'airplane-search', label: 'Voir les trajets', onPress: go('/voyages') },
@@ -227,26 +208,30 @@ function defaultSlides(voyages: boolean): Slide[] {
         key: 'events',
         title: <>Ne manquez{'\n'}aucun rendez-vous</>,
         text: 'Fêtes, rencontres, conférences : les événements de la communauté près de chez vous.',
-        colors: BRAND,
         icons: ['calendar-star', 'party-popper', 'map-marker-outline'],
         actions: [{ icon: 'calendar-month-outline', label: 'Voir les événements', onPress: go('/events') }],
       },
   ];
 }
 
-function bannerSlides(banners: HomeBanner[], voyages: boolean): Slide[] {
-  return banners.map((b) => ({
-    key: b.id,
-    title: titleWithHighlight(b.title, b.highlight),
-    text: b.subtitle,
-    image: b.imagePath ? imageSource(b.imagePath) ?? null : null,
-    background: b.layout === 'Background' && !!b.imagePath,
-    colors: THEMES[b.theme] ?? BRAND,
-    actions: b.actions.flatMap((a) => {
-      const onPress = bannerAction(a.target, voyages);
-      return onPress ? [{ icon: a.icon as IconName, label: a.label, onPress }] : [];
-    }),
-  }));
+/** Bannière de la console : image 16:9 (texte compris), boutons blancs posés en bas, lien facultatif sur l'image. */
+function ImageBanner({ banner, width, voyages }: { banner: HomeBanner; width: number; voyages: boolean }) {
+  const open = banner.target ? bannerAction(banner.target, voyages) : null;
+  const actions = banner.actions.flatMap((a) => {
+    const onPress = bannerAction(a.target, voyages);
+    return onPress ? [{ icon: a.icon as IconName, label: a.label, onPress }] : [];
+  }).slice(0, 4);
+  return (
+    <Pressable accessibilityRole={open ? 'button' : 'image'} accessibilityLabel={banner.title} disabled={!open} onPress={open ?? undefined}
+      style={[styles.imageBanner, { width, height: (width * 9) / 16 }]}>
+      <Image source={imageSource(banner.imagePath)} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} accessibilityIgnoresInvertColors />
+      {actions.length > 0 && (
+        <View style={styles.imageChips}>
+          {actions.map((a) => <HeroChip key={a.label} {...a} />)}
+        </View>
+      )}
+    </Pressable>
+  );
 }
 
 /**
@@ -259,48 +244,43 @@ export function HomeHero({ compact, voyages, banners }: { compact: boolean; voya
   const c = useColors();
   const w = Math.min(width, 640) - 32;
   const height = compact ? 186 : 234;
-  const slides = banners && banners.length > 0 ? bannerSlides(banners, voyages) : defaultSlides(voyages);
+  const custom = banners && banners.length > 0 ? banners : null;
+  const slides = custom ? [] : defaultSlides(voyages);
+  const count = custom ? custom.length : slides.length;
 
   return (
     <View>
       <ScrollView horizontal decelerationRate="fast" snapToInterval={w + 12} snapToAlignment="start"
         showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
         onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / (w + 12)))}>
-        {slides.map((s) => {
-          const side = !!s.image && !s.background;
-          return (
-            <LinearGradient key={s.key} colors={s.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { width: w, height }]}>
-              {s.image && s.background && (
-                <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                  <Image source={s.image} style={StyleSheet.absoluteFill} contentFit="cover" accessibilityIgnoresInvertColors />
-                  <LinearGradient colors={['rgba(0,0,0,0.65)', 'rgba(0,0,0,0.15)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
-                </View>
-              )}
-              {side && (
+        {custom
+          ? custom.map((b) => <ImageBanner key={b.id} banner={b} width={w} voyages={voyages} />)
+          : slides.map((s) => (
+            <LinearGradient key={s.key} colors={BRAND} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { width: w, height }]}>
+              {s.image && (
                 <View style={[styles.heroImage, { width: w * 0.52, height: w * 0.52 * 0.633 }]} pointerEvents="none">
-                  <Image source={s.image!} style={StyleSheet.absoluteFill} contentFit="cover" accessibilityIgnoresInvertColors />
-                  <LinearGradient colors={[s.colors[1], `${s.colors[1]}00`, `${s.colors[1]}00`]} locations={[0, 0.25, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
-                  <LinearGradient colors={[`${s.colors[1]}F2`, `${s.colors[1]}00`, `${s.colors[1]}00`]} locations={[0, 0.3, 1]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
+                  <Image source={s.image} style={StyleSheet.absoluteFill} contentFit="cover" accessibilityIgnoresInvertColors />
+                  <LinearGradient colors={[BRAND[1], 'rgba(8,127,91,0)', 'rgba(8,127,91,0)']} locations={[0, 0.25, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+                  <LinearGradient colors={['rgba(8,127,91,0.95)', 'rgba(8,127,91,0)', 'rgba(8,127,91,0)']} locations={[0, 0.3, 1]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
                 </View>
               )}
               {s.icons && <IconCluster icons={s.icons} />}
               {!compact && s.key === 'intro' && (
                 <View style={styles.brand}><BeninFlag /><Text style={styles.brandText}>BéninConnect</Text></View>
               )}
-              <Text style={[styles.heroTitle, { maxWidth: w * (side ? 0.6 : s.background ? 0.8 : 0.58) }]} numberOfLines={3}>{s.title}</Text>
-              {!!s.text && <Text style={[styles.heroText, { maxWidth: w * (s.background ? 0.8 : 0.6) }]} numberOfLines={side ? 1 : 2}>{s.text}</Text>}
+              <Text style={[styles.heroTitle, { maxWidth: w * (s.image ? 0.6 : 0.58) }]} numberOfLines={3}>{s.title}</Text>
+              {!!s.text && <Text style={[styles.heroText, { maxWidth: w * 0.6 }]} numberOfLines={s.image ? 1 : 2}>{s.text}</Text>}
               {!compact && s.more && <Text style={[styles.heroText, { maxWidth: w * 0.6 }]} numberOfLines={1}>{s.more}</Text>}
               <View style={styles.chips}>
-                {s.actions.slice(0, 4).map((a) => <HeroChip key={a.label} {...a} />)}
+                {s.actions.map((a) => <HeroChip key={a.label} {...a} />)}
               </View>
             </LinearGradient>
-          );
-        })}
+          ))}
       </ScrollView>
-      {slides.length > 1 && (
+      {count > 1 && (
         <View style={styles.dots}>
-          {slides.map((s, i) => (
-            <View key={s.key} style={[styles.pageDot, { backgroundColor: i === index ? c.primary : c.border, width: i === index ? 18 : 7 }]} />
+          {Array.from({ length: count }, (_, i) => (
+            <View key={i} style={[styles.pageDot, { backgroundColor: i === index ? c.primary : c.border, width: i === index ? 18 : 7 }]} />
           ))}
         </View>
       )}
@@ -480,6 +460,8 @@ const styles = StyleSheet.create({
   dotText: { color: '#FFFFFF', fontFamily: font.bold, fontSize: 10 },
   hero: { borderRadius: 24, padding: 16, overflow: 'hidden' },
   heroImage: { position: 'absolute', right: 0, bottom: 0 },
+  imageBanner: { borderRadius: 24, overflow: 'hidden', backgroundColor: '#087F5B' },
+  imageChips: { position: 'absolute', left: 12, right: 12, bottom: 12, flexDirection: 'row', gap: 8 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   flag: { width: 20, height: 14, borderRadius: 3, overflow: 'hidden', flexDirection: 'row' },
   brandText: { color: '#FFFFFF', fontFamily: font.semibold, fontSize: 15 },

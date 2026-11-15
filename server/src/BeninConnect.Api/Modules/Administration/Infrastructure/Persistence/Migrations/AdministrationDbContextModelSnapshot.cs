@@ -120,21 +120,13 @@ namespace BeninConnect.Api.Modules.Administration.Infrastructure.Persistence.Mig
                     b.Property<DateTimeOffset?>("EndsAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Highlight")
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)");
-
                     b.Property<string>("ImagePath")
+                        .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
-
-                    b.Property<string>("Layout")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
 
                     b.Property<int>("Position")
                         .HasColumnType("integer");
@@ -142,14 +134,9 @@ namespace BeninConnect.Api.Modules.Administration.Infrastructure.Persistence.Mig
                     b.Property<DateTimeOffset?>("StartsAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Subtitle")
-                        .HasMaxLength(140)
-                        .HasColumnType("character varying(140)");
-
-                    b.Property<string>("Theme")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                    b.Property<string>("Target")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
 
                     b.Property<string>("Title")
                         .IsRequired()

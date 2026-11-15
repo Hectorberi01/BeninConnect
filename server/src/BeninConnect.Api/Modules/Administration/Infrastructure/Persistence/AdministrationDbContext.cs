@@ -49,11 +49,8 @@ public sealed class AdministrationDbContext(DbContextOptions<AdministrationDbCon
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Title).HasMaxLength(BannerRules.MaxTitle);
-            e.Property(x => x.Highlight).HasMaxLength(BannerRules.MaxTitle);
-            e.Property(x => x.Subtitle).HasMaxLength(BannerRules.MaxSubtitle);
             e.Property(x => x.ImagePath).HasMaxLength(200);
-            e.Property(x => x.Layout).HasConversion<string>().HasMaxLength(20);
-            e.Property(x => x.Theme).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Target).HasMaxLength(BannerRules.MaxUrl);
             e.Property(x => x.UpdatedBy).HasMaxLength(80);
             // Boutons en JSON (4 au plus)
             e.Property(x => x.Actions).HasColumnType("jsonb").HasConversion(

@@ -863,20 +863,16 @@ export interface AppInstallation {
   lastSeenAt: string
 }
 
-export type BannerTheme = 'Green' | 'Night' | 'Ocean' | 'Sunset'
-export type BannerLayout = 'Illustration' | 'Background'
 export type BannerStatus = 'Live' | 'Scheduled' | 'Ended' | 'Hidden'
 
 export interface BannerAction { label: string; icon: string; target: string }
 
+/** Image 16:9 créée hors de l'application, boutons posés en bas. */
 export interface HomeBanner {
   id: string
   title: string
-  highlight: string | null
-  subtitle: string | null
-  imagePath: string | null
-  layout: BannerLayout
-  theme: BannerTheme
+  imagePath: string
+  target: string | null
   actions: BannerAction[]
   isActive: boolean
   position: number

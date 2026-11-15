@@ -17,20 +17,16 @@ public enum BannerStatus
 }
 
 public sealed record BannerDto(
-    Guid Id, string Title, string? Highlight, string? Subtitle, string? ImagePath, BannerLayout Layout, BannerTheme Theme,
-    IReadOnlyList<BannerAction> Actions, bool IsActive, int Position, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt,
-    BannerStatus Status, DateTimeOffset UpdatedAt, string UpdatedBy);
+    Guid Id, string Title, string ImagePath, string? Target, IReadOnlyList<BannerAction> Actions, bool IsActive, int Position,
+    DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, BannerStatus Status, DateTimeOffset UpdatedAt, string UpdatedBy);
 
-/// <summary>Bannière vue par l'application (seulement celles en ligne).</summary>
-public sealed record AppBannerDto(
-    Guid Id, string Title, string? Highlight, string? Subtitle, string? ImagePath, BannerLayout Layout, BannerTheme Theme, IReadOnlyList<BannerAction> Actions);
+/// <summary>Bannière vue par l'application (seulement celles en ligne). Image au format 16:9.</summary>
+public sealed record AppBannerDto(Guid Id, string Title, string ImagePath, string? Target, IReadOnlyList<BannerAction> Actions);
 
 public sealed record BannerInput(
-    string Title, string? Highlight, string? Subtitle, string? ImagePath, BannerLayout Layout, BannerTheme Theme,
-    IReadOnlyList<BannerAction>? Actions, bool IsActive, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt)
+    string Title, string? ImagePath, string? Target, IReadOnlyList<BannerAction>? Actions, bool IsActive, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt)
 {
-    public BannerContent ToContent() => new(Title ?? "", Highlight, Subtitle, string.IsNullOrWhiteSpace(ImagePath) ? null : ImagePath, Layout, Theme,
-        Actions ?? [], IsActive, StartsAt, EndsAt);
+    public BannerContent ToContent() => new(Title ?? "", ImagePath ?? "", Target, Actions ?? [], IsActive, StartsAt, EndsAt);
 }
 
 public sealed record GetAppBannersQuery : IQuery<IReadOnlyList<AppBannerDto>>;
@@ -48,7 +44,7 @@ public sealed record ReorderBannersCommand(IReadOnlyList<Guid> Ids) : ICommand<I
 
 public sealed record UploadBannerImageCommand(Stream Content, long Length) : ICommand<BannerImageDto>;
 
-public sealed record BannerImageDto(string Path);
+public sealed record BannerImageDto(string Path, int Width, int Height);
 
 public sealed class BannerHandlers(IAdministrationDb db, IAdminSession admin, IMediaModule media, IEventBus bus, TimeProvider clock) :
     IRequestHandler<GetAppBannersQuery, IReadOnlyList<AppBannerDto>>,
@@ -65,7 +61,7 @@ public sealed class BannerHandlers(IAdministrationDb db, IAdminSession admin, IM
         var banners = await db.Banners.AsNoTracking()
             .Where(b => b.IsActive && (b.StartsAt == null || b.StartsAt <= now) && (b.EndsAt == null || b.EndsAt > now))
             .OrderBy(b => b.Position).Take(10).ToListAsync(ct);
-        return banners.Select(b => new AppBannerDto(b.Id, b.Title, b.Highlight, b.Subtitle, b.ImagePath, b.Layout, b.Theme, b.Actions)).ToList();
+        return banners.Select(b => new AppBannerDto(b.Id, b.Title, b.ImagePath, b.Target, b.Actions)).ToList();
     }
 
     public async Task<IReadOnlyList<BannerDto>> Handle(GetBannersQuery q, CancellationToken ct) => await ListAsync(ct);
@@ -108,10 +104,7 @@ public sealed class BannerHandlers(IAdministrationDb db, IAdminSession admin, IM
         db.Banners.Remove(banner);
         await db.SaveChangesAsync(ct);
         await admin.LogAsync("Bannière supprimée", "Banner", banner.Id, banner.Title, ct);
-        if (banner.ImagePath is { } image)
-        {
-            await bus.PublishAsync(new ImagesReleased([image]), ct);
-        }
+        await bus.PublishAsync(new ImagesReleased([banner.ImagePath]), ct);
 
         return true;
     }
@@ -138,7 +131,19 @@ public sealed class BannerHandlers(IAdministrationDb db, IAdminSession admin, IM
     public async Task<BannerImageDto> Handle(UploadBannerImageCommand c, CancellationToken ct)
     {
         await admin.GetAsync(ct);
-        return new BannerImageDto(await media.SaveImageAsync(c.Content, c.Length, ct));
+        if (c.Length is <= 0 or > 10 * 1024 * 1024)
+        {
+            throw new DomainException(c.Length <= 0 ? "Aucune image reçue." : "L'image ne doit pas dépasser 10 Mo.");
+        }
+
+        // Dimensions contrôlées avant l'enregistrement (format 16:9 attendu)
+        using var buffer = new MemoryStream();
+        await c.Content.CopyToAsync(buffer, ct);
+        var size = ImageSize.Read(buffer.GetBuffer().AsSpan(0, (int)buffer.Length))
+                   ?? throw new DomainException("Format non pris en charge pour une bannière : utilisez une image JPEG, PNG ou WebP.");
+        BannerRules.ValidateImageSize(size.Width, size.Height);
+        buffer.Position = 0;
+        return new BannerImageDto(await media.SaveImageAsync(buffer, buffer.Length, ct), size.Width, size.Height);
     }
 
     private async Task<IReadOnlyList<BannerDto>> ListAsync(CancellationToken ct) =>
@@ -151,7 +156,6 @@ public sealed class BannerHandlers(IAdministrationDb db, IAdminSession admin, IM
             : b.EndsAt is { } end && end <= now ? BannerStatus.Ended
             : b.StartsAt is { } start && start > now ? BannerStatus.Scheduled
             : BannerStatus.Live;
-        return new BannerDto(b.Id, b.Title, b.Highlight, b.Subtitle, b.ImagePath, b.Layout, b.Theme, b.Actions, b.IsActive, b.Position,
-            b.StartsAt, b.EndsAt, status, b.UpdatedAt, b.UpdatedBy);
+        return new BannerDto(b.Id, b.Title, b.ImagePath, b.Target, b.Actions, b.IsActive, b.Position, b.StartsAt, b.EndsAt, status, b.UpdatedAt, b.UpdatedBy);
     }
 }

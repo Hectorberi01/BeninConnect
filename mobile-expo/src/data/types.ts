@@ -903,17 +903,13 @@ export interface AppVersionStatus {
   storeUrl: string;
 }
 
-/** Bannière de l'accueil gérée dans la console (seulement celles en ligne). */
-export type BannerTheme = 'Green' | 'Night' | 'Ocean' | 'Sunset';
-
+/** Bannière de l'accueil gérée dans la console (seulement celles en ligne) : image 16:9 avec boutons. */
 export interface HomeBanner {
   id: string;
+  /** Nom de la bannière (lecteurs d'écran). */
   title: string;
-  highlight: string | null;
-  subtitle: string | null;
-  imagePath: string | null;
-  layout: 'Illustration' | 'Background';
-  theme: BannerTheme;
-  /** target : écran de l'application (« communities », « voyages.publish »…) ou lien https. */
+  imagePath: string;
+  /** Destination en touchant l'image : écran (« communities », « voyages.publish »…) ou lien https. */
+  target: string | null;
   actions: { label: string; icon: string; target: string }[];
 }

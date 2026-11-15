@@ -1,25 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowDown, ArrowUp, Bell, Briefcase, CalendarDays, Eye, EyeOff, Gift, Globe, HandHeart, ImagePlus, type LucideIcon, Pencil, Plane, Plus, Search,
-  SquarePen, Star, Trash2, Users, Wrench, X,
+  ArrowDown, ArrowUp, Bell, Briefcase, CalendarDays, Download, Eye, EyeOff, Gift, Globe, HandHeart, ImagePlus, type LucideIcon, Pencil, Plane, Plus,
+  Search, SquarePen, Star, Trash2, Users, Wrench, X,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useToast } from '@/components/toast'
-import { Badge, Button, Card, ConfirmDialog, Empty, ErrorBox, Input, Loading, Modal, PageHeader, Select, Textarea } from '@/components/ui'
+import { Badge, Button, Card, ConfirmDialog, Empty, ErrorBox, Input, Loading, Modal, PageHeader, Select } from '@/components/ui'
 import { UploadImage } from '@/components/UploadImage'
 import { api, errorMessage } from '@/lib/api'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
-import type { BannerAction, BannerLayout, BannerStatus, BannerTheme, HomeBanner } from '@/lib/types'
+import type { BannerAction, BannerStatus, HomeBanner } from '@/lib/types'
 
 const KEY = ['banners']
 
-/** Mêmes dégradés que l'application. */
-const THEMES: Record<BannerTheme, { label: string; colors: [string, string, string] }> = {
-  Green: { label: 'Vert BéninConnect', colors: ['#12945F', '#087F5B', '#05553F'] },
-  Night: { label: 'Nuit', colors: ['#334155', '#1E293B', '#0F172A'] },
-  Ocean: { label: 'Océan', colors: ['#0EA5E9', '#0369A1', '#0C4A6E'] },
-  Sunset: { label: 'Coucher de soleil', colors: ['#F59E0B', '#EA580C', '#9A3412'] },
-}
+/** Format attendu (mêmes règles que l'API). */
+const SIZE = { width: 1600, height: 900, minWidth: 1080, ratio: 16 / 9, tolerance: 0.03, maxBytes: 10 * 1024 * 1024 }
+/** Hauteur de la zone des boutons dans l'application (part de l'image, en bas). */
+const BUTTON_ZONE = 0.3
 
 /** Icônes proposées (nom Material Design Icons utilisé par l'application → aperçu ici). */
 const ICONS: { value: string; label: string; icon: LucideIcon }[] = [
@@ -54,6 +51,8 @@ const SCREENS: { value: string; label: string }[] = [
   { value: 'notifications', label: 'Notifications' },
 ]
 const URL_TARGET = '__url'
+const NONE = ''
+const isScreen = (t: string) => SCREENS.some((s) => s.value === t)
 const targetLabel = (t: string) => SCREENS.find((s) => s.value === t)?.label ?? t
 
 const STATUS: Record<BannerStatus, { label: string; tone: 'brand' | 'info' | 'neutral' | 'warning' }> = {
@@ -65,21 +64,15 @@ const STATUS: Record<BannerStatus, { label: string; tone: 'brand' | 'info' | 'ne
 
 interface Form {
   title: string
-  highlight: string
-  subtitle: string
   imagePath: string | null
-  layout: BannerLayout
-  theme: BannerTheme
+  target: string
   actions: BannerAction[]
   isActive: boolean
   startsAt: string
   endsAt: string
 }
 
-const EMPTY: Form = {
-  title: '', highlight: '', subtitle: '', imagePath: null, layout: 'Illustration', theme: 'Green',
-  actions: [{ label: 'Voir', icon: 'account-group-outline', target: 'communities' }], isActive: true, startsAt: '', endsAt: '',
-}
+const EMPTY: Form = { title: '', imagePath: null, target: NONE, actions: [], isActive: true, startsAt: '', endsAt: '' }
 
 const toLocalInput = (iso: string | null) => {
   if (!iso) return ''
@@ -88,74 +81,113 @@ const toLocalInput = (iso: string | null) => {
 }
 
 const toForm = (b: HomeBanner): Form => ({
-  title: b.title, highlight: b.highlight ?? '', subtitle: b.subtitle ?? '', imagePath: b.imagePath, layout: b.layout, theme: b.theme,
-  actions: b.actions, isActive: b.isActive, startsAt: toLocalInput(b.startsAt), endsAt: toLocalInput(b.endsAt),
+  title: b.title, imagePath: b.imagePath, target: b.target ?? NONE, actions: b.actions, isActive: b.isActive,
+  startsAt: toLocalInput(b.startsAt), endsAt: toLocalInput(b.endsAt),
 })
 
 const toBody = (f: Form) => ({
-  title: f.title, highlight: f.highlight || null, subtitle: f.subtitle || null, imagePath: f.imagePath, layout: f.layout, theme: f.theme,
-  actions: f.actions, isActive: f.isActive,
+  title: f.title, imagePath: f.imagePath, target: f.target || null, actions: f.actions, isActive: f.isActive,
   startsAt: f.startsAt ? new Date(f.startsAt).toISOString() : null, endsAt: f.endsAt ? new Date(f.endsAt).toISOString() : null,
 })
 
-/** Rendu proche de l'application (largeur d'un téléphone). */
-function BannerPreview({ banner }: { banner: Pick<Form, 'title' | 'highlight' | 'subtitle' | 'imagePath' | 'layout' | 'theme' | 'actions'> }) {
-  const [a, b, c] = THEMES[banner.theme].colors
-  const background = banner.layout === 'Background' && banner.imagePath
-  const parts = banner.highlight && banner.title.includes(banner.highlight) ? banner.title.split(banner.highlight) : null
+/** Dimensions réelles d'une image choisie, avant l'envoi. */
+function readSize(file: File) {
+  return new Promise<{ width: number; height: number }>((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => { resolve({ width: img.naturalWidth, height: img.naturalHeight }); URL.revokeObjectURL(url) }
+    img.onerror = () => { reject(new Error('Image illisible.')); URL.revokeObjectURL(url) }
+    img.src = url
+  })
+}
+
+const sizeProblem = ({ width, height }: { width: number; height: number }) =>
+  width < SIZE.minWidth || Math.abs(width / height / SIZE.ratio - 1) > SIZE.tolerance
+    ? `Image de ${width} × ${height} px : il faut le format 16:9, ${SIZE.width} × ${SIZE.height} px conseillé (${SIZE.minWidth} px de large au minimum).`
+    : null
+
+/** Gabarit 1600 × 900 à donner au graphiste : zone des boutons et marges de sécurité. */
+function downloadTemplate() {
+  const canvas = document.createElement('canvas')
+  canvas.width = SIZE.width
+  canvas.height = SIZE.height
+  const g = canvas.getContext('2d')!
+  g.fillStyle = '#E8F5EF'
+  g.fillRect(0, 0, SIZE.width, SIZE.height)
+  const margin = 64
+  g.setLineDash([18, 12])
+  g.lineWidth = 4
+  g.strokeStyle = '#087F5B'
+  g.strokeRect(margin, margin, SIZE.width - margin * 2, SIZE.height - margin * 2)
+  const zoneTop = SIZE.height * (1 - BUTTON_ZONE)
+  g.fillStyle = 'rgba(234, 88, 12, 0.18)'
+  g.fillRect(0, zoneTop, SIZE.width, SIZE.height - zoneTop)
+  g.setLineDash([])
+  g.fillStyle = '#065F46'
+  g.font = 'bold 56px Inter, Arial, sans-serif'
+  g.fillText('Bannière BéninConnect · 1600 × 900 px (16:9)', margin + 24, margin + 90)
+  g.font = '36px Inter, Arial, sans-serif'
+  g.fillText('Textes et visuels importants dans le cadre pointillé (bords arrondis et rognés selon l’écran).', margin + 24, margin + 150)
+  g.fillStyle = '#9A3412'
+  g.font = 'bold 40px Inter, Arial, sans-serif'
+  g.fillText('Zone des boutons (30 % du bas) : à laisser libre si la bannière a des boutons', margin + 24, zoneTop + 80)
+  const link = document.createElement('a')
+  link.download = 'gabarit-banniere-1600x900.png'
+  link.href = canvas.toDataURL('image/png')
+  link.click()
+}
+
+/** Rendu proche de l'application : image 16:9, boutons blancs en bas. */
+function BannerPreview({ banner, guides }: { banner: Pick<Form, 'imagePath' | 'actions'>; guides?: boolean }) {
   return (
-    <div className="relative flex h-[188px] w-[340px] max-w-full shrink-0 flex-col overflow-hidden rounded-3xl p-4 text-white"
-      style={{ background: `linear-gradient(135deg, ${a}, ${b} 55%, ${c})` }}>
-      {banner.imagePath && (
-        background ? (
-          <>
-            <UploadImage path={banner.imagePath} className="absolute inset-0 h-full w-full object-cover" />
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(0,0,0,0.65), rgba(0,0,0,0.15))' }} />
-          </>
-        ) : (
-          <div className="absolute bottom-0 right-0 h-[112px] w-[176px]">
-            <UploadImage path={banner.imagePath} className="h-full w-full object-cover" />
-            <div className="absolute inset-0" style={{ background: `linear-gradient(90deg, ${b}, transparent 25%), linear-gradient(180deg, ${b}, transparent 30%)` }} />
-          </div>
-        )
+    <div className="relative aspect-video w-[360px] max-w-full shrink-0 overflow-hidden rounded-3xl bg-surface-2">
+      {banner.imagePath
+        ? <UploadImage path={banner.imagePath} className="absolute inset-0 h-full w-full object-cover" />
+        : <div className="absolute inset-0 grid place-items-center text-sm text-muted">Image 16:9 · {SIZE.width} × {SIZE.height} px</div>}
+      {guides && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 border-t-2 border-dashed border-orange-500/80 bg-orange-500/10"
+          style={{ height: `${BUTTON_ZONE * 100}%` }} title="Zone des boutons" />
       )}
-      <div className="relative max-w-[62%]">
-        <p className="text-[17px] font-bold leading-snug">
-          {parts ? <>{parts[0]}<span className="text-[#FCD116]">{banner.highlight}</span>{parts.slice(1).join(banner.highlight)}</> : banner.title || 'Titre de la bannière'}
-        </p>
-        {banner.subtitle && <p className="mt-1 line-clamp-2 text-[11.5px] text-white/85">{banner.subtitle}</p>}
-      </div>
-      <div className="relative mt-auto flex gap-2">
-        {banner.actions.map((act, i) => {
-          const Icon = iconOf(act.icon)
-          return (
-            <span key={i} className="flex h-[46px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-white px-1 text-[10px] font-semibold text-gray-900">
-              <Icon className="size-4 text-[#087F5B]" />
-              <span className="max-w-full truncate">{act.label || '—'}</span>
-            </span>
-          )
-        })}
-      </div>
+      {banner.actions.length > 0 && (
+        <div className="absolute inset-x-3 bottom-3 flex gap-2">
+          {banner.actions.map((act, i) => {
+            const Icon = iconOf(act.icon)
+            return (
+              <span key={i} className="flex h-[46px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-white px-1 text-[10px] font-semibold text-gray-900 shadow">
+                <Icon className="size-4 text-[#087F5B]" />
+                <span className="max-w-full truncate">{act.label || '—'}</span>
+              </span>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Destination : écran de l'application ou lien https (« aucune » possible pour le lien de l'image). */
+function TargetPicker({ label, value, onChange, allowNone }: { label: string; value: string; onChange: (v: string) => void; allowNone?: boolean }) {
+  const url = value !== NONE && !isScreen(value)
+  return (
+    <div className="space-y-2">
+      <Select label={label} value={url ? URL_TARGET : value} onChange={(e) => onChange(e.target.value === URL_TARGET ? 'https://' : e.target.value)}>
+        {allowNone && <option value={NONE}>Aucun</option>}
+        {SCREENS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+        <option value={URL_TARGET}>Lien externe (https)</option>
+      </Select>
+      {url && <Input placeholder="https://…" value={value} onChange={(e) => onChange(e.target.value)} />}
     </div>
   )
 }
 
 function ActionRow({ action, onChange, onRemove }: { action: BannerAction; onChange: (a: BannerAction) => void; onRemove: () => void }) {
-  const isUrl = !SCREENS.some((s) => s.value === action.target)
   return (
     <div className="grid gap-2 rounded-xl border border-line p-3 sm:grid-cols-[1fr_1fr_1.3fr_auto] sm:items-end">
       <Input label="Libellé" maxLength={24} value={action.label} onChange={(e) => onChange({ ...action, label: e.target.value })} />
       <Select label="Icône" value={action.icon} onChange={(e) => onChange({ ...action, icon: e.target.value })}>
         {ICONS.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
       </Select>
-      <div className="space-y-2">
-        <Select label="Destination" value={isUrl ? URL_TARGET : action.target}
-          onChange={(e) => onChange({ ...action, target: e.target.value === URL_TARGET ? 'https://' : e.target.value })}>
-          {SCREENS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-          <option value={URL_TARGET}>Lien externe (https)</option>
-        </Select>
-        {isUrl && <Input placeholder="https://…" value={action.target} onChange={(e) => onChange({ ...action, target: e.target.value })} />}
-      </div>
+      <TargetPicker label="Destination" value={action.target} onChange={(target) => onChange({ ...action, target })} />
       <Button variant="ghost" aria-label="Retirer le bouton" icon={<X className="size-4" />} onClick={onRemove} />
     </div>
   )
@@ -166,7 +198,12 @@ function BannerEditor({ banner, open, onClose }: { banner: HomeBanner | null; op
   const qc = useQueryClient()
   const [form, setForm] = useState<Form>(EMPTY)
   const [uploading, setUploading] = useState(false)
-  useEffect(() => { if (open) setForm(banner ? toForm(banner) : EMPTY) }, [open, banner])
+  const [problem, setProblem] = useState<string | null>(null)
+  useEffect(() => {
+    if (!open) return
+    setForm(banner ? toForm(banner) : EMPTY)
+    setProblem(null)
+  }, [open, banner])
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }))
 
   const save = useMutation({
@@ -181,14 +218,18 @@ function BannerEditor({ banner, open, onClose }: { banner: HomeBanner | null; op
 
   const upload = async (file: File | undefined) => {
     if (!file) return
-    setUploading(true)
+    setProblem(null)
     try {
+      if (file.size > SIZE.maxBytes) throw new Error("L'image ne doit pas dépasser 10 Mo.")
+      const issue = sizeProblem(await readSize(file))
+      if (issue) throw new Error(issue)
+      setUploading(true)
       const body = new FormData()
       body.append('file', file)
       const { path } = await api<{ path: string }>('api/admin/banners/images', { method: 'POST', body })
       set({ imagePath: path })
     } catch (e) {
-      toast(errorMessage(e), 'error')
+      setProblem(errorMessage(e))
     } finally {
       setUploading(false)
     }
@@ -198,40 +239,36 @@ function BannerEditor({ banner, open, onClose }: { banner: HomeBanner | null; op
     <Modal open={open} wide title={banner ? 'Modifier la bannière' : 'Nouvelle bannière'} onClose={onClose} footer={
       <>
         <Button onClick={onClose}>Annuler</Button>
-        <Button variant="primary" loading={save.isPending} disabled={uploading || form.title.trim().length < 3} onClick={() => save.mutate()}>Enregistrer</Button>
+        <Button variant="primary" loading={save.isPending} disabled={uploading || !form.imagePath || form.title.trim().length < 3} onClick={() => save.mutate()}>
+          Enregistrer
+        </Button>
       </>
     }>
       <div className="space-y-4">
-        <div className="flex justify-center rounded-xl bg-surface-2 p-4"><BannerPreview banner={form} /></div>
-        <Input label="Titre" maxLength={80} value={form.title} onChange={(e) => set({ title: e.target.value })} placeholder="La communauté des Béninois du monde entier" />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Input label="Mot mis en valeur (jaune, facultatif)" value={form.highlight} onChange={(e) => set({ highlight: e.target.value })} placeholder="Béninois" />
-          <Select label="Couleurs" value={form.theme} onChange={(e) => set({ theme: e.target.value as BannerTheme })}>
-            {(Object.keys(THEMES) as BannerTheme[]).map((t) => <option key={t} value={t}>{THEMES[t].label}</option>)}
-          </Select>
-        </div>
-        <Textarea label="Sous-titre (facultatif)" rows={2} maxLength={140} value={form.subtitle} onChange={(e) => set({ subtitle: e.target.value })} />
-
-        <div className="grid gap-3 sm:grid-cols-2 sm:items-end">
-          <div>
-            <span className="mb-1.5 block text-sm font-medium">Photo (facultative)</span>
-            <div className="flex items-center gap-2">
-              <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-line px-3 text-sm hover:bg-surface-2">
-                <ImagePlus className="size-4" /> {uploading ? 'Envoi…' : form.imagePath ? 'Remplacer' : 'Choisir une photo'}
-                <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = '' }} />
-              </label>
-              {form.imagePath && <Button variant="ghost" onClick={() => set({ imagePath: null, layout: 'Illustration' })}>Retirer</Button>}
-            </div>
+        <div className="flex flex-col items-center gap-3 rounded-xl bg-surface-2 p-4">
+          <BannerPreview banner={form} guides={form.actions.length > 0} />
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm hover:bg-surface-2">
+              <ImagePlus className="size-4" /> {uploading ? 'Envoi…' : form.imagePath ? "Remplacer l'image" : 'Importer l’image'}
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading}
+                onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = '' }} />
+            </label>
+            <Button variant="ghost" icon={<Download className="size-4" />} onClick={downloadTemplate}>Gabarit 1600 × 900</Button>
           </div>
-          <Select label="Mise en page" value={form.layout} disabled={!form.imagePath} onChange={(e) => set({ layout: e.target.value as BannerLayout })}>
-            <option value="Illustration">Photo à droite, texte à gauche</option>
-            <option value="Background">Photo en fond, assombrie</option>
-          </Select>
+          <p className="text-center text-xs text-muted">
+            JPEG, PNG ou WebP · format 16:9 · {SIZE.width} × {SIZE.height} px conseillé ({SIZE.minWidth} px de large au minimum) · 10 Mo max.
+            {form.actions.length > 0 && ' La zone orange (30 % du bas) est couverte par les boutons : gardez-la sans texte.'}
+          </p>
+          {problem && <p className="text-center text-sm text-danger">{problem}</p>}
         </div>
+
+        <Input label="Nom (console et lecteurs d'écran)" maxLength={80} value={form.title} onChange={(e) => set({ title: e.target.value })}
+          placeholder="Fête de l'indépendance 2027" />
+        <TargetPicker label="Lien en touchant l'image (facultatif)" value={form.target} allowNone onChange={(target) => set({ target })} />
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Boutons ({form.actions.length}/4)</span>
+            <span className="text-sm font-medium">Boutons sur l'image ({form.actions.length}/4, facultatifs)</span>
             <Button icon={<Plus className="size-4" />} disabled={form.actions.length >= 4}
               onClick={() => set({ actions: [...form.actions, { label: '', icon: 'account-group-outline', target: 'communities' }] })}>Ajouter</Button>
           </div>
@@ -240,7 +277,7 @@ function BannerEditor({ banner, open, onClose }: { banner: HomeBanner | null; op
               onChange={(next) => set({ actions: form.actions.map((x, j) => (j === i ? next : x)) })}
               onRemove={() => set({ actions: form.actions.filter((_, j) => j !== i) })} />
           ))}
-          <p className="text-xs text-muted">Les boutons vers Voyages ne s'affichent pas tant que le module Voyages est masqué.</p>
+          <p className="text-xs text-muted">Les boutons et liens vers Voyages ne s'affichent pas tant que le module Voyages est masqué.</p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -255,7 +292,7 @@ function BannerEditor({ banner, open, onClose }: { banner: HomeBanner | null; op
   )
 }
 
-/** Bannières de l'accueil de l'application : contenu, ordre, période de diffusion. */
+/** Bannières de l'accueil de l'application : image, boutons, ordre, période de diffusion. */
 export function BannersPage() {
   const toast = useToast()
   const qc = useQueryClient()
@@ -295,23 +332,23 @@ export function BannersPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Bannières de l'accueil"
-        description="Diapositives affichées en haut de l'accueil de l'application, dans l'ordre ci-dessous. Sans bannière en ligne, l'application affiche ses bannières par défaut."
+        description={`Images 16:9 (${SIZE.width} × ${SIZE.height} px) affichées en haut de l'accueil de l'application, dans l'ordre ci-dessous, avec des boutons facultatifs. Sans bannière en ligne, l'application affiche ses bannières par défaut.`}
         actions={<Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>Nouvelle bannière</Button>} />
 
-      <Card className="px-5 py-3 text-sm">
-        {live > 0 ? `${live} bannière(s) en ligne dans l'application.` : "Aucune bannière en ligne : l'application affiche ses bannières par défaut."}
+      <Card className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
+        <span>{live > 0 ? `${live} bannière(s) en ligne dans l'application.` : "Aucune bannière en ligne : l'application affiche ses bannières par défaut."}</span>
+        <Button variant="ghost" icon={<Download className="size-4" />} onClick={downloadTemplate}>Gabarit pour le graphiste</Button>
       </Card>
 
-      {list.length === 0 ? <Empty title="Aucune bannière" description="Créez une bannière pour remplacer celles affichées par défaut." /> : (
+      {list.length === 0 ? <Empty title="Aucune bannière" description="Importez une image 16:9 pour remplacer les bannières par défaut." /> : (
         <div className="space-y-3">
           {list.map((b, i) => (
             <Card key={b.id} className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center">
-              <BannerPreview banner={toForm(b)} />
+              <BannerPreview banner={b} />
               <div className="min-w-0 flex-1 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm text-muted">#{i + 1}</span>
                   <Badge tone={STATUS[b.status].tone}>{STATUS[b.status].label}</Badge>
-                  <Badge>{THEMES[b.theme].label}</Badge>
                 </div>
                 <p className="font-semibold">{b.title}</p>
                 <p className="text-sm text-muted">
@@ -319,6 +356,7 @@ export function BannersPage() {
                     ? `Diffusion ${b.startsAt ? `du ${fmtDateTime(b.startsAt)}` : ''}${b.endsAt ? ` jusqu'au ${fmtDateTime(b.endsAt)}` : ''}`
                     : 'Diffusion sans limite de date'}
                 </p>
+                {b.target && <p className="text-sm text-muted">Image → {targetLabel(b.target)}</p>}
                 <p className="text-sm text-muted">Boutons : {b.actions.map((a) => `${a.label} → ${targetLabel(a.target)}`).join(' · ') || 'aucun'}</p>
                 <p className="text-xs text-muted">Modifiée {fmtRelative(b.updatedAt)} par {b.updatedBy}</p>
               </div>
@@ -339,7 +377,7 @@ export function BannersPage() {
 
       <BannerEditor open={creating || !!editing} banner={editing} onClose={() => { setCreating(false); setEditing(null) }} />
       <ConfirmDialog open={!!deleting} danger busy={remove.isPending} title="Supprimer la bannière ?" confirmLabel="Supprimer"
-        message={`« ${deleting?.title ?? ''} » disparaîtra de l'application. Sa photo sera supprimée.`}
+        message={`« ${deleting?.title ?? ''} » disparaîtra de l'application. Son image sera supprimée.`}
         onClose={() => setDeleting(null)} onConfirm={() => deleting && remove.mutate(deleting)} />
     </div>
   )

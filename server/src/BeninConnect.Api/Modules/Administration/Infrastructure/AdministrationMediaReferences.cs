@@ -8,5 +8,5 @@ namespace BeninConnect.Modules.Administration.Infrastructure;
 public sealed class AdministrationMediaReferences(IAdministrationDb db) : IMediaReferences
 {
     public async Task<IReadOnlyCollection<string>> ImagePathsAsync(CancellationToken ct) =>
-        await db.Banners.AsNoTracking().Where(b => b.ImagePath != null).Select(b => b.ImagePath!).ToListAsync(ct);
+        await db.Banners.AsNoTracking().Select(b => b.ImagePath).ToListAsync(ct);
 }
