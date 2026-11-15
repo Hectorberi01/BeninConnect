@@ -78,15 +78,91 @@ export const CITIES: City[] = [
   { name: 'Montréal', country: 'CA', lat: 45.5019, lng: -73.5674 },
 ];
 
-const COUNTRIES: Record<string, string> = {
-  FR: 'France', BJ: 'Bénin', TG: 'Togo', NG: 'Nigeria', CI: "Côte d'Ivoire", SN: 'Sénégal', BF: 'Burkina Faso', NE: 'Niger', GH: 'Ghana',
-  ML: 'Mali', BE: 'Belgique', CH: 'Suisse', CA: 'Canada',
+/** Pays reconnus : nom affiché et ville principale (position pour une ville hors liste). */
+const COUNTRY_INFO: Record<string, { name: string; lat: number; lng: number; aliases?: string[] }> = {
+  FR: { name: 'France', lat: 48.8566, lng: 2.3522 },
+  BJ: { name: 'Bénin', lat: 6.3703, lng: 2.3912 },
+  TG: { name: 'Togo', lat: 6.1319, lng: 1.2228 },
+  NG: { name: 'Nigeria', lat: 6.5244, lng: 3.3792, aliases: ['Nigéria'] },
+  CI: { name: "Côte d'Ivoire", lat: 5.36, lng: -4.0083 },
+  SN: { name: 'Sénégal', lat: 14.7167, lng: -17.4677 },
+  BF: { name: 'Burkina Faso', lat: 12.3714, lng: -1.5197 },
+  NE: { name: 'Niger', lat: 13.5116, lng: 2.1254 },
+  GH: { name: 'Ghana', lat: 5.6037, lng: -0.187 },
+  ML: { name: 'Mali', lat: 12.6392, lng: -8.0029 },
+  GN: { name: 'Guinée', lat: 9.6412, lng: -13.5784 },
+  CM: { name: 'Cameroun', lat: 4.0511, lng: 9.7679 },
+  GA: { name: 'Gabon', lat: 0.4162, lng: 9.4673 },
+  CG: { name: 'Congo', lat: -4.2634, lng: 15.2429, aliases: ['Congo-Brazzaville'] },
+  CD: { name: 'RD Congo', lat: -4.4419, lng: 15.2663, aliases: ['RDC', 'République démocratique du Congo', 'Congo-Kinshasa'] },
+  TD: { name: 'Tchad', lat: 12.1348, lng: 15.0557 },
+  MR: { name: 'Mauritanie', lat: 18.0735, lng: -15.9582 },
+  MA: { name: 'Maroc', lat: 33.5731, lng: -7.5898 },
+  TN: { name: 'Tunisie', lat: 36.8065, lng: 10.1815 },
+  DZ: { name: 'Algérie', lat: 36.7538, lng: 3.0588 },
+  BE: { name: 'Belgique', lat: 50.8503, lng: 4.3517 },
+  CH: { name: 'Suisse', lat: 46.948, lng: 7.4474 },
+  LU: { name: 'Luxembourg', lat: 49.6116, lng: 6.1319 },
+  DE: { name: 'Allemagne', lat: 52.52, lng: 13.405 },
+  ES: { name: 'Espagne', lat: 40.4168, lng: -3.7038 },
+  IT: { name: 'Italie', lat: 41.9028, lng: 12.4964 },
+  PT: { name: 'Portugal', lat: 38.7223, lng: -9.1393 },
+  NL: { name: 'Pays-Bas', lat: 52.3676, lng: 4.9041, aliases: ['Hollande'] },
+  GB: { name: 'Royaume-Uni', lat: 51.5074, lng: -0.1278, aliases: ['Angleterre', 'UK'] },
+  CA: { name: 'Canada', lat: 45.5019, lng: -73.5674 },
+  US: { name: 'États-Unis', lat: 40.7128, lng: -74.006, aliases: ['USA', 'Amérique'] },
+  AE: { name: 'Émirats arabes unis', lat: 25.2048, lng: 55.2708, aliases: ['Dubaï', 'EAU'] },
 };
+
+const COUNTRIES: Record<string, string> = Object.fromEntries(Object.entries(COUNTRY_INFO).map(([code, c]) => [code, c.name]));
+
+/** Comparaison souple : minuscules, sans accents, tirets ni apostrophes (« porto novo » = « Porto-Novo »). */
+export const normalizePlace = (text: string) =>
+  text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[-'’.]/g, ' ').replace(/\s+/g, ' ').trim();
+
+/** Première lettre en majuscule, le reste tel que saisi. */
+export const capitalizeFirst = (text: string) => text.replace(/^(\s*)(\S)/, (_, space: string, first: string) => space + first.toLocaleUpperCase('fr-FR'));
+
+/** Code du pays saisi (nom, variante ou code à 2 lettres), null s'il n'est pas reconnu. */
+export function countryCode(text: string | null | undefined): string | null {
+  const key = normalizePlace(text ?? '');
+  if (!key) return null;
+  for (const [code, c] of Object.entries(COUNTRY_INFO)) {
+    if (key === code.toLowerCase() || [c.name, ...(c.aliases ?? [])].some((n) => normalizePlace(n) === key)) return code;
+  }
+  return null;
+}
+
+/** Ville connue correspondant à la saisie (le pays la départage si fourni). */
+export const matchCity = (name: string | null | undefined, country?: string | null) => {
+  const key = normalizePlace(name ?? '');
+  return key ? CITIES.find((c) => normalizePlace(c.name) === key && (!country || c.country === country)) : undefined;
+};
+
+/** Position d'une ville saisie : la ville si elle est connue, sinon la ville principale du pays. */
+export function placeCoords(city: string, country: string | null): { lat: number; lng: number } | null {
+  const known = matchCity(city, country);
+  if (known) return { lat: known.lat, lng: known.lng };
+  const info = country ? COUNTRY_INFO[country] : undefined;
+  return info ? { lat: info.lat, lng: info.lng } : null;
+}
+
+/** Suggestions pendant la saisie. */
+export function suggestCities(text: string, country?: string | null, limit = 4) {
+  const key = normalizePlace(text);
+  if (!key) return [];
+  return CITIES.filter((c) => (!country || c.country === country) && normalizePlace(c.name).startsWith(key) && normalizePlace(c.name) !== key).slice(0, limit);
+}
+
+export function suggestCountries(text: string, limit = 4) {
+  const key = normalizePlace(text);
+  if (!key) return [];
+  return Object.values(COUNTRY_INFO).map((c) => c.name).filter((n) => normalizePlace(n).startsWith(key) && normalizePlace(n) !== key).slice(0, limit);
+}
 
 export const cityLabel = (c: Pick<City, 'name' | 'country'>) => `${c.name} (${COUNTRIES[c.country] ?? c.country})`;
 
-export const findCity = (name: string | null | undefined, country?: string | null) =>
-  name ? CITIES.find((c) => c.name.toLowerCase() === name.trim().toLowerCase() && (!country || c.country === country)) : undefined;
+export const findCity = matchCity;
 
 export const countryName = (code: string) => COUNTRIES[code] ?? code;
 

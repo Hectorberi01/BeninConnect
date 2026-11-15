@@ -11,6 +11,7 @@ import { type Booking, kg, type MyTrip, PARCEL_LABELS, TRIP_STATUS_LABELS } from
 import {
   useCancelTrip, useDisputeBooking, useIssueDeliveryCode, useMyBookings, useMyTrips, useRespondBooking,
 } from '@/features/queries';
+import { usePullRefresh } from '@/core/refresh';
 
 type Tab = 'trips' | 'sent';
 
@@ -26,7 +27,9 @@ function MyVoyages() {
   const params = useLocalSearchParams<{ tab?: Tab }>();
   const [tab, setTab] = useState<Tab>(params.tab === 'sent' ? 'sent' : 'trips');
   const trips = useMyTrips();
+  const pullTrips = usePullRefresh(() => trips.refetch());
   const sent = useMyBookings();
+  const pullSent = usePullRefresh(() => sent.refetch());
   return (
     <Screen>
       <Header title="Mes voyages et envois" />
@@ -39,7 +42,7 @@ function MyVoyages() {
             <FlatList data={items} keyExtractor={(t) => t.detail.trip.id} renderItem={({ item }) => <TripBlock m={item} />}
               ListEmptyComponent={<EmptyState icon="airplane-takeoff" title="Aucun voyage publié" message="Vous partez bientôt ? Proposez vos kilos libres."
                 action="Proposer mes kilos" onAction={() => router.push('/voyages/publish')} />}
-              refreshControl={<RefreshControl refreshing={trips.isRefetching} onRefresh={() => { trips.refetch(); }} tintColor={c.primary} />}
+              refreshControl={<RefreshControl refreshing={pullTrips.refreshing} onRefresh={pullTrips.onRefresh} tintColor={c.primary} />}
               contentContainerStyle={{ paddingTop: 8, paddingBottom: 32 }} />
           )}
         </QueryView>
@@ -49,7 +52,7 @@ function MyVoyages() {
             <FlatList data={items} keyExtractor={(b) => b.id} renderItem={({ item }) => <BookingCard b={item} />}
               ListEmptyComponent={<EmptyState icon="package-variant" title="Aucun envoi" message="Trouvez un membre qui part et réservez quelques kilos."
                 action="Chercher un trajet" onAction={() => router.replace('/voyages')} />}
-              refreshControl={<RefreshControl refreshing={sent.isRefetching} onRefresh={() => { sent.refetch(); }} tintColor={c.primary} />}
+              refreshControl={<RefreshControl refreshing={pullSent.refreshing} onRefresh={pullSent.onRefresh} tintColor={c.primary} />}
               contentContainerStyle={{ paddingTop: 8, paddingBottom: 32 }} />
           )}
         </QueryView>

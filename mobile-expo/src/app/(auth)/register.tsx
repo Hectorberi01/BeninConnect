@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { FormError, FormScroll } from '@/components/Form';
 import { Button, Checkbox, Header, Muted, PasswordField, Screen, T, TextField } from '@/components/ui';
+import { CityField, CountryField } from '@/components/places';
 import { SITE_URL } from '@/core/config';
 import { useColors } from '@/core/theme';
 import * as v from '@/core/validation';
@@ -59,8 +60,8 @@ export default function Register() {
         <TextField label="Adresse email" value={form.email} onChangeText={set('email')} error={errors.email}
           keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          <TextField style={{ flex: 1 }} label="Pays de résidence" value={form.country} onChangeText={set('country')} error={errors.country} placeholder="France" />
-          <TextField style={{ flex: 1 }} label="Ville" value={form.city} onChangeText={set('city')} error={errors.city} placeholder="Lyon" />
+          <CountryField style={{ flex: 1 }} label="Pays de résidence" value={form.country} onChangeText={set('country')} error={errors.country} placeholder="France" />
+          <CityField style={{ flex: 1 }} label="Ville" value={form.city} onChangeText={set('city')} error={errors.city} placeholder="Lyon" />
         </View>
         <PasswordField label="Mot de passe" value={form.password} onChangeText={set('password')} error={errors.password}
           hint="8 caractères minimum, lettres et chiffres" textContentType="newPassword" />

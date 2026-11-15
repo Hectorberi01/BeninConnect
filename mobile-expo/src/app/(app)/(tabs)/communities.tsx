@@ -10,6 +10,7 @@ import { matches } from '@/core/validation';
 import type { Community } from '@/data/types';
 import { location } from '@/data/types';
 import { useCommunities, useCommunityCategories } from '@/features/queries';
+import { usePullRefresh } from '@/core/refresh';
 
 type Row = { kind: 'title'; title: string } | { kind: 'item'; community: Community };
 
@@ -17,6 +18,7 @@ export default function Communities() {
   const c = useColors();
   const me = useMe();
   const query = useCommunities();
+  const pull = usePullRefresh(() => query.refetch());
   const categories = useCommunityCategories().data ?? [];
   const [search, setSearch] = useState('');
   const bottom = useTabBarSpace();
@@ -53,7 +55,7 @@ export default function Communities() {
             ListEmptyComponent={<EmptyState icon="account-search-outline" title="Aucune communauté trouvée"
               message="Essayez un autre mot-clé ou une autre catégorie." action="Effacer les filtres"
               onAction={() => { setSearch(''); setCategory('*'); }} />}
-            refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { query.refetch(); }} tintColor={c.primary} />}
+            refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.primary} />}
             contentContainerStyle={{ paddingBottom: bottom }}
             keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
           />

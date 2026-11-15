@@ -21,6 +21,7 @@ import type { User } from '@/data/types';
 import { displayName, errorMessage, initials, location } from '@/data/types';
 import { useMemberCommunities, usePosts, useSavedPosts, useUpdateProfile, useUser, useVoyagesEnabled } from './queries';
 import { VoyageBlock } from './VoyageBlock';
+import { usePullRefresh } from '@/core/refresh';
 
 type PostTab = 'grid' | 'list' | 'saved';
 
@@ -48,6 +49,7 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
   const shownUser = isMe ? me : user;
   const posts = usePosts({ authorId: user.id });
   const communities = useMemberCommunities(user.id);
+  const pull = usePullRefresh(() => Promise.all([posts.refetch(), communities.refetch()]));
   const [starting, setStarting] = useState(false);
   const update = useUpdateProfile();
   const [changing, setChanging] = useState<'avatar' | 'cover' | null>(null);
@@ -109,7 +111,7 @@ function Profile({ user, showBack }: { user: User; showBack?: boolean }) {
   return (
     <ScrollView
       contentContainerStyle={{ paddingBottom: showBack ? insets.bottom + 32 : tabSpace }}
-      refreshControl={<RefreshControl refreshing={posts.isRefetching} onRefresh={() => { posts.refetch(); communities.refetch(); }} tintColor={c.primary} />}
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.primary} />}
     >
       <Cover path={shownUser.coverImage} height={150 + insets.top}>
         <View style={[styles.coverBar, { top: insets.top + 4 }]}>

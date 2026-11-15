@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
 import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { initialsOf, Notice, Stars } from '@/components/services';
-import { Avatar, Card, Chip, Icon, type IconName, Muted, Select, T, Tag } from '@/components/ui';
+import { CityField, CountryField, countryError } from '@/components/places';
+import { Avatar, Card, Chip, Icon, type IconName, Muted, T, Tag } from '@/components/ui';
 import { useColors } from '@/core/theme';
-import { CITIES, cityLabel, COUNTRY_CODES, countryName } from '@/data/cities';
+import { countryCode, countryName } from '@/data/cities';
 import { type Place, tripDay } from '@/data/voyageFormat';
 
 export { formatDay, isoDay, parseDay, type Place, placeLabel, tripDay } from '@/data/voyageFormat';
@@ -13,24 +14,25 @@ import {
 
 export const PARCEL_CATEGORIES = Object.keys(PARCEL_LABELS) as ParcelCategory[];
 
-const placeOptions = [
-  ...COUNTRY_CODES.map((country) => ({ value: `country:${country}`, label: `${countryName(country)} : toutes les villes` })),
-  ...CITIES.map((c) => ({ value: `city:${c.country}:${c.name}`, label: cityLabel(c) })),
-];
-
-const placeValue = (p: Place | null) => (p ? (p.city ? `city:${p.country}:${p.city}` : `country:${p.country}`) : null);
-
-export function PlacePicker({ label, value, onChange, allowAll }: { label: string; value: Place | null; onChange: (p: Place | null) => void; allowAll?: string }) {
+/** Ville et pays d'une recherche ou d'une alerte, saisis librement. */
+export function PlaceFields({ label, city, country, onCity, onCountry }: {
+  label: string; city: string; country: string; onCity: (t: string) => void; onCountry: (t: string) => void;
+}) {
   return (
-    <Select label={label} value={placeValue(value)} placeholder="Choisir"
-      options={allowAll ? [{ value: null, label: allowAll }, ...placeOptions] : placeOptions}
-      onChange={(v) => {
-        if (!v) return onChange(null);
-        const [kind, country, ...city] = v.split(':');
-        onChange({ country: country!, city: kind === 'city' ? city.join(':') : null });
-      }} />
+    <View style={styles.place}>
+      <CityField style={{ flex: 1 }} label={label} value={city} onChangeText={onCity} placeholder="Ville"
+        onPick={(c) => onCountry(countryName(c.country))} />
+      <CountryField style={{ flex: 1 }} label="Pays" value={country} onChangeText={onCountry} placeholder="Pays" error={countryError(country)} />
+    </View>
   );
 }
+
+/** Ville et pays saisis → filtre (pays en code, ville si au moins 2 lettres). */
+export const placeFilter = (city: string, country: string): Place | null => {
+  const code = countryCode(country);
+  const name = city.trim().length >= 2 ? city.trim() : null;
+  return code || name ? { country: code ?? '', city: name } : null;
+};
 
 export function CategoryChips({ value, onChange, allowed = PARCEL_CATEGORIES }: {
   value: ParcelCategory[]; onChange: (v: ParcelCategory[]) => void; allowed?: ParcelCategory[];
@@ -170,6 +172,7 @@ export function LinkRow({ icon, label, onPress }: { icon: IconName; label: strin
 }
 
 const styles = StyleSheet.create({
+  place: { flexDirection: 'row', gap: 8 },
   card: { marginHorizontal: 16, marginBottom: 12, padding: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   route: { flexDirection: 'row', alignItems: 'center', gap: 8 },

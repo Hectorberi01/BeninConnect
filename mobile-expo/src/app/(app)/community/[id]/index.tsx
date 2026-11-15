@@ -11,6 +11,7 @@ import { location } from '@/data/types';
 import { useCommunity, useCommunityEvents, useMembers, usePosts } from '@/features/queries';
 import { reportContent } from '@/features/report';
 import { roleLabel } from '@/features/rules';
+import { usePullRefresh } from '@/core/refresh';
 
 type Section = 'posts' | 'members' | 'events';
 
@@ -32,11 +33,11 @@ function Details({ community }: { community: Community }) {
   const events = useCommunityEvents(community.id, !restricted);
   const ctx = usePostContext(posts.data ?? []);
 
-  const refresh = () => { posts.refetch(); members.refetch(); events.refetch(); };
+  const pull = usePullRefresh(() => Promise.all([posts.refetch(), members.refetch(), events.refetch()]));
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
-      refreshControl={<RefreshControl refreshing={posts.isRefetching} onRefresh={refresh} tintColor={c.primary} />}>
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.primary} />}>
       <Cover path={community.coverImage} height={190 + insets.top}>
         <View style={[styles.back, { top: insets.top + 4 }]}>
           <IconButton name="arrow-left" label="Retour" color="#FFFFFF" onPress={() => router.back()} />

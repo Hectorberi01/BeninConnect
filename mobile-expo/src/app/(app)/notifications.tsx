@@ -10,6 +10,7 @@ import { toast } from '@/core/toast';
 import type { AppNotification, NotificationCategory } from '@/data/types';
 import { useNotificationActions, useNotifications, useUnreadNotifications } from '@/features/queries';
 import { notificationHref } from '@/features/rules';
+import { usePullRefresh } from '@/core/refresh';
 
 const CATEGORIES: { key: string; label: string }[] = [
   { key: '*', label: 'Toutes' }, { key: 'Social', label: 'Social' }, { key: 'Communities', label: 'Communautés' },
@@ -20,6 +21,7 @@ export default function Notifications() {
   const c = useColors();
   const [category, setCategory] = useState('*');
   const query = useNotifications(category === '*' ? undefined : (category as NotificationCategory));
+  const pull = usePullRefresh(() => query.refetch());
   const unread = useUnreadNotifications().data ?? 0;
   const actions = useNotificationActions();
 
@@ -53,7 +55,7 @@ export default function Notifications() {
           <FlatList data={items} keyExtractor={(n) => n.id} renderItem={({ item }) => <NotificationItem item={item} onPress={() => open(item)} onDelete={() => actions.remove(item.id)} />}
             ListEmptyComponent={<EmptyState icon="bell-sleep-outline" title="Aucune notification" message="Vous serez prévenu ici de l'activité de vos communautés." />}
             contentContainerStyle={{ paddingVertical: 12 }}
-            refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { query.refetch(); }} tintColor={c.primary} />} />
+            refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.primary} />} />
         )}
       </QueryView>
     </Screen>

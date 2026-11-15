@@ -5,7 +5,8 @@ import { create } from 'zustand';
 import { Muted, QueryView, T } from '@/components/ui';
 import { useColors } from '@/core/theme';
 import { usePost } from '@/features/queries';
-import { CommentsPanel, useKeyboardOpen } from './CommentsPanel';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CommentsPanel, useKeyboardHeight } from './CommentsPanel';
 
 const useSheet = create<{ postId: string | null }>(() => ({ postId: null }));
 
@@ -29,7 +30,8 @@ export function CommentsSheetHost() {
 function Sheet({ postId }: { postId: string }) {
   const c = useColors();
   const query = usePost(postId);
-  const keyboardOpen = useKeyboardOpen();
+  const keyboard = useKeyboardHeight();
+  const insets = useSafeAreaInsets();
   const drag = useRef(new Animated.Value(0)).current;
   // Glisser la poignée ou le titre vers le bas pour fermer
   const pan = useRef(PanResponder.create({
@@ -40,13 +42,15 @@ function Sheet({ postId }: { postId: string }) {
       else Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start();
     },
   })).current;
-  const height = Dimensions.get('window').height * (keyboardOpen ? 0.92 : 0.75);
+  // Clavier ouvert : la fenêtre remonte au-dessus et occupe l'espace restant
+  const screen = Dimensions.get('window').height;
+  const height = keyboard ? screen - keyboard - insets.top - 8 : screen * 0.75;
   const count = query.data?.commentCount ?? 0;
 
   return (
     <View style={styles.root}>
       <Pressable style={styles.backdrop} accessibilityRole="button" accessibilityLabel="Fermer les commentaires" onPress={closeComments} />
-      <Animated.View style={[styles.sheet, { height, backgroundColor: c.surface, transform: [{ translateY: drag }] }]}>
+      <Animated.View style={[styles.sheet, { height, marginBottom: keyboard, backgroundColor: c.surface, transform: [{ translateY: drag }] }]}>
         <View {...pan.panHandlers} style={[styles.head, { borderColor: c.border }]}>
           <View style={[styles.grabber, { backgroundColor: c.border }]} />
           <View style={styles.titleRow}>

@@ -6,6 +6,7 @@ import { Chip, EmptyState, ErrorState, Header, IconButton, Loading, Muted, Scree
 import { useColors } from '@/core/theme';
 import { CONTRACT_LABELS, countryName, errorMessage, type JobContract, type JobFilter } from '@/data/types';
 import { useJobFilters, useJobs } from '@/features/queries';
+import { usePullRefresh } from '@/core/refresh';
 
 function useDebounced<T>(value: T, ms = 350) {
   const [v, setV] = useState(value);
@@ -26,6 +27,7 @@ export default function Jobs() {
   const q = useDebounced(search.trim());
   const filter: JobFilter = { q: q || undefined, country: country ?? undefined, contract: contract ?? undefined, remote: remote || undefined };
   const query = useJobs(filter);
+  const pull = usePullRefresh(() => query.refetch());
   const jobs = useMemo(() => {
     const seen = new Set<string>();
     return (query.data?.pages ?? []).flatMap((p) => p.items).filter((j) => (seen.has(j.id) ? false : (seen.add(j.id), true)));
@@ -75,7 +77,7 @@ export default function Jobs() {
               )}
               onEndReached={() => query.hasNextPage && !query.isFetchingNextPage && query.fetchNextPage()}
               onEndReachedThreshold={0.5}
-              refreshControl={<RefreshControl refreshing={query.isRefetching && !query.isFetchingNextPage} onRefresh={() => { query.refetch(); }} tintColor={c.primary} />}
+              refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.primary} />}
               contentContainerStyle={{ paddingBottom: 24 }}
               keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" />
           )}

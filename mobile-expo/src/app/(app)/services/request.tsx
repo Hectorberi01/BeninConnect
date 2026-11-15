@@ -1,10 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { CityPicker, Notice } from '@/components/services';
+import { CityField } from '@/components/places';
+import { Notice } from '@/components/services';
 import { Button, Header, Muted, Screen, T, TextField } from '@/components/ui';
 import { useMe } from '@/core/session';
-import { findCity, type City } from '@/data/cities';
 import { useCreateServiceRequest } from '@/features/queries';
 
 /** « 15/12/2026 » → « 2026-12-15 » ; null si vide, undefined si invalide. */
@@ -31,12 +31,12 @@ export default function RequestQuote() {
   const create = useCreateServiceRequest();
   const [message, setMessage] = useState('');
   const [date, setDate] = useState('');
-  const [city, setCity] = useState<City | null>(() => findCity(me.city) ?? null);
+  const [city, setCity] = useState(me.city ?? '');
   const parsed = parseDate(date);
   const past = !!parsed && parsed < today();
   const invalid = message.trim().length < 10 || parsed === undefined || past;
 
-  const send = () => create.mutate({ offeringId, message: message.trim(), preferredDate: parsed ?? null, city: city?.name ?? null }, {
+  const send = () => create.mutate({ offeringId, message: message.trim(), preferredDate: parsed ?? null, city: city.trim() || null }, {
     onSuccess: (r) => (r.conversationId ? router.replace(`/conversation/${r.conversationId}`) : router.back()),
   });
 
@@ -51,7 +51,7 @@ export default function RequestQuote() {
             placeholder="Décrivez votre besoin : prestation, lieu, contraintes…" hint="10 caractères au moins." />
           <TextField label="Date souhaitée (facultatif)" value={date} onChangeText={setDate} placeholder="JJ/MM/AAAA" keyboardType="numbers-and-punctuation"
             error={parsed === undefined ? 'Date invalide : utilisez le format JJ/MM/AAAA.' : past ? 'Cette date est déjà passée.' : null} />
-          <CityPicker value={city} onChange={setCity} label="Lieu de la prestation (ville)" allowAll="Ne pas préciser" />
+          <CityField label="Lieu de la prestation (facultatif)" value={city} onChangeText={setCity} placeholder="Ville" />
           <Notice icon="cash-lock">
             Aucun paiement ne passe par BéninConnect : vous fixez le prix et le règlement directement avec le prestataire. Ne payez jamais d’avance par transfert d’argent.
           </Notice>

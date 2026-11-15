@@ -6,17 +6,17 @@ import * as WebBrowser from 'expo-web-browser';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import { imageSource } from '@/core/images';
 import { useMe } from '@/core/session';
-import { depth, font, useColors, useIsDark } from '@/core/theme';
-import type { Community, HomeBanner, JobOfferSummary, ServiceCategory, User } from '@/data/types';
+import { depth, font, useColors } from '@/core/theme';
+import type { Community, HomeBanner, User } from '@/data/types';
 import { initials } from '@/data/types';
-import { useToggleJobFavorite } from '@/features/queries';
 import { MembershipButton } from './cards';
-import { CompanyLogo, contractText } from './jobs';
-import { Avatar, Cover, Icon, type IconName, Muted, T, Tag } from './ui';
+import { Avatar, Cover, Icon, type IconName, Muted, T } from './ui';
 
 const HERO = require('../../assets/images/Home/hero.jpg');
+const VOYAGES = require('../../assets/images/Home/voyages.jpg');
 const BRAND = ['#12945F', '#087F5B', '#05553F'] as const;
 const YELLOW = '#FCD116';
+const alpha = (hex: string, a: number) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
 
 // --- Chargement ------------------------------------------------------------------------------
 
@@ -222,15 +222,18 @@ function ImageBanner({ banner, width, voyages }: { banner: HomeBanner; width: nu
     return onPress ? [{ icon: a.icon as IconName, label: a.label, onPress }] : [];
   }).slice(0, 4);
   return (
-    <Pressable accessibilityRole={open ? 'button' : 'image'} accessibilityLabel={banner.title} disabled={!open} onPress={open ?? undefined}
-      style={[styles.imageBanner, { width, height: (width * 9) / 16 }]}>
-      <Image source={imageSource(banner.imagePath)} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} accessibilityIgnoresInvertColors />
+    <View style={[styles.imageBanner, { width, height: (width * 9) / 16 }]}>
+      {/* Image et boutons côte à côte (pas de bouton dans un bouton) */}
+      <Pressable accessibilityRole={open ? 'button' : 'image'} accessibilityLabel={banner.title} disabled={!open} onPress={open ?? undefined}
+        style={StyleSheet.absoluteFill}>
+        <Image source={imageSource(banner.imagePath)} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} accessibilityIgnoresInvertColors />
+      </Pressable>
       {actions.length > 0 && (
         <View style={styles.imageChips}>
           {actions.map((a) => <HeroChip key={a.label} {...a} />)}
         </View>
       )}
-    </Pressable>
+    </View>
   );
 }
 
@@ -290,58 +293,26 @@ export function HomeHero({ compact, voyages, banners }: { compact: boolean; voya
 
 // --- Actions rapides -------------------------------------------------------------------------
 
-export function QuickActions({ voyages }: { voyages: boolean }) {
+/** Deux raccourcis : offres d'emploi (mis en avant) et services entre membres. */
+export function QuickActions() {
   const c = useColors();
   const items: { icon: IconName; label: string; href: Href }[] = [
-    { icon: 'square-edit-outline', label: 'Publier', href: '/post/new' },
-    { icon: 'account-multiple-plus-outline', label: 'Créer une communauté', href: '/community/new' },
-    { icon: 'account-wrench-outline', label: 'Proposer un service', href: '/services/me' },
-    voyages
-      ? { icon: 'airplane-takeoff', label: 'Proposer un voyage', href: '/voyages/publish' }
-      : { icon: 'calendar-plus', label: 'Créer un événement', href: '/events/new' },
+    { icon: 'briefcase-outline', label: "Voir les offres d'emploi", href: '/jobs' },
+    { icon: 'hand-heart-outline', label: 'Voir les services', href: '/services' },
   ];
   return (
     <View style={styles.quick}>
       {items.map((a, i) => {
         const primary = i === 0;
+        const color = primary ? '#FFFFFF' : c.primary;
         return (
           <Pressable key={a.label} accessibilityRole="button" accessibilityLabel={a.label} onPress={() => router.push(a.href)}
             style={({ pressed }) => [styles.quickItem, styles.flat,
-              { backgroundColor: primary ? c.primary : c.surface, borderColor: primary ? c.primary : c.border }, pressed && { opacity: 0.8 }]}>
-            <Icon name={a.icon} size={26} color={primary ? '#FFFFFF' : c.primary} />
-            <Text numberOfLines={2} style={[styles.quickText, { color: primary ? '#FFFFFF' : c.text }]}>{a.label}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-// --- Services --------------------------------------------------------------------------------
-
-const TINTS = ['#DB2777', '#EA580C', '#16A34A', '#7C3AED', '#2563EB'];
-const alpha = (hex: string, a: number) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
-
-/** Quatre catégories principales + « Autres », sur une seule ligne. */
-export function ServiceShortcuts({ categories }: { categories: ServiceCategory[] }) {
-  const c = useColors();
-  const dark = useIsDark();
-  const top = categories.filter((x) => x.parentId == null && x.isActive).slice(0, 4);
-  const items = [
-    ...top.map((x) => ({ key: x.id, label: x.name, icon: x.icon as IconName, onPress: () => router.push({ pathname: '/services/search', params: { categoryId: x.id } }) })),
-    { key: 'all', label: 'Autres', icon: 'view-grid-outline' as IconName, onPress: () => router.push('/services') },
-  ];
-  return (
-    <View style={styles.services}>
-      {items.map((it, i) => {
-        const tint = TINTS[i % TINTS.length];
-        return (
-          <Pressable key={it.key} accessibilityRole="button" accessibilityLabel={it.label} onPress={it.onPress}
-            style={({ pressed }) => [styles.serviceItem, styles.flat, { backgroundColor: c.surface, borderColor: c.border }, pressed && { opacity: 0.75 }]}>
-            <View style={[styles.serviceIcon, { backgroundColor: alpha(tint, dark ? 0.22 : 0.12) }]}>
-              <Icon name={it.icon} size={24} color={tint} />
-            </View>
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[styles.serviceText, { color: c.text }]}>{it.label}</Text>
+              { backgroundColor: primary ? c.primary : c.primaryLight, borderColor: primary ? c.primary : alpha(c.primary, 0.18) },
+              pressed && { opacity: 0.85 }]}>
+            <Icon name={a.icon} size={26} color={color} />
+            <Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.quickText, { color: primary ? '#FFFFFF' : c.text }]}>{a.label}</Text>
+            <Icon name="arrow-right" size={18} color={color} />
           </Pressable>
         );
       })}
@@ -398,53 +369,15 @@ export function MyCommunities({ communities }: { communities: Community[] }) {
 
 // --- Voyages ---------------------------------------------------------------------------------
 
-export function VoyagesPromo({ upcoming }: { upcoming: number }) {
-  const c = useColors();
+/** Section voyages : visuel « Tu voyages ? » (texte compris), toute la carte ouvre les trajets. */
+export function VoyagesPromo() {
+  // Taille calculée comme la bannière du haut (aspectRatio seul donne une carte trop étroite sur iOS)
+  const { width } = useWindowDimensions();
+  const w = Math.min(width, 640) - 32;
   return (
-    <Pressable accessibilityRole="button" onPress={() => router.push('/voyages')}
-      style={({ pressed }) => [styles.promo, styles.flat, { backgroundColor: c.primaryLight, borderColor: c.primaryLight }, pressed && { opacity: 0.9 }]}>
-      <View style={styles.promoDeco} pointerEvents="none">
-        <Icon name="airplane" size={84} color={alpha(c.primary, 0.16)} />
-        <View style={{ position: 'absolute', right: 6, bottom: -6 }}>
-          <Icon name="bag-suitcase" size={46} color={alpha('#F59E0B', 0.55)} />
-        </View>
-      </View>
-      <View style={[styles.promoIcon, { backgroundColor: c.primary }]}><Icon name="airplane" size={26} color="#FFFFFF" /></View>
-      <View style={{ flex: 1, gap: 4 }}>
-        <T v="h3">Qui part au pays ?</T>
-        <Muted lines={2} style={{ maxWidth: '85%' }}>
-          {upcoming > 0 ? `${upcoming} départ${upcoming > 1 ? 's' : ''} prévu${upcoming > 1 ? 's' : ''} · voyages et envois de colis` : 'Voyages et envois de colis entre l’Europe et le Bénin'}
-        </Muted>
-        <View style={[styles.promoButton, { backgroundColor: c.primary }]}>
-          <Text style={styles.promoButtonText}>Voir les trajets</Text>
-          <Icon name="arrow-right" size={16} color="#FFFFFF" />
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
-// --- Emplois ---------------------------------------------------------------------------------
-
-export function HomeJobCard({ job }: { job: JobOfferSummary }) {
-  const c = useColors();
-  const favorite = useToggleJobFavorite();
-  return (
-    <Pressable onPress={() => router.push(`/jobs/${job.id}`)}
-      style={({ pressed }) => [styles.job, styles.flat, { backgroundColor: c.surface, borderColor: c.border }, depth(c, 1), pressed && { opacity: 0.9 }]}>
-      <View style={[styles.row, { alignItems: 'flex-start', gap: 10 }]}>
-        <CompanyLogo job={job} size={40} />
-        <T v="label" lines={2} style={{ flex: 1, fontSize: 14 }}>{job.title}</T>
-        <Pressable accessibilityRole="button" accessibilityLabel={job.isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'} hitSlop={10}
-          onPress={() => favorite.mutate({ id: job.id, favorite: !job.isFavorite })}>
-          <Icon name={job.isFavorite ? 'bookmark' : 'bookmark-outline'} size={22} color={job.isFavorite ? c.primary : c.textSecondary} />
-        </Pressable>
-      </View>
-      <View style={[styles.row, { marginTop: 8, marginLeft: 50 }]}>
-        <Icon name="map-marker-outline" size={14} color={c.textSecondary} />
-        <Muted lines={1} style={{ flex: 1 }}>{[job.locationLabel, job.companyName].filter(Boolean).join(' · ')}</Muted>
-      </View>
-      <View style={{ marginTop: 8, marginLeft: 50, flexDirection: 'row' }}><Tag label={contractText(job)} /></View>
+    <Pressable accessibilityRole="button" accessibilityLabel="Tu voyages ? Rentabilise tes kilos disponibles. Voir les trajets"
+      onPress={() => router.push('/voyages')} style={({ pressed }) => [styles.promo, { width: w, height: (w * 470) / 1500 }, pressed && { opacity: 0.9 }]}>
+      <Image source={VOYAGES} style={StyleSheet.absoluteFill} contentFit="cover" accessibilityIgnoresInvertColors />
     </Pressable>
   );
 }
@@ -475,18 +408,10 @@ const styles = StyleSheet.create({
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
   pageDot: { height: 7, borderRadius: 4 },
   quick: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginTop: 14 },
-  quickItem: { flex: 1, height: 92, alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 4 },
-  quickText: { fontFamily: font.semibold, fontSize: 11.5, textAlign: 'center', lineHeight: 14 },
-  services: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
-  serviceItem: { flex: 1, height: 88, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 4 },
-  serviceIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  serviceText: { fontFamily: font.medium, fontSize: 12 },
+  quickItem: { flex: 1, height: 80, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 },
+  quickText: { flex: 1, fontFamily: font.semibold, fontSize: 14, lineHeight: 18 },
   community: { width: 250, overflow: 'hidden' },
   mine: { width: 190, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 },
-  promo: { marginHorizontal: 16, marginTop: 16, padding: 16, flexDirection: 'row', gap: 14, overflow: 'hidden' },
-  promoDeco: { position: 'absolute', right: -6, top: 4 },
-  promoIcon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  promoButton: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 14, height: 34, borderRadius: 17, marginTop: 6 },
-  promoButtonText: { color: '#FFFFFF', fontFamily: font.semibold, fontSize: 13 },
-  job: { width: 270, padding: 14 },
+  // Visuel 1500 × 470 : taille fixée dans VoyagesPromo, coins arrondis comme sur l'image
+  promo: { marginHorizontal: 16, marginTop: 16, borderRadius: 20, overflow: 'hidden', backgroundColor: '#DDF9F0' },
 });

@@ -11,11 +11,13 @@ import type { ConversationSummary } from '@/data/types';
 import { displayName, initials, messagePreview } from '@/data/types';
 import { confirm } from '@/core/dialog';
 import { useConversations, useDeleteConversation } from '@/features/queries';
+import { usePullRefresh } from '@/core/refresh';
 
 export default function Messages() {
   const c = useColors();
   const me = useMe();
   const query = useConversations();
+  const pull = usePullRefresh(() => query.refetch());
   const [search, setSearch] = useState('');
   const bottom = useTabBarSpace();
   const remove = useDeleteConversation();
@@ -70,7 +72,7 @@ export default function Messages() {
               : <EmptyState icon="message-outline" title="Aucune conversation" message="Écrivez à un membre de la communauté pour commencer."
                 action="Nouvelle conversation" onAction={() => router.push('/conversation/new')} />}
             contentContainerStyle={{ paddingBottom: bottom }}
-            refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { query.refetch(); }} tintColor={c.primary} />}
+            refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.primary} />}
           />
         )}
       </QueryView>

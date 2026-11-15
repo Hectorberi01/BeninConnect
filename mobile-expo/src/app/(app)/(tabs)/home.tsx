@@ -4,7 +4,7 @@ import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, Vi
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EventTile, PostCard, usePostContext } from '@/components/cards';
 import {
-  HomeCommunityCard, HomeHeader, HomeHero, HomeJobCard, MyCommunities, PostSkeleton, QuickActions, ServiceShortcuts, Skeleton, SkeletonRow, VoyagesPromo,
+  HomeCommunityCard, HomeHeader, HomeHero, MyCommunities, PostSkeleton, QuickActions, SkeletonRow, VoyagesPromo,
 } from '@/components/home';
 import { EmptyState, ErrorState, Icon, Muted, Screen, SectionTitle } from '@/components/ui';
 import { useTabBarSpace } from '@/components/glass';
@@ -13,7 +13,7 @@ import { useMe } from '@/core/session';
 import { useColors } from '@/core/theme';
 import { errorMessage } from '@/data/types';
 import {
-  useCommunities, useEvents, useFeed, useHomeBanners, useJobs, useServiceCategories, useTripSearch, useUnreadNotifications, useUsersMap, useVoyagesEnabled,
+  useCommunities, useEvents, useFeed, useHomeBanners, useUnreadNotifications, useUsersMap, useVoyagesEnabled,
 } from '@/features/queries';
 
 export default function Home() {
@@ -23,10 +23,7 @@ export default function Home() {
   const feed = useFeed();
   const communities = useCommunities();
   const events = useEvents({});
-  const jobs = useJobs({});
-  const services = useServiceCategories();
   const voyages = useVoyagesEnabled().enabled;
-  const trips = useTripSearch({}, voyages);
   const banners = useHomeBanners();
   const unread = useUnreadNotifications().data ?? 0;
   const [refreshing, setRefreshing] = useState(false);
@@ -48,12 +45,10 @@ export default function Home() {
   const suggestions = all.filter((x) => !x.memberIds.includes(me.id)).slice(0, 8);
   const members = useUsersMap(suggestions.flatMap((x) => x.memberIds.slice(0, 3)));
   const upcoming = (events.data ?? []).slice(0, 5);
-  const latestJobs = (jobs.data?.pages[0]?.items ?? []).slice(0, 6);
-  const nextTrips = trips.data?.pages[0]?.items.length ?? 0;
 
   const refresh = async () => {
     setRefreshing(true);
-    await Promise.all([feed.refetch(), banners.refetch(), communities.refetch(), events.refetch(), jobs.refetch(), ...(voyages ? [trips.refetch()] : [])]);
+    await Promise.all([feed.refetch(), banners.refetch(), communities.refetch(), events.refetch()]);
     setRefreshing(false);
   };
 
@@ -61,21 +56,17 @@ export default function Home() {
     <View>
       <HomeHeader unread={unread} top={insets.top} />
       <HomeHero compact={compactHero} voyages={voyages} banners={banners.data} />
-      <QuickActions voyages={voyages} />
+      <QuickActions />
+      {voyages && <VoyagesPromo />}
 
-      <SectionTitle title="Services entre membres" action="Voir tout" onAction={() => router.push('/services')} />
-      {services.isPending
-        ? <View style={styles.serviceSkeleton}>{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} height={88} radius={18} style={{ flex: 1 }} />)}</View>
-        : <ServiceShortcuts categories={services.data ?? []} />}
-
-      {mine.length > 0 && (
+      {/*mine.length > 0 && (
         <>
           <SectionTitle title="Mes communautés" action="Voir tout" onAction={() => router.navigate('/communities')} />
           <MyCommunities communities={mine} />
         </>
-      )}
+      )*/}
 
-      {communities.isPending ? (
+      {/*communities.isPending ? (
         <>
           <SectionTitle title="Communautés suggérées" />
           <SkeletonRow width={250} height={196} />
@@ -89,23 +80,7 @@ export default function Home() {
             ))}
           </ScrollView>
         </>
-      )}
-
-      {voyages && <VoyagesPromo upcoming={nextTrips} />}
-
-      {jobs.isPending ? (
-        <>
-          <SectionTitle title="Offres d'emploi" />
-          <SkeletonRow width={270} height={124} />
-        </>
-      ) : latestJobs.length > 0 && (
-        <>
-          <SectionTitle title="Offres d'emploi" action="Voir tout" onAction={() => router.push('/jobs')} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hList}>
-            {latestJobs.map((j) => <HomeJobCard key={j.id} job={j} />)}
-          </ScrollView>
-        </>
-      )}
+      )*/}
 
       {upcoming.length > 0 && (
         <>
@@ -148,7 +123,13 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  hList: { paddingHorizontal: 16, gap: 12 },
-  serviceSkeleton: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
+  hList: { 
+    paddingHorizontal: 16, 
+    gap: 12 
+  },
+  serviceSkeleton: { 
+    flexDirection: 'row', 
+    gap: 8, 
+    paddingHorizontal: 16 },
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 20 },
 });

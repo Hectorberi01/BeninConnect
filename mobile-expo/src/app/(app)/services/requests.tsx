@@ -10,6 +10,7 @@ import { useColors } from '@/core/theme';
 import { data } from '@/data';
 import { REQUEST_STATUS_LABELS, type ServiceRequestItem } from '@/data/types';
 import { useRespondServiceRequest, useServiceRequests } from '@/features/queries';
+import { usePullRefresh } from '@/core/refresh';
 
 type Role = 'Client' | 'Provider';
 
@@ -23,6 +24,7 @@ export default function ServiceRequests() {
   const params = useLocalSearchParams<{ role?: Role }>();
   const [role, setRole] = useState<Role>(params.role === 'Provider' ? 'Provider' : 'Client');
   const query = useServiceRequests(role);
+  const pull = usePullRefresh(() => query.refetch());
   return (
     <Screen>
       <Header title="Mes demandes" />
@@ -36,7 +38,7 @@ export default function ServiceRequests() {
               ? <EmptyState icon="clipboard-text-outline" title="Aucune demande envoyée" message="Trouvez un prestataire et demandez un devis."
                 action="Trouver un prestataire" onAction={() => router.replace('/services')} />
               : <EmptyState icon="inbox-outline" title="Aucune demande reçue" message="Les demandes de vos clients arriveront ici." />}
-            refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { query.refetch(); }} tintColor={c.primary} />}
+            refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.primary} />}
             contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }} />
         )}
       </QueryView>

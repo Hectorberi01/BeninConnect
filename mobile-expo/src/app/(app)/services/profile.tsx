@@ -1,14 +1,15 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { CityPicker, initialsOf, Notice } from '@/components/services';
+import { CityField, CountryField, countryError } from '@/components/places';
+import { initialsOf, Notice } from '@/components/services';
 import { Avatar, Button, Checkbox, Header, Loading, Muted, Screen, Segmented, Select, SwitchRow, T, TextField } from '@/components/ui';
 import { askPhotoSource, pickPhoto } from '@/core/photos';
 import { useMe } from '@/core/session';
 import { useColors } from '@/core/theme';
 import { toast } from '@/core/toast';
 import { data } from '@/data';
-import { CITIES, findCity, type City } from '@/data/cities';
+import { countryCode, countryName, matchCity, placeCoords } from '@/data/cities';
 import { displayName, errorMessage, LEGAL_STATUS_LABELS, type ContactPreference, type LegalStatus, type MyProvider } from '@/data/types';
 import { useMyProvider, useSaveMyProvider, useServicesInfo } from '@/features/queries';
 
@@ -38,7 +39,10 @@ function Form({ existing }: { existing: MyProvider | null }) {
   const [bio, setBio] = useState(existing?.bio ?? '');
   const [photo, setPhoto] = useState<string | null>(existing?.photoPath ?? null);
   const [uploading, setUploading] = useState(false);
-  const [city, setCity] = useState<City | null>(() => (existing ? findCity(existing.city, existing.country) : findCity(me.city)) ?? null);
+  const [city, setCity] = useState(existing?.city ?? me.city ?? '');
+  const [country, setCountry] = useState(existing ? countryName(existing.country) : (me.country ?? ''));
+  const code = countryCode(country);
+  const coords = city.trim().length >= 2 && code ? placeCoords(city, code) : null;
   const [postalCode, setPostalCode] = useState(existing?.postalCode ?? '');
   const [radius, setRadius] = useState(existing?.serviceRadiusKm ?? 15);
   const [atHome, setAtHome] = useState(existing?.servesAtHome ?? true);
@@ -67,16 +71,16 @@ function Form({ existing }: { existing: MyProvider | null }) {
     }
   };
 
-  const valid = [name.trim().length >= 2, !!city && (atHome || premises), contact === 'InApp' || phone.replace(/\D/g, '').length >= 8];
+  const valid = [name.trim().length >= 2, !!coords && (atHome || premises), contact === 'InApp' || phone.replace(/\D/g, '').length >= 8];
   const last = step === STEPS.length - 1;
 
   const submit = () => {
-    if (!city) return;
+    if (!coords || !code) return;
     save.mutate({
       input: {
         displayName: name.trim(), bio: bio.trim() || null, photoPath: photo, phone: phone.replace(/\s+/g, ' ').trim() || null, phoneIsPublic: phonePublic,
-        contactPreference: contact, legalStatus: legal, siret: siret.trim() || null, ifu: ifu.trim() || null, country: city.country, city: city.name,
-        postalCode: postalCode.trim() || null, latitude: city.lat, longitude: city.lng, serviceRadiusKm: radius, servesAtHome: atHome, hasPremises: premises,
+        contactPreference: contact, legalStatus: legal, siret: siret.trim() || null, ifu: ifu.trim() || null, country: code, city: city.trim(),
+        postalCode: postalCode.trim() || null, latitude: coords.lat, longitude: coords.lng, serviceRadiusKm: radius, servesAtHome: atHome, hasPremises: premises,
       },
       declared,
     }, {
@@ -105,9 +109,15 @@ function Form({ existing }: { existing: MyProvider | null }) {
           </>}
 
           {step === 1 && <>
-            <CityPicker value={city} onChange={setCity} label="Votre ville" />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <CityField style={{ flex: 1 }} label="Votre ville" value={city} onChangeText={setCity} country={code}
+                onPick={(c) => setCountry(countryName(c.country))} />
+              <CountryField style={{ flex: 1 }} label="Pays" value={country} onChangeText={setCountry} error={countryError(country)} />
+            </View>
             <Muted style={{ marginTop: -6, marginBottom: 12 }}>
-              Seule la ville est affichée aux membres. {CITIES.length} villes disponibles : choisissez la plus proche.
+              {city.trim() && code && !matchCity(city, code)
+                ? 'Ville hors liste : la recherche par distance se base sur la ville principale du pays.'
+                : 'Seule la ville est affichée aux membres.'}
             </Muted>
             <TextField label="Code postal (facultatif)" value={postalCode} onChangeText={setPostalCode} keyboardType="number-pad" maxLength={10} />
             <SwitchRow icon="car-outline" label="Je me déplace chez le client" value={atHome} onChange={setAtHome} />
@@ -127,11 +137,11 @@ function Form({ existing }: { existing: MyProvider | null }) {
 
             <Select label="Statut" value={legal} onChange={setLegal}
               options={(Object.keys(LEGAL_STATUS_LABELS) as LegalStatus[]).map((k) => ({ value: k, label: LEGAL_STATUS_LABELS[k] }))} />
-            {legal !== 'Individual' && city?.country !== 'BJ' && (
+            {legal !== 'Individual' && code !== 'BJ' && (
               <TextField label="SIRET (facultatif)" value={siret} onChangeText={setSiret} keyboardType="number-pad" maxLength={17}
                 hint="Requis pour le badge « Pro vérifié »." />
             )}
-            {legal !== 'Individual' && city?.country === 'BJ' && (
+            {legal !== 'Individual' && code === 'BJ' && (
               <TextField label="IFU (facultatif)" value={ifu} onChangeText={setIfu} maxLength={20} hint="Requis pour le badge « Pro vérifié »." />
             )}
             <Checkbox checked={declared} onChange={setDeclared}

@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { useVideoPlayer, type VideoPlayer, VideoView } from 'expo-video';
+import { type ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { imageSource, mediaUri } from '@/core/images';
 import { Icon } from './ui';
 
@@ -27,12 +28,63 @@ export function PostVideo({ videoPath, posterPath }: { videoPath: string; poster
   );
 }
 
+/** Vidéo en cours de lecture : une seule à la fois dans toute l'application. */
+let current: VideoPlayer | null = null;
+
+// Le lecteur peut être déjà libéré (publication démontée) : pause sans erreur
+const pause = (player: VideoPlayer) => {
+  try {
+    player.pause();
+  } catch {
+    // lecteur libéré
+  }
+};
+
+/**
+ * Lecteur : se met en pause quand il sort de l'écran (moins de 40 % visible), quand on change d'écran
+ * ou quand une autre vidéo démarre.
+ */
 function Player({ uri }: { uri: string }) {
+  const frame = useRef<ComponentRef<typeof View>>(null);
+  const { height: screen } = useWindowDimensions();
   const player = useVideoPlayer({ uri }, (p) => {
     p.loop = false;
     p.play();
   });
-  return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls />;
+
+  useEffect(() => {
+    const take = () => {
+      if (current && current !== player) pause(current);
+      current = player;
+    };
+    take();
+    const sub = player.addListener('playingChange', ({ isPlaying }) => { if (isPlaying) take(); });
+    return () => {
+      sub.remove();
+      if (current === player) current = null;
+    };
+  }, [player]);
+
+  // Position vérifiée pendant la lecture seulement (fonctionne dans toutes les listes)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (!player.playing) return;
+      frame.current?.measureInWindow((_x, y, _w, h) => {
+        if (!h) return;
+        const visible = Math.min(y + h, screen) - Math.max(y, 0);
+        if (visible < h * 0.4) pause(player);
+      });
+    }, 300);
+    return () => clearInterval(timer);
+  }, [player, screen]);
+
+  useFocusEffect(useCallback(() => () => pause(player), [player]));
+
+  return (
+    <View ref={frame} collapsable={false} style={StyleSheet.absoluteFill}>
+      <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

@@ -6,6 +6,7 @@ import { ChipRow, EmptyState, Header, IconButton, Muted, QueryView, Screen, Sear
 import { useColors } from '@/core/theme';
 import type { EventPeriod } from '@/data/types';
 import { useEventCategories, useEventCities, useEvents } from '@/features/queries';
+import { usePullRefresh } from '@/core/refresh';
 
 const PERIODS: { value: EventPeriod; label: string }[] = [
   { value: 'All', label: 'Toutes les dates' },
@@ -33,6 +34,7 @@ export default function Events() {
   const [period, setPeriod] = useState<EventPeriod>('All');
   const q = useDebounced(search.trim());
   const query = useEvents({ search: q || undefined, category: category === '*' ? undefined : category, city: city ?? undefined, period });
+  const pull = usePullRefresh(() => query.refetch());
   const count = query.data?.length ?? 0;
 
   const clear = () => {
@@ -69,7 +71,7 @@ export default function Events() {
           <FlatList data={events} keyExtractor={(e) => e.id} renderItem={({ item }) => <EventCard event={item} />}
             ListEmptyComponent={<EmptyState icon="calendar-search" title="Aucun événement trouvé" message="Modifiez vos filtres pour élargir la recherche."
               action="Effacer les filtres" onAction={clear} />}
-            refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { query.refetch(); }} tintColor={c.primary} />}
+            refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.primary} />}
             contentContainerStyle={{ paddingBottom: 24 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" />
         )}
       </QueryView>

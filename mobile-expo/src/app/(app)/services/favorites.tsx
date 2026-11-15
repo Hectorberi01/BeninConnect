@@ -4,10 +4,12 @@ import { ProviderCardView } from '@/components/services';
 import { EmptyState, Header, QueryView, Screen } from '@/components/ui';
 import { useColors } from '@/core/theme';
 import { useFavoriteProviders } from '@/features/queries';
+import { usePullRefresh } from '@/core/refresh';
 
 export default function FavoriteProviders() {
   const c = useColors();
   const query = useFavoriteProviders();
+  const pull = usePullRefresh(() => query.refetch());
   return (
     <Screen>
       <Header title="Prestataires favoris" />
@@ -16,7 +18,7 @@ export default function FavoriteProviders() {
           <FlatList data={items} keyExtractor={(p) => p.id} renderItem={({ item }) => <ProviderCardView p={item} />}
             ListEmptyComponent={<EmptyState icon="heart-outline" title="Aucun favori" message="Touchez le cœur d’un prestataire pour le retrouver ici."
               action="Trouver un prestataire" onAction={() => router.replace('/services')} />}
-            refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { query.refetch(); }} tintColor={c.primary} />}
+            refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={c.primary} />}
             contentContainerStyle={{ paddingTop: 12, paddingBottom: 24 }} />
         )}
       </QueryView>

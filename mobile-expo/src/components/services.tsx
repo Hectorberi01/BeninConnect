@@ -1,10 +1,9 @@
 import { router } from 'expo-router';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useColors } from '@/core/theme';
-import { CITIES, cityLabel, type City } from '@/data/cities';
 import { servicePrice, type ProviderCard, type ServiceCategory, type VerificationLevel } from '@/data/types';
 import { useToggleProviderFavorite } from '@/features/queries';
-import { Avatar, Card, Icon, type IconName, IconButton, Muted, Select, T, Tag } from './ui';
+import { Avatar, Card, Icon, type IconName, IconButton, Muted, T, Tag } from './ui';
 
 /** 90 → « 1 h 30 », 45 → « 45 min ». */
 export const durationText = (minutes: number) =>
@@ -95,19 +94,8 @@ export function CategoryGrid({ categories, onSelect }: { categories: ServiceCate
   );
 }
 
-const cityOptions = CITIES.map((c) => ({ value: cityLabel(c) as string | null, label: cityLabel(c) }));
 
 /** Ville choisie dans la liste (position connue, sans géolocalisation du téléphone). */
-export function CityPicker({ value, onChange, label = 'Ville', allowAll }: {
-  value: City | null; onChange: (c: City | null) => void; label?: string; allowAll?: string;
-}) {
-  return (
-    <Select label={label} value={value ? cityLabel(value) : null} placeholder="Choisir une ville"
-      options={allowAll ? [{ value: null, label: allowAll }, ...cityOptions] : cityOptions}
-      onChange={(v) => onChange(CITIES.find((c) => cityLabel(c) === v) ?? null)} />
-  );
-}
-
 export function Notice({ icon = 'information-outline', children }: { icon?: IconName; children: React.ReactNode }) {
   const c = useColors();
   return (

@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { ImageGrid } from '@/components/cards';
 import { FormError, FormScroll } from '@/components/Form';
 import { Button, Header, Muted, Screen, Segmented, Select, T, TextField } from '@/components/ui';
+import { CityField, CountryField } from '@/components/places';
 import { imagePaths } from '@/core/images';
 import { useMe } from '@/core/session';
 import * as v from '@/core/validation';
@@ -51,8 +52,8 @@ export default function CreateCommunity() {
         <Select label="Catégorie" value={category} onChange={setCategory} error={errors.category}
           options={categories.map((x) => ({ value: x as string | null, label: x }))} />
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          <TextField style={{ flex: 1 }} label="Pays" value={form.country} onChangeText={set('country')} error={errors.country} />
-          <TextField style={{ flex: 1 }} label="Ville" value={form.city} onChangeText={set('city')} error={errors.city} />
+          <CountryField style={{ flex: 1 }} label="Pays" value={form.country} onChangeText={set('country')} error={errors.country} />
+          <CityField style={{ flex: 1 }} label="Ville" value={form.city} onChangeText={set('city')} error={errors.city} />
         </View>
         <T v="label" style={{ marginBottom: 6 }}>Confidentialité</T>
         <View style={{ marginHorizontal: -16 }}>

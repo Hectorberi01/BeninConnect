@@ -29,6 +29,18 @@ export function useKeyboardOpen() {
   return open;
 }
 
+/** Hauteur du clavier (0 s'il est fermé). */
+export function useKeyboardHeight() {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    const ios = Platform.OS === 'ios';
+    const show = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', (e) => setHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', () => setHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  return height;
+}
+
 type Row = { comment: Comment; reply: boolean } | { more: string; count: number; open: boolean };
 
 /**
@@ -193,7 +205,7 @@ export function CommentsPanel({ post, header, focus, sheet = false }: {
 
   const replyAuthor = replyTo ? authors.get(replyTo.authorId) : undefined;
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} enabled={!sheet} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <FlatList
         ref={list}
         data={rows}

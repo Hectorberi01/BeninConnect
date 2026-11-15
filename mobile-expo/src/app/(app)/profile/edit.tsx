@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ImageGrid } from '@/components/cards';
 import { FormError, FormScroll } from '@/components/Form';
 import { Avatar, Button, Chip, Cover, Header, Icon, Muted, Screen, T, TextField } from '@/components/ui';
+import { CityField, CountryField } from '@/components/places';
 import { imagePaths } from '@/core/images';
 import { askPhotoSource, pickPhoto } from '@/core/photos';
 import { useMe } from '@/core/session';
@@ -134,8 +135,8 @@ export default function EditProfile() {
         </View>
         <TextField label="Profession" value={form.profession} onChangeText={set('profession')} placeholder="Ingénieure logiciel" />
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          <TextField style={{ flex: 1 }} label="Pays" value={form.country} onChangeText={set('country')} error={errors.country} />
-          <TextField style={{ flex: 1 }} label="Ville" value={form.city} onChangeText={set('city')} error={errors.city} />
+          <CountryField style={{ flex: 1 }} label="Pays" value={form.country} onChangeText={set('country')} error={errors.country} />
+          <CityField style={{ flex: 1 }} label="Ville" value={form.city} onChangeText={set('city')} error={errors.city} />
         </View>
         <TextField label="Biographie" value={form.bio} onChangeText={set('bio')} error={errors.bio} multiline
           counter={`${form.bio.length} / ${MAX_BIO}`} placeholder="Parlez de vous, de votre parcours…" />

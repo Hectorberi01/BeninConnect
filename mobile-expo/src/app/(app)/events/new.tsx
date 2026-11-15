@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { ImageGrid } from '@/components/cards';
 import { FormError, FormScroll } from '@/components/Form';
 import { Button, Header, Screen, Select, T, TextField } from '@/components/ui';
+import { CityField, CountryField } from '@/components/places';
 import { imagePaths } from '@/core/images';
 import { useMe } from '@/core/session';
 import { errorMessage } from '@/data/types';
@@ -61,8 +62,8 @@ export default function CreateEvent() {
         <Select label="Catégorie" value={form.category} onChange={(x) => setForm((f) => ({ ...f, category: x }))} error={errors.category}
           options={categories.map((x) => ({ value: x as string | null, label: x }))} />
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          <TextField style={{ flex: 1 }} label="Ville" value={form.city} onChangeText={set('city')} error={errors.city} />
-          <TextField style={{ flex: 1 }} label="Pays" value={country} onChangeText={setCountry} />
+          <CityField style={{ flex: 1 }} label="Ville" value={form.city} onChangeText={set('city')} error={errors.city} />
+          <CountryField style={{ flex: 1 }} label="Pays" value={country} onChangeText={setCountry} />
         </View>
         <TextField label="Adresse" value={form.address} onChangeText={set('address')} error={errors.address} placeholder="12 rue de la République" />
         <View style={{ flexDirection: 'row', gap: 12 }}>
