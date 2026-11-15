@@ -11,13 +11,21 @@ using BeninConnect.Shared.Infrastructure;
 namespace BeninConnect.Modules.Voyages.Api;
 
 public sealed record BookingBody(decimal WeightKg, ParcelCategory Category, string Description, bool Certified);
+
 public sealed record DeliverBody(string Code);
+
 public sealed record VoyageReviewBody(int Rating, string? Comment);
+
 public sealed record VoyageReportBody(VoyageReportTarget TargetType, Guid TargetId, string Reason);
+
 public sealed record RouteAlertBody(string FromCountry, string? FromCity, string ToCountry, string? ToCity, DateOnly? After, DateOnly? Before);
+
 public sealed record ResolveBody(DisputeOutcome Outcome, string Note);
+
 public sealed record VoyageVisibilityBody(string? Reason);
+
 public sealed record VoyagesEnabledBody(bool Enabled);
+
 public sealed record VoyagesStatusDto(bool Enabled);
 
 /// <summary>Module masqué par l'équipe : les routes membres répondent 404.</summary>
@@ -48,9 +56,8 @@ public sealed class VoyagesModule : IModule
         services.AddModuleDbContext<VoyagesDbContext>(builder.Configuration, Name, VoyagesDbContext.SchemaName);
         services.AddScoped<IVoyagesDb>(sp => sp.GetRequiredService<VoyagesDbContext>());
         services.AddModuleHandlers("BeninConnect.Modules.Voyages");
-        services.AddSingleton(builder.Configuration.GetSection(VoyagesOptions.Section).Get<VoyagesOptions>() ?? new VoyagesOptions());
         services.AddScoped<TripLifecycle>();
-        services.AddHostedService<VoyagesWorker>();
+        services.AddKeyedScoped<IScheduledTask, TripLifecycleTask>(VoyagesTasks.TripLifecycle);
         services.AddScoped<VoyagesModuleService>();
         services.AddScoped<IVoyagesModule>(sp => sp.GetRequiredService<VoyagesModuleService>());
         services.AddScoped<IModuleStatistics>(sp => sp.GetRequiredService<VoyagesModuleService>());

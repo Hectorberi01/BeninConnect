@@ -35,9 +35,6 @@ public sealed class ServicesOptions
 {
     public const string Section = "Services";
 
-    /// <summary>Rappels d'avis automatiques (faux dans les tests).</summary>
-    public bool WorkerEnabled { get; set; } = true;
-
     public int ReviewReminderHours { get; set; } = 24;
 
     /// <summary>Prestataires examinés au plus par recherche (tri et distance calculés ensuite).</summary>

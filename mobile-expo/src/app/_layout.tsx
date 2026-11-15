@@ -6,8 +6,9 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ToastHost } from '@/components/ToastHost';
+import { UpdateAvailableBanner } from '@/components/UpdateAvailableBanner';
 import { UpdateRequired } from '@/components/UpdateRequired';
-import { useOtaUpdates, useUpdateRequired } from '@/core/appUpdates';
+import { useAppVersionStatus, useOtaUpdates } from '@/core/appUpdates';
 import { usePreferences } from '@/core/preferences';
 import { queryClient } from '@/core/queryClient';
 import { useColors, useIsDark } from '@/core/theme';
@@ -17,7 +18,8 @@ export default function RootLayout() {
   const loaded = usePreferences((s) => s.loaded);
   const colors = useColors();
   const dark = useIsDark();
-  const updateRequired = useUpdateRequired();
+  const version = useAppVersionStatus();
+  const updateRequired = version?.status === 'UPDATE_REQUIRED';
   useOtaUpdates();
 
   useEffect(() => {
@@ -30,10 +32,11 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <StatusBar style={dark ? 'light' : 'dark'} />
-        {updateRequired ? <UpdateRequired /> : <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background }, animation: 'slide_from_right' }}>
+        {updateRequired ? <UpdateRequired storeUrl={version?.storeUrl} latestVersion={version?.latestVersion} /> : <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background }, animation: 'slide_from_right' }}>
           <Stack.Screen name="index" options={{ animation: 'fade' }} />
           <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
         </Stack>}
+        {version?.status === 'UPDATE_AVAILABLE' && <UpdateAvailableBanner status={version} />}
         {!updateRequired && <ToastHost />}
       </QueryClientProvider>
     </SafeAreaProvider>

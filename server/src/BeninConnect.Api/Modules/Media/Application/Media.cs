@@ -26,7 +26,12 @@ public interface IMediaStorage
 
     /// <summary>Octets From..To (To null : jusqu'à la fin) ; null si le fichier est absent ou la plage invalide.</summary>
     Task<StoredRange?> OpenRangeAsync(string name, long from, long? to, CancellationToken ct);
+
+    /// <summary>Tous les fichiers stockés (nettoyage des fichiers orphelins).</summary>
+    IAsyncEnumerable<StoredFile> ListAsync(CancellationToken ct);
 }
+
+public sealed record StoredFile(string Name, long Size, DateTimeOffset LastModified);
 
 public sealed record MediaResponse(string Path);
 

@@ -43,10 +43,11 @@ public sealed class ServicesModule : IModule
         var options = builder.Configuration.GetSection(ServicesOptions.Section).Get<ServicesOptions>() ?? new ServicesOptions();
         services.AddSingleton(options);
         services.AddScoped<ReviewReminders>();
-        services.AddHostedService<ServicesWorker>();
+        services.AddKeyedScoped<IScheduledTask, ReviewRemindersTask>(ServicesTasks.ReviewReminders);
         services.AddScoped<ServicesModuleService>();
         services.AddScoped<IServicesModule>(sp => sp.GetRequiredService<ServicesModuleService>());
         services.AddScoped<IModuleStatistics>(sp => sp.GetRequiredService<ServicesModuleService>());
+        services.AddScoped<IMediaReferences, ServicesMediaReferences>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder app)

@@ -13,7 +13,7 @@ public static class RolePermissions
         [
             Permission.DashboardView, Permission.MembersView, Permission.MembersSuspend, Permission.ContentModerate,
             Permission.ReportsManage, Permission.CommunitiesManage, Permission.EventsManage, Permission.ExportsDownload, Permission.AuditView,
-            Permission.EditorialManage, Permission.JobsManage, Permission.ServicesManage
+            Permission.EditorialManage, Permission.JobsManage, Permission.ServicesManage, Permission.AppVersionsManage
         ],
         [AdminRole.Moderator] =
         [
@@ -21,7 +21,8 @@ public static class RolePermissions
             Permission.EditorialManage, Permission.JobsManage, Permission.ServicesManage
         ],
         [AdminRole.Accountant] = [Permission.DashboardView, Permission.ExportsDownload],
-        [AdminRole.Developer] = [Permission.DashboardView, Permission.AuditView, Permission.SystemView, Permission.SystemReset, Permission.BackupsManage]
+        [AdminRole.Developer] = [Permission.DashboardView, Permission.AuditView, Permission.SystemView, Permission.SystemReset, Permission.BackupsManage,
+            Permission.BackgroundJobsManage, Permission.AppVersionsManage]
     };
 
     public static IReadOnlyList<Permission> For(AdminRole role) => Matrix[role];

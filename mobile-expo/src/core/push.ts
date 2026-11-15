@@ -38,6 +38,9 @@ Notifications.setNotificationHandler({
 
 let currentToken: string | null = null;
 
+/** Jeton push de ce téléphone, une fois enregistré (envoyé avec la version installée). */
+export const currentPushToken = () => currentToken;
+
 beforeSignOut(() => unregisterFromPush());
 
 /** Catégories coupées dans Paramètres › Notifications (le serveur ne les pousse pas). */

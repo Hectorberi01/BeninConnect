@@ -23,6 +23,16 @@ public sealed class DeleteAccountHandler(IIdentityDb db, IPasswordHasher hasher,
             throw new DomainException("Mot de passe incorrect.");
         }
 
+        await AccountRemoval.RemoveAsync(db, bus, user, ct);
+        return true;
+    }
+}
+
+/// <summary>Suppression d'un compte et de ses données dans tous les modules (MemberDeleted).</summary>
+public static class AccountRemoval
+{
+    public static async Task RemoveAsync(IIdentityDb db, IEventBus bus, Domain.User user, CancellationToken ct)
+    {
         var images = new[] { user.AvatarImage, user.CoverImage }.OfType<string>().ToList();
         db.Users.Remove(user);
         db.Blocks.RemoveRange(await db.Blocks.Where(b => b.BlockerId == user.Id || b.BlockedId == user.Id).ToListAsync(ct));
@@ -34,7 +44,5 @@ public sealed class DeleteAccountHandler(IIdentityDb db, IPasswordHasher hasher,
         {
             await bus.PublishAsync(new ImagesReleased(images), ct);
         }
-
-        return true;
     }
 }

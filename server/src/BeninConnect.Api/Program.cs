@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using BeninConnect.BackgroundJobs;
+using BeninConnect.BackgroundJobs.Jobs;
 using BeninConnect.Host;
 using BeninConnect.Host.DemoData;
 using BeninConnect.Modules.Identity.Application;
@@ -41,6 +43,8 @@ foreach (var module in ModuleCatalog.All)
     module.AddServices(builder);
 }
 
+builder.AddBackgroundJobs(); // BackgroundJobs/ : planification de toutes les tâches de fond
+
 builder.Services.AddScoped<DemoDataSeeder>();
 if (builder.Environment.IsReview())
 {
@@ -48,7 +52,7 @@ if (builder.Environment.IsReview())
     var review = builder.Configuration.GetSection(ReviewSettings.Section).Get<ReviewSettings>()!;
     builder.Services.AddSingleton(new DemoSeedAccount(review.AccountEmail!, review.AccountPassword!, SeedAdmins: false));
     builder.Services.AddScoped<IDemoDataReset, ReviewDataReset>();
-    builder.Services.AddHostedService<ReviewResetWorker>();
+    builder.Services.AddKeyedScoped<IScheduledTask, ReviewResetTask>(ReviewResetJob.Key);
 }
 else
 {
@@ -98,13 +102,14 @@ if (app.Environment.IsDevelopment())
 
 app.MapHealthChecks("/health");
 app.MapAppLinks(); // /.well-known : ouverture des liens monbenin.com dans l'application
-app.MapMobileApp(); // version minimale de l'app mobile
 app.MapGet("/", () => Results.Ok(new { name = "BéninConnect API", version = AppVersion.Current, docs = "/openapi/v1.json" })).ExcludeFromDescription();
 
 foreach (var module in ModuleCatalog.All)
 {
     module.MapEndpoints(app);
 }
+
+app.MapBackgroundJobs();
 
 app.Run();
 

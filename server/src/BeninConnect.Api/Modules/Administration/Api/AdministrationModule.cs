@@ -63,8 +63,11 @@ public sealed class AdministrationModule : IModule
 
         services.AddSingleton<IBackupMirror, BackupMirror>();
         services.AddSingleton<BackupScheduleState>();
-        services.AddHostedService<BackupMirrorWorker>();
-        services.AddHostedService<AutomaticBackupWorker>();
+        services.AddSingleton(builder.Configuration.GetSection(AuditSettings.Section).Get<AuditSettings>() ?? new AuditSettings());
+        services.AddKeyedScoped<IScheduledTask, DailyBackupTask>(AdministrationTasks.DailyBackup);
+        services.AddKeyedScoped<IScheduledTask, BackupMirrorTask>(AdministrationTasks.BackupMirror);
+        services.AddKeyedScoped<IScheduledTask, BackupVerifyTask>(AdministrationTasks.BackupVerify);
+        services.AddKeyedScoped<IScheduledTask, AuditRetentionTask>(AdministrationTasks.AuditRetention);
 
         var jwt = builder.Configuration.GetSection(JwtOptions.Section).Get<JwtOptions>() ?? new JwtOptions();
         services.AddAuthentication().AddJwtBearer(AdminPolicies.Scheme, o =>

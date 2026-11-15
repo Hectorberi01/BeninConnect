@@ -1,6 +1,7 @@
 import { DEV_TOOLS, PRODUCTION_API_URL } from '@/core/config';
 import type { DataSource } from '../repositories';
 import type {
+  AppInstallationInfo, AppVersionStatus,
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, DocumentKind, EventFilter, JobFilter, JobFilters, JobOffer, JobOfferSummary, JobPage,
   MembershipStatus, Message, MyProvider, NotificationCategory, OfferingInput, ProviderCard, ProviderDetail, ProviderDocument, ProviderInput, ProviderPage,
@@ -372,4 +373,7 @@ export class ApiDataSource implements DataSource {
   deleteNotification = async (id: string) => { await this.request('DELETE', `api/notifications/${id}`); };
   clearNotifications = async (category?: NotificationCategory) =>
     (await this.request<{ count: number }>('DELETE', `api/notifications${this.q({ category })}`)).count;
+
+  // Versions de l'application
+  reportInstallation = (info: AppInstallationInfo) => this.post<AppVersionStatus>('api/app/installations', info);
 }

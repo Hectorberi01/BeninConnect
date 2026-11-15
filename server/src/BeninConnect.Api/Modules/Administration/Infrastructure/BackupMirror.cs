@@ -1,6 +1,4 @@
 using BeninConnect.Modules.Administration.Application;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace BeninConnect.Modules.Administration.Infrastructure;
@@ -114,40 +112,6 @@ public sealed class BackupMirror(BackupSettings settings, IOffsiteBackupStore re
     }
 }
 
-/// <summary>Synchronisation périodique (première après 5 minutes, puis toutes les IntervalMinutes).</summary>
-public sealed class BackupMirrorWorker(IServiceProvider services, BackupSettings settings, ILogger<BackupMirrorWorker> logger) : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        if (!settings.Offsite.Enabled)
-        {
-            return;
-        }
-
-        try
-        {
-            await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
-            using var timer = new PeriodicTimer(TimeSpan.FromMinutes(Math.Max(5, settings.Offsite.IntervalMinutes)));
-            do
-            {
-                try
-                {
-                    await services.GetRequiredService<IBackupMirror>().SyncAsync(stoppingToken);
-                }
-                catch (Exception e) when (e is not OperationCanceledException)
-                {
-                    logger.LogWarning("Synchronisation des sauvegardes reportée : {Message}", e.Message);
-                }
-            }
-            while (await timer.WaitForNextTickAsync(stoppingToken));
-        }
-        catch (OperationCanceledException)
-        {
-            // arrêt de l'application
-        }
-    }
-}
-
 /// <summary>Copie distante non configurée.</summary>
 public sealed class DisabledOffsiteStore : IOffsiteBackupStore
 {
@@ -158,86 +122,4 @@ public sealed class DisabledOffsiteStore : IOffsiteBackupStore
     public Task DeleteAsync(string key, CancellationToken ct) => Task.CompletedTask;
 
     public Task<Stream?> OpenAsync(string key, CancellationToken ct) => Task.FromResult<Stream?>(null);
-}
-
-/// <summary>
-/// Sauvegarde quotidienne de la base par l'API, à DailyAtUtc ; si l'API démarre après l'heure prévue sans sauvegarde du jour,
-/// elle est faite aussitôt (rattrapage). Puis copie hors du serveur si elle est configurée.
-/// </summary>
-public sealed class AutomaticBackupWorker(
-    IServiceProvider services, BackupSettings settings, BackupScheduleState state, TimeProvider clock, ILogger<AutomaticBackupWorker> logger) : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        if (!settings.Automatic)
-        {
-            return;
-        }
-
-        try
-        {
-            await Task.Delay(TimeSpan.FromMinutes(2), stoppingToken); // migrations et démarrage d'abord
-            using var timer = new PeriodicTimer(TimeSpan.FromMinutes(10));
-            do
-            {
-                await RunIfDueAsync(stoppingToken);
-            }
-            while (await timer.WaitForNextTickAsync(stoppingToken));
-        }
-        catch (OperationCanceledException)
-        {
-            // arrêt de l'application
-        }
-    }
-
-    private async Task RunIfDueAsync(CancellationToken ct)
-    {
-        var now = clock.GetUtcNow();
-        var today = DateOnly.FromDateTime(now.UtcDateTime);
-        if (TimeOnly.FromDateTime(now.UtcDateTime) < settings.DailyAtUtc || !Directory.Exists(settings.Directory))
-        {
-            return;
-        }
-
-        using var scope = services.CreateScope();
-        var store = scope.ServiceProvider.GetRequiredService<IBackupStore>();
-        if (store.HasDailyBackup(today))
-        {
-            return;
-        }
-
-        // Après un échec, nouvel essai au plus tôt une heure plus tard
-        if (state.LastError is not null && state.LastRunAt > now.AddHours(-1))
-        {
-            return;
-        }
-
-        try
-        {
-            var file = await store.CreateScheduledAsync(ct);
-            state.LastRunAt = clock.GetUtcNow();
-            state.LastError = null;
-            logger.LogInformation("Sauvegarde quotidienne de la base : {Name} ({Size} octets)", file.Name, file.Size);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            state.LastRunAt = clock.GetUtcNow();
-            state.LastError = e.Message;
-            logger.LogError(e, "Sauvegarde quotidienne de la base impossible");
-            return;
-        }
-
-        var mirror = services.GetRequiredService<IBackupMirror>();
-        if (mirror.Enabled)
-        {
-            try
-            {
-                await mirror.SyncAsync(ct);
-            }
-            catch (Shared.Domain.DomainException e)
-            {
-                logger.LogWarning("Copie distante après la sauvegarde quotidienne reportée : {Message}", e.Message);
-            }
-        }
-    }
 }

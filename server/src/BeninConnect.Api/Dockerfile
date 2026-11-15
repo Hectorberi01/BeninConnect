@@ -5,8 +5,10 @@ ARG APP_VERSION=dev
 WORKDIR /repo
 COPY global.json Directory.Build.props Directory.Packages.props ./
 COPY server/src/ server/src/
+# chmod : fichiers lisibles par l'utilisateur non root, même copiés depuis un poste en 600
 RUN dotnet publish server/src/BeninConnect.Api/BeninConnect.Api.csproj -c Release -o /app /p:UseAppHost=false \
-    /p:InformationalVersion=${APP_VERSION} /p:IncludeSourceRevisionInInformationalVersion=false
+    /p:InformationalVersion=${APP_VERSION} /p:IncludeSourceRevisionInInformationalVersion=false \
+ && chmod -R a+rX /app
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 ARG APP_VERSION=dev
@@ -23,8 +25,8 @@ RUN apt-get update \
  && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app .
-# Dossier des photos (volume) : appartient à l'utilisateur non root de l'image.
-RUN mkdir -p /app/media/uploads && chown -R $APP_UID /app/media
+# Photos et pièces jointes (volume) : appartiennent à l'utilisateur non root de l'image.
+RUN mkdir -p /app/media/uploads /app/media/private && chown -R $APP_UID /app/media
 USER $APP_UID
 ENV APP_VERSION=${APP_VERSION} \
     ASPNETCORE_URLS=http://+:8080 \

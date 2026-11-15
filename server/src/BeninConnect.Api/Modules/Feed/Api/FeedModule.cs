@@ -35,6 +35,7 @@ public sealed class FeedModule : IModule
         services.AddScoped<FeedModuleService>();
         services.AddScoped<IFeedModule>(sp => sp.GetRequiredService<FeedModuleService>());
         services.AddScoped<IModuleStatistics>(sp => sp.GetRequiredService<FeedModuleService>());
+        services.AddScoped<IMediaReferences, FeedMediaReferences>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder app)

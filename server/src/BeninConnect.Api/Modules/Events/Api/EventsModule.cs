@@ -23,6 +23,7 @@ public sealed class EventsModule : IModule
         services.AddScoped<EventsModuleService>();
         services.AddScoped<IEventsModule>(sp => sp.GetRequiredService<EventsModuleService>());
         services.AddScoped<IModuleStatistics>(sp => sp.GetRequiredService<EventsModuleService>());
+        services.AddScoped<IMediaReferences, EventsMediaReferences>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder app)

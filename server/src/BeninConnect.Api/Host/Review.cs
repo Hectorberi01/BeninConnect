@@ -136,38 +136,13 @@ public sealed class ReviewDataReset(IServiceProvider services, IEnumerable<Modul
 }
 
 /// <summary>Mode Review : remise à zéro quotidienne des données (contenus créés par les testeurs effacés).</summary>
-public sealed class ReviewResetWorker(IServiceScopeFactory scopes, IConfiguration config, TimeProvider clock, ILogger<ReviewResetWorker> logger)
-    : BackgroundService
+public sealed class ReviewResetTask(IDemoDataReset reset, IConfiguration config) : IScheduledTask
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public bool Enabled => TimeOnly.TryParse(config.GetSection(ReviewSettings.Section).Get<ReviewSettings>()?.ResetDailyAtUtc, out _);
+
+    public async Task<string> RunAsync(ScheduledTaskRun run, CancellationToken ct)
     {
-        var settings = config.GetSection(ReviewSettings.Section).Get<ReviewSettings>() ?? new ReviewSettings();
-        if (!TimeOnly.TryParse(settings.ResetDailyAtUtc, out var at))
-        {
-            logger.LogInformation("Revue : remise à zéro quotidienne désactivée.");
-            return;
-        }
-
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            var now = clock.GetUtcNow();
-            var next = new DateTimeOffset(DateOnly.FromDateTime(now.UtcDateTime), at, TimeSpan.Zero);
-            if (next <= now)
-            {
-                next = next.AddDays(1);
-            }
-
-            await Task.Delay(next - now, clock, stoppingToken);
-            try
-            {
-                using var scope = scopes.CreateScope();
-                await scope.ServiceProvider.GetRequiredService<IDemoDataReset>().ResetAsync(stoppingToken);
-                logger.LogInformation("Revue : données de démonstration remises à zéro.");
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogError(ex, "Revue : échec de la remise à zéro.");
-            }
-        }
+        await reset.ResetAsync(ct);
+        return "Données de démonstration remises à zéro.";
     }
 }

@@ -97,6 +97,17 @@ public sealed class LocalMediaStorage(string directory) : IMediaStorage
         return Task.CompletedTask;
     }
 
+    public async IAsyncEnumerable<StoredFile> ListAsync([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+    {
+        foreach (var file in new DirectoryInfo(Directory).EnumerateFiles())
+        {
+            ct.ThrowIfCancellationRequested();
+            yield return new StoredFile(file.Name, file.Length, file.LastWriteTimeUtc);
+        }
+
+        await Task.CompletedTask;
+    }
+
     public Task<(long Files, long Bytes)> UsageAsync(CancellationToken ct)
     {
         var files = new DirectoryInfo(Directory).EnumerateFiles().ToList();

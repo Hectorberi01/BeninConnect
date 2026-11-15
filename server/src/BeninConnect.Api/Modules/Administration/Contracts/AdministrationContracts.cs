@@ -21,7 +21,9 @@ public enum Permission
     EditorialManage,
     JobsManage,
     ServicesManage,
-    ServicesDelete // SuperAdmin uniquement
+    ServicesDelete, // SuperAdmin uniquement
+    BackgroundJobsManage, // tâches planifiées : SuperAdmin et Developer
+    AppVersionsManage // versions de l'application et relances : SuperAdmin, Admin et Developer
 }
 
 public sealed record AdminInfo(Guid Id, string DisplayName, string Role);
@@ -46,4 +48,13 @@ public static class AdminPolicies
     /// <summary>Route de la console : jeton admin + rôle disposant de la permission.</summary>
     public static TBuilder RequirePermission<TBuilder>(this TBuilder builder, Permission permission) where TBuilder : IEndpointConventionBuilder =>
         builder.RequireAuthorization(Policy(permission));
+}
+
+/// <summary>Clés des tâches de fond du module (planifiées par BackgroundJobs).</summary>
+public static class AdministrationTasks
+{
+    public const string DailyBackup = "administration.daily-backup";
+    public const string BackupMirror = "administration.backup-mirror";
+    public const string BackupVerify = "administration.backup-verify";
+    public const string AuditRetention = "administration.audit-retention";
 }

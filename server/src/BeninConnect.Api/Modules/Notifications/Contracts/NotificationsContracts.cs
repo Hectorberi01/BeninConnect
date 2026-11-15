@@ -15,3 +15,9 @@ public interface INotificationsModule
 {
     Task<IReadOnlyList<MemberDevice>> GetDevicesAsync(Guid userId, CancellationToken ct);
 }
+
+/// <summary>Clés des tâches de fond du module (planifiées par BackgroundJobs).</summary>
+public static class NotificationsTasks
+{
+    public const string Purge = "notifications.purge";
+}

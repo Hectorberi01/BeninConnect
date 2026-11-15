@@ -2,6 +2,7 @@ import * as v from '@/core/validation';
 import type { DataSource } from '../repositories';
 import { INTERESTS, REACTIONS } from '../repositories';
 import type {
+  AppInstallationInfo, AppVersionStatus,
   AppNotification, Comment, Community, CommunityEvent, CommunityMember, Conversation, CreateEventRequest, EventFilter, JobFilter, JobFilters, JobOffer, JobPage,
   DocumentKind, OfferingInput, ProviderInput, ServiceReportTarget, ServiceSearch, BookingInput, RouteAlertInput, TripInput, TripSearch, VoyageReportTarget,
   MembershipStatus, Message, NotificationCategory, OutgoingFile, Paged, Post, PostFilter, User, LocalPhoto, LocalVideo, ReportReason, ReportTarget,
@@ -900,6 +901,11 @@ export class MockDataSource implements DataSource {
   async getUnreadNotificationCount() {
     await this.net();
     return this.store.notifications.filter((n) => n.userId === this.userId && !n.isRead).length;
+  }
+
+  // Mode démo : toujours à jour.
+  async reportInstallation(info: AppInstallationInfo): Promise<AppVersionStatus> {
+    return { currentVersion: info.version, latestVersion: info.version, minimumSupportedVersion: null, status: 'UP_TO_DATE', forceUpdate: false, storeUrl: '' };
   }
 
   // Mode démo : pas de serveur, donc pas de notification push.

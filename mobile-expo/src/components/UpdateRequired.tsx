@@ -6,7 +6,7 @@ import { useColors } from '@/core/theme';
 import { Button, Icon, Muted, T } from './ui';
 
 /** Écran bloquant quand la version installée n'est plus acceptée par l'API. */
-export function UpdateRequired() {
+export function UpdateRequired({ storeUrl, latestVersion }: { storeUrl?: string; latestVersion?: string | null }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   return (
@@ -17,9 +17,9 @@ export function UpdateRequired() {
       </View>
       <T v="h2" style={{ textAlign: 'center' }}>Mettez à jour BéninConnect</T>
       <Muted style={{ textAlign: 'center' }}>
-        Cette version n'est plus prise en charge. Installez la dernière version pour continuer à utiliser l'application.
+        {`Cette version n'est plus prise en charge. Installez ${latestVersion ? `la version ${latestVersion}` : 'la dernière version'} pour continuer à utiliser l'application.`}
       </Muted>
-      <Button title="Mettre à jour" icon="download" onPress={() => void Linking.openURL(STORE_URL)} style={{ alignSelf: 'stretch' }} />
+      <Button title="Mettre à jour" icon="download" onPress={() => void Linking.openURL(storeUrl || STORE_URL)} style={{ alignSelf: 'stretch' }} />
       <Muted style={{ fontSize: 12 }}>{`Version installée : ${APP_VERSION}`}</Muted>
     </View>
   );

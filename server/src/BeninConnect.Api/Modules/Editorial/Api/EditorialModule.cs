@@ -49,10 +49,13 @@ public sealed class EditorialModule : IModule
         services.AddScoped<IFeedReader, XmlFeedReader>();
         services.AddScoped<ILlmClient, ClaudeLlmClient>();
         services.AddScoped<EditorialPipeline>();
-        services.AddHostedService<EditorialWorker>();
+        services.AddKeyedScoped<IScheduledTask, EditorialPublishTask>(EditorialTasks.Publish);
+        services.AddKeyedScoped<IScheduledTask, EditorialCollectTask>(EditorialTasks.Collect);
+        services.AddKeyedScoped<IScheduledTask, EditorialDraftTask>(EditorialTasks.Draft);
         services.AddScoped<EditorialModuleService>();
         services.AddScoped<IEditorialModule>(sp => sp.GetRequiredService<EditorialModuleService>());
         services.AddScoped<IModuleStatistics>(sp => sp.GetRequiredService<EditorialModuleService>());
+        services.AddScoped<IMediaReferences, EditorialMediaReferences>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder app)

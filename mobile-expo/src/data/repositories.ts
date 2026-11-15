@@ -1,4 +1,4 @@
-import type {
+import type { AppInstallationInfo, AppVersionStatus,
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, DocumentKind, EventFilter, JobFilter, JobFilters, JobOffer, JobOfferSummary, JobPage,
   MembershipStatus, Message, MyProvider, OfferingInput, ProviderCard, ProviderDetail, ProviderDocument, ProviderInput, ProviderPage, ReviewPage,
@@ -193,6 +193,10 @@ export interface DataSource {
   deleteNotification(id: string): Promise<void>;
   /** Supprime toutes mes notifications (ou celles d'une catégorie) ; renvoie le nombre supprimé. */
   clearNotifications(category?: NotificationCategory): Promise<number>;
+
+  // Versions de l'application
+  /** Version installée sur ce téléphone (membre lu dans le jeton) ; renvoie le statut de mise à jour. */
+  reportInstallation(info: AppInstallationInfo): Promise<AppVersionStatus>;
 }
 
 export const INTERESTS = [

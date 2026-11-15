@@ -1,4 +1,5 @@
 using BeninConnect.Modules.Administration.Api;
+using BeninConnect.Modules.AppVersionManagement.Api;
 using BeninConnect.Modules.Communities.Api;
 using BeninConnect.Modules.Editorial.Api;
 using BeninConnect.Modules.Events.Api;
@@ -32,6 +33,7 @@ public static class ModuleCatalog
         new EditorialModule(),
         new JobsModule(),
         new ServicesModule(),
-        new VoyagesModule()
+        new VoyagesModule(),
+        new AppVersionManagementModule()
     ];
 }

@@ -43,3 +43,9 @@ public sealed record ImagesReleased(IReadOnlyList<string> Paths) : IIntegrationE
 
 /// <summary>Pièces jointes privées qui ne sont plus utilisées (message ou conversation supprimés).</summary>
 public sealed record AttachmentsReleased(IReadOnlyList<string> Names) : IIntegrationEvent;
+
+/// <summary>Clés des tâches de fond du module (planifiées par BackgroundJobs).</summary>
+public static class MediaTasks
+{
+    public const string Orphans = "media.orphans";
+}

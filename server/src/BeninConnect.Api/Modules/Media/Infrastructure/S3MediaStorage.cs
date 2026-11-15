@@ -148,6 +148,18 @@ public sealed class S3MediaStorage : IMediaStorage, IDisposable
         return (count, bytes);
     }
 
+    public async IAsyncEnumerable<StoredFile> ListAsync([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+    {
+        var request = new ListObjectsV2Request { BucketName = _s3.Bucket, Prefix = _prefix };
+        await foreach (var obj in _client.Paginators.ListObjectsV2(request).S3Objects.WithCancellation(ct))
+        {
+            if (obj.Key.Length > _prefix.Length && !obj.Key[_prefix.Length..].Contains('/'))
+            {
+                yield return new StoredFile(obj.Key[_prefix.Length..], Convert.ToInt64((object?)obj.Size), obj.LastModified ?? DateTime.UtcNow);
+            }
+        }
+    }
+
     public void Dispose() => _client.Dispose();
 
     public static IMediaStorage Create(S3Settings settings) => new S3MediaStorage(settings);

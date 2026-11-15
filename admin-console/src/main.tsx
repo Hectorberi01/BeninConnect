@@ -33,6 +33,8 @@ const LoginPage = lazy(() => import('@/pages/Login').then((m) => ({ default: m.L
 const MembersPage = lazy(() => import('@/pages/Members').then((m) => ({ default: m.MembersPage })))
 const PostsPage = lazy(() => import('@/pages/Posts').then((m) => ({ default: m.PostsPage })))
 const ReportsPage = lazy(() => import('@/pages/Reports').then((m) => ({ default: m.ReportsPage })))
+const BackgroundJobsPage = lazy(() => import('@/pages/BackgroundJobs').then((m) => ({ default: m.BackgroundJobsPage })))
+const AppVersionsPage = lazy(() => import('@/pages/AppVersions').then((m) => ({ default: m.AppVersionsPage })))
 const SystemPage = lazy(() => import('@/pages/System').then((m) => ({ default: m.SystemPage })))
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false, staleTime: 15_000 } } })
@@ -69,6 +71,8 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="audit" element={<Guard permission="AuditView"><AuditPage /></Guard>} />
                 <Route path="system" element={<Guard permission="SystemView"><SystemPage /></Guard>} />
                 <Route path="backups" element={<Guard permission="BackupsManage"><BackupsPage /></Guard>} />
+                <Route path="app-versions" element={<Guard permission="AppVersionsManage"><AppVersionsPage /></Guard>} />
+                <Route path="background-jobs" element={<Guard permission="BackgroundJobsManage"><BackgroundJobsPage /></Guard>} />
                 <Route path="account" element={<AccountPage />} />
                 <Route path="forbidden" element={<ForbiddenPage />} />
                 <Route path="*" element={<NotFoundPage />} />

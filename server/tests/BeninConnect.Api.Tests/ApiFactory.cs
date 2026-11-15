@@ -51,10 +51,8 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Messaging:EncryptionKey", MessagesTestKey);
         builder.UseSetting("Push:Provider", "log"); // jamais de vrai push depuis les tests
         builder.UseSetting("Backups:Directory", BackupDirectory);
-        builder.UseSetting("Jobs:WorkerEnabled", "false"); // imports lancés par les tests seulement
+        builder.UseSetting("BackgroundJobs:Enabled", "false"); // tâches lancées par les tests seulement
         builder.UseSetting("Jobs:RequestDelayMs", "0");
-        builder.UseSetting("Services:WorkerEnabled", "false");
-        builder.UseSetting("Voyages:WorkerEnabled", "false");
         Configure(builder);
     }
 

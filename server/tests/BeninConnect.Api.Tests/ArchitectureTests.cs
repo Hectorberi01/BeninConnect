@@ -40,7 +40,7 @@ public sealed partial class ArchitectureTests
     [Fact]
     public void Every_module_has_the_five_layers()
     {
-        Assert.Equal(13, Modules.Count());
+        Assert.Equal(14, Modules.Count());
         var missing = Modules.SelectMany(m => Layers.Where(l => !Directory.Exists(Path.Combine(ApiRoot, "Modules", m, l))).Select(l => $"{m}/{l}"));
         Assert.Empty(missing);
     }
@@ -82,5 +82,15 @@ public sealed partial class ArchitectureTests
     {
         var violations = References(Path.Combine(ApiRoot, "Shared")).Where(r => r.Reference.StartsWith("BeninConnect.Modules.", StringComparison.Ordinal));
         Assert.Empty(violations.Select(r => $"{r.File} → {r.Reference}").Distinct());
+    }
+
+    [Fact]
+    public void Background_jobs_only_see_module_contracts()
+    {
+        var violations = References(Path.Combine(ApiRoot, "BackgroundJobs"))
+            .Where(r => (r.Reference.StartsWith("BeninConnect.Modules.", StringComparison.Ordinal) && !r.Reference.EndsWith(".Contracts", StringComparison.Ordinal))
+                        || r.Reference is "BeninConnect.Shared.Infrastructure" || r.Reference.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.Ordinal))
+            .Select(r => $"{r.File} → {r.Reference}");
+        Assert.Empty(violations.Distinct());
     }
 }

@@ -51,6 +51,13 @@ public sealed class JobImporter(
         return all.Where(s => s.IsDue(now)).Select(s => s.Source).Order().ToList();
     }
 
+    /// <summary>Sources activées, intervalle écoulé ou non (lancement manuel).</summary>
+    public async Task<IReadOnlyList<JobSource>> EnabledSourcesAsync(CancellationToken ct)
+    {
+        await EnsureConfigAsync(ct);
+        return (await db.Sources.AsNoTracking().Where(s => s.IsEnabled).Select(s => s.Source).ToListAsync(ct)).Order().ToList();
+    }
+
     public async Task<ImportReport> RunAsync(JobSource source, CancellationToken ct)
     {
         await EnsureConfigAsync(ct);

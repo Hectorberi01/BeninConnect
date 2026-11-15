@@ -25,6 +25,8 @@ public sealed class MediaModule : IModule, IModulePipeline
 
         var media = builder.Configuration.GetSection(MediaSettings.Section).Get<MediaSettings>() ?? new MediaSettings();
         services.AddSingleton(media);
+        services.AddSingleton(builder.Configuration.GetSection(OrphanCleanupSettings.Section).Get<OrphanCleanupSettings>() ?? new OrphanCleanupSettings());
+        services.AddKeyedScoped<IScheduledTask, MediaOrphansTask>(MediaTasks.Orphans);
         if (media.IsS3)
         {
             services.AddSingleton<IMediaStorage>(S3MediaStorage.Create(media.S3));

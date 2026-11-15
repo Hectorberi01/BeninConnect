@@ -881,3 +881,24 @@ export const tripPrice = (t: Pick<TripCard, 'pricePerKg' | 'currency'>) =>
   t.pricePerKg == null ? 'Prix à convenir' : t.pricePerKg === 0 ? 'Gratuit' : `${t.pricePerKg.toLocaleString('fr-FR')} ${t.currency === 'XOF' ? 'FCFA' : '€'}/kg`;
 
 export const kg = (n: number) => `${n.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} kg`;
+
+/** Réponse de l'API à l'envoi de la version installée. */
+export type AppUpdateStatus = 'UP_TO_DATE' | 'UPDATE_AVAILABLE' | 'UPDATE_REQUIRED' | 'UNKNOWN';
+
+export interface AppInstallationInfo {
+  installationId: string;
+  platform: 'ios' | 'android';
+  version: string;
+  buildNumber: string | null;
+  osVersion: string | null;
+  pushToken: string | null;
+}
+
+export interface AppVersionStatus {
+  currentVersion: string;
+  latestVersion: string | null;
+  minimumSupportedVersion: string | null;
+  status: AppUpdateStatus;
+  forceUpdate: boolean;
+  storeUrl: string;
+}

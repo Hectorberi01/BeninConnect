@@ -9,8 +9,21 @@ using Microsoft.EntityFrameworkCore;
 namespace BeninConnect.Modules.Identity.Infrastructure;
 
 /// <summary>Implémentation du contrat public (appel direct en monolithe, client HTTP/gRPC après découpage).</summary>
-public sealed class IdentityModuleService(IdentityDbContext db, TimeProvider clock, IPasswordHasher hasher) : IIdentityModule, IModuleStatistics
+public sealed class IdentityModuleService(IdentityDbContext db, TimeProvider clock, IPasswordHasher hasher, IEmailSender email)
+    : IIdentityModule, IModuleStatistics
 {
+    public async Task<bool> SendEmailAsync(Guid userId, string subject, string textBody, CancellationToken ct)
+    {
+        var to = await db.Users.AsNoTracking().Where(u => u.Id == userId && u.IsEmailVerified && !u.IsSuspended).Select(u => u.Email).FirstOrDefaultAsync(ct);
+        if (to is null)
+        {
+            return false;
+        }
+
+        await email.SendAsync(to, subject, textBody, ct);
+        return true;
+    }
+
     public Task<bool> ExistsAsync(Guid userId, CancellationToken ct) => db.Users.AnyAsync(u => u.Id == userId, ct);
 
     public async Task<IReadOnlyDictionary<Guid, UserDto>> GetUsersAsync(IEnumerable<Guid> ids, CancellationToken ct)

@@ -30,6 +30,9 @@ public sealed class IdentityModule : IModule
         services.AddScoped<IdentityModuleService>();
         services.AddScoped<IIdentityModule>(sp => sp.GetRequiredService<IdentityModuleService>());
         services.AddScoped<IModuleStatistics>(sp => sp.GetRequiredService<IdentityModuleService>());
+        services.AddSingleton(config.GetSection(AccountCleanupSettings.Section).Get<AccountCleanupSettings>() ?? new AccountCleanupSettings());
+        services.AddKeyedScoped<IScheduledTask, AccountsCleanupTask>(IdentityTasks.AccountsCleanup);
+        services.AddScoped<IMediaReferences, IdentityMediaReferences>();
 
         services.AddSingleton(config.GetSection("Auth").Get<AuthSettings>() ?? new AuthSettings());
         var email = config.GetSection(EmailSettings.Section).Get<EmailSettings>() ?? new EmailSettings();

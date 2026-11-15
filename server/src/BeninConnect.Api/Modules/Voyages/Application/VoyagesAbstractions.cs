@@ -23,15 +23,6 @@ public interface IVoyagesDb
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
-/// <summary>Section « Voyages » de la configuration.</summary>
-public sealed class VoyagesOptions
-{
-    public const string Section = "Voyages";
-
-    /// <summary>Départs, rappels de la veille et masquage des voyageurs suspendus (faux dans les tests).</summary>
-    public bool WorkerEnabled { get; set; } = true;
-}
-
 public static class VoyagesData
 {
     /// <summary>Module activé par l'équipe (absent = désactivé).</summary>

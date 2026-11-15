@@ -5,7 +5,7 @@ export type AdminRole = 'SuperAdmin' | 'Admin' | 'Moderator' | 'Accountant' | 'D
 export type Permission =
   | 'DashboardView' | 'MembersView' | 'MembersSuspend' | 'ContentModerate' | 'ReportsManage' | 'CommunitiesManage'
   | 'EventsManage' | 'ExportsDownload' | 'AdminsManage' | 'AuditView' | 'SystemView' | 'SystemReset' | 'BackupsManage'
-  | 'EditorialManage' | 'JobsManage' | 'ServicesManage' | 'ServicesDelete'
+  | 'EditorialManage' | 'JobsManage' | 'ServicesManage' | 'ServicesDelete' | 'BackgroundJobsManage' | 'AppVersionsManage'
 
 export interface AdminMe {
   id: string
@@ -762,4 +762,103 @@ export interface AdminTripDetail {
   bookings: AdminBooking[]
   reports: AdminVoyageReport[]
   reviews: AdminVoyageReview[]
+}
+
+export interface JobRun {
+  startedAt: string
+  finishedAt: string
+  durationMs: number
+  status: 'Succeeded' | 'Failed'
+  summary: string
+  trigger: string
+}
+
+export interface BackgroundJob {
+  key: string
+  name: string
+  module: string
+  description: string
+  schedule: string
+  enabled: boolean
+  scheduled: boolean
+  running: boolean
+  runningSince: string | null
+  nextRunAt: string | null
+  lastRun: JobRun | null
+  history: JobRun[]
+}
+
+export interface BackgroundJobsOverview {
+  schedulerEnabled: boolean
+  jobs: BackgroundJob[]
+}
+
+export type UpdateStatus = 'Unknown' | 'UpToDate' | 'UpdateAvailable' | 'UpdateRequired'
+export type AppPlatform = 'ios' | 'android'
+export type CampaignStatus = 'PendingApproval' | 'Approved' | 'Sent' | 'Rejected' | 'Superseded'
+
+export interface AppRelease {
+  platform: AppPlatform
+  latestVersion: string | null
+  minimumSupportedVersion: string | null
+  storeUrl: string
+  updatedAt: string | null
+  updatedBy: string | null
+}
+
+export interface StatusCounts { upToDate: number; updateAvailable: number; updateRequired: number; unknown: number; total: number }
+
+export interface VersionShare { platform: AppPlatform; version: string; status: UpdateStatus; installations: number; members: number; lastSeenAt: string }
+
+export interface UpdateCampaign {
+  id: string
+  status: CampaignStatus
+  createdAt: string
+  recipientCount: number
+  requiredCount: number
+  sendPush: boolean
+  sendEmail: boolean
+  decidedBy: string | null
+  decidedAt: string | null
+  rejectReason: string | null
+  sentAt: string | null
+  sentCount: number
+  skippedCount: number
+  failedCount: number
+}
+
+export interface CampaignRecipient {
+  userId: string
+  name: string
+  platform: AppPlatform
+  currentVersion: string
+  targetVersion: string
+  required: boolean
+  status: 'Pending' | 'Sent' | 'Skipped' | 'Failed'
+  notifiedAt: string | null
+}
+
+export interface AppVersionsOverview {
+  appCode: string
+  activeDays: number
+  releases: AppRelease[]
+  installations: StatusCounts
+  members: StatusCounts
+  versions: VersionShare[]
+  pending: UpdateCampaign | null
+  sending: UpdateCampaign | null
+}
+
+export interface AppInstallation {
+  id: string
+  installationId: string
+  userId: string | null
+  memberName: string | null
+  platform: AppPlatform
+  version: string
+  buildNumber: string
+  osVersion: string | null
+  status: UpdateStatus
+  firstSeenAt: string
+  lastSeenAt: string
 }

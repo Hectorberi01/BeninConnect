@@ -37,6 +37,9 @@ public interface IIdentityModule
 
     /// <summary>Compte officiel (publications éditoriales) : créé s'il n'existe pas, renvoie son identifiant.</summary>
     Task<Guid> EnsureOfficialAccountAsync(string name, string email, string bio, CancellationToken ct);
+
+    /// <summary>Email en texte brut à un membre vérifié et non suspendu ; false sinon (aucun envoi).</summary>
+    Task<bool> SendEmailAsync(Guid userId, string subject, string textBody, CancellationToken ct);
 }
 
 /// <summary>Email vérifié pour la première fois (message de bienvenue).</summary>
@@ -44,3 +47,9 @@ public sealed record MemberVerified(Guid UserId) : IIntegrationEvent;
 
 /// <summary>Compte supprimé par son titulaire : chaque module efface les données du membre.</summary>
 public sealed record MemberDeleted(Guid UserId) : IIntegrationEvent;
+
+/// <summary>Clés des tâches de fond du module (planifiées par BackgroundJobs).</summary>
+public static class IdentityTasks
+{
+    public const string AccountsCleanup = "identity.accounts-cleanup";
+}

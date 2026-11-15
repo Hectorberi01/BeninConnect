@@ -23,29 +23,11 @@ public sealed class VoyagesModuleService(VoyagesDbContext db) : IVoyagesModule, 
     ];
 }
 
-/// <summary>Cycle de vie des trajets : toutes les heures.</summary>
-public sealed class VoyagesWorker(IServiceScopeFactory scopes, VoyagesOptions options, TimeProvider clock, ILogger<VoyagesWorker> log) : BackgroundService
+/// <summary>Cycle de vie des trajets : rappels avant départ, trajets partis, annonces des membres suspendus.</summary>
+public sealed class TripLifecycleTask(TripLifecycle lifecycle) : IScheduledTask
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        if (!options.WorkerEnabled)
-        {
-            return;
-        }
+    public bool Enabled => true;
 
-        using var timer = new PeriodicTimer(TimeSpan.FromHours(1), clock);
-        do
-        {
-            try
-            {
-                using var scope = scopes.CreateScope();
-                await scope.ServiceProvider.GetRequiredService<TripLifecycle>().RunAsync(stoppingToken);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                log.LogError(ex, "Voyages : cycle des trajets en échec");
-            }
-        }
-        while (await timer.WaitForNextTickAsync(stoppingToken));
-    }
+    public async Task<string> RunAsync(ScheduledTaskRun run, CancellationToken ct) =>
+        $"{await lifecycle.RunAsync(ct)} trajet(s) mis à jour.";
 }

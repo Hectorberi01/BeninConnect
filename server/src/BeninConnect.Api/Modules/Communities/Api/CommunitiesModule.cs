@@ -22,6 +22,7 @@ public sealed class CommunitiesModule : IModule
         services.AddScoped<CommunitiesModuleService>();
         services.AddScoped<ICommunitiesModule>(sp => sp.GetRequiredService<CommunitiesModuleService>());
         services.AddScoped<IModuleStatistics>(sp => sp.GetRequiredService<CommunitiesModuleService>());
+        services.AddScoped<IMediaReferences, CommunitiesMediaReferences>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder app)

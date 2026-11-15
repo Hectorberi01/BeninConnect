@@ -24,33 +24,11 @@ public sealed class ServicesModuleService(ServicesDbContext db) : IServicesModul
     ];
 }
 
-/// <summary>Rappels d'avis : toutes les heures.</summary>
-public sealed class ServicesWorker(IServiceScopeFactory scopes, ServicesOptions options, TimeProvider clock, ILogger<ServicesWorker> log) : BackgroundService
+/// <summary>Rappels d'avis aux demandeurs dont la prestation est terminée.</summary>
+public sealed class ReviewRemindersTask(ReviewReminders reminders) : IScheduledTask
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        if (!options.WorkerEnabled)
-        {
-            return;
-        }
+    public bool Enabled => true;
 
-        using var timer = new PeriodicTimer(TimeSpan.FromHours(1), clock);
-        do
-        {
-            try
-            {
-                using var scope = scopes.CreateScope();
-                var sent = await scope.ServiceProvider.GetRequiredService<ReviewReminders>().SendAsync(stoppingToken);
-                if (sent > 0)
-                {
-                    log.LogInformation("Services : {Count} rappel(s) d'avis envoyé(s)", sent);
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                log.LogError(ex, "Services : rappels d'avis en échec");
-            }
-        }
-        while (await timer.WaitForNextTickAsync(stoppingToken));
-    }
+    public async Task<string> RunAsync(ScheduledTaskRun run, CancellationToken ct) =>
+        $"{await reminders.SendAsync(ct)} rappel(s) d'avis envoyé(s).";
 }

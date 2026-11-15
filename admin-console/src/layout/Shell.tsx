@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import {
   BriefcaseBusiness, CalendarDays, Contact, Handshake, ListChecks, ShieldAlert, Smartphone, Tags, DatabaseBackup, Download, FileText, Flag, KeyRound, LayoutDashboard, LogOut, Menu, Newspaper, ScrollText, Server, ShieldCheck, Users, UsersRound, X,
-  Plane,
+  MonitorSmartphone, Plane, Timer,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ComponentType, useState } from 'react'
@@ -56,8 +56,10 @@ export const NAV: { section: string; items: Item[] }[] = [
     items: [
       { to: '/admins', label: 'Administrateurs', icon: ShieldCheck, permission: 'AdminsManage' },
       { to: '/audit', label: "Journal d'audit", icon: ScrollText, permission: 'AuditView' },
+      { to: '/app-versions', label: "Versions de l'app", icon: MonitorSmartphone, permission: 'AppVersionsManage' },
       { to: '/system', label: 'Système', icon: Server, permission: 'SystemView' },
       { to: '/backups', label: 'Sauvegardes', icon: DatabaseBackup, permission: 'BackupsManage' },
+      { to: '/background-jobs', label: 'Tâches planifiées', icon: Timer, permission: 'BackgroundJobsManage' },
     ],
   },
 ]

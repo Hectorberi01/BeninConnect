@@ -54,7 +54,7 @@ public sealed class JobsModule : IModule
         services.AddScoped<IJobOfferSource, AdzunaSource>();
         services.AddScoped<IJobOfferSource, RemotiveSource>();
         services.AddScoped<JobImporter>();
-        services.AddHostedService<JobsWorker>();
+        services.AddKeyedScoped<IScheduledTask, JobsImportTask>(JobsTasks.Import);
         services.AddScoped<JobsModuleService>();
         services.AddScoped<IJobsModule>(sp => sp.GetRequiredService<JobsModuleService>());
         services.AddScoped<IModuleStatistics>(sp => sp.GetRequiredService<JobsModuleService>());
