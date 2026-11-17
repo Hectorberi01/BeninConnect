@@ -36,7 +36,8 @@ public sealed class IdentityModuleService(IdentityDbContext db, TimeProvider clo
     {
         var list = ids.Distinct().ToList();
         return await db.Users.AsNoTracking().Where(u => list.Contains(u.Id))
-            .Select(u => new { u.Id, Name = u.FirstName + " " + u.LastName }).ToDictionaryAsync(u => u.Id, u => u.Name, ct);
+            .Select(u => new { u.Id, u.FirstName, u.LastName })
+            .ToDictionaryAsync(u => u.Id, u => $"{u.FirstName} {u.LastName}".Trim(), ct); // compte officiel : sans nom de famille
     }
 
     public async Task<string> SuspendAsync(Guid userId, string reason, CancellationToken ct)
@@ -97,6 +98,10 @@ public sealed class IdentityModuleService(IdentityDbContext db, TimeProvider clo
         await db.SaveChangesAsync(ct);
         return user.Id;
     }
+
+    public async Task<IReadOnlyList<Guid>> GetActiveMemberIdsAsync(Guid? after, int take, CancellationToken ct) =>
+        await db.Users.AsNoTracking().Where(u => u.IsEmailVerified && !u.IsSuspended && !u.IsOfficial && (after == null || u.Id.CompareTo(after.Value) > 0))
+            .OrderBy(u => u.Id).Take(take).Select(u => u.Id).ToListAsync(ct);
 
     public async Task<Guid> GetOfficialAccountAsync(CancellationToken ct)
     {

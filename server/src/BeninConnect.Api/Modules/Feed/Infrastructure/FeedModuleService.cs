@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BeninConnect.Modules.Feed.Infrastructure;
 
-public sealed class FeedModuleService(FeedDbContext db, AdminPostReader reader, PostAccess access, ICommunitiesModule communities, TimeProvider clock)
+public sealed class FeedModuleService(FeedDbContext db, AdminPostReader reader, PostAccess access, ICommunitiesModule communities, IEventBus bus, TimeProvider clock)
     : IFeedModule, IModuleStatistics
 {
     public async Task<Guid> PublishAsAsync(Guid authorId, string content, Guid? communityId, IReadOnlyList<string> images, CancellationToken ct)
@@ -28,6 +28,7 @@ public sealed class FeedModuleService(FeedDbContext db, AdminPostReader reader, 
         var post = Post.Create(Guid.NewGuid(), authorId, communityId, content, null, PostVisibility.Public, clock.GetUtcNow(), images: images);
         db.Posts.Add(post);
         await db.SaveChangesAsync(ct);
+        await bus.PublishAsync(new OfficialPostPublished(post.Id, authorId, Text.Excerpt(content, 120)), ct);
         return post.Id;
     }
 

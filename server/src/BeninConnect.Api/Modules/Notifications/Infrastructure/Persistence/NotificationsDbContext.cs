@@ -13,6 +13,7 @@ public sealed class NotificationsDbContext(DbContextOptions<NotificationsDbConte
 
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<PushDevice> PushDevices => Set<PushDevice>();
+    public DbSet<Broadcast> Broadcasts => Set<Broadcast>();
 
     public async Task<IReadOnlyList<LabelCount>> CountTablesAsync(CancellationToken ct) =>
     [
@@ -28,6 +29,16 @@ public sealed class NotificationsDbContext(DbContextOptions<NotificationsDbConte
             e.ToTable("notifications");
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.UserId, x.CreatedAt });
+        });
+
+        b.Entity<Broadcast>(e =>
+        {
+            e.ToTable("broadcasts");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Title).HasMaxLength(200);
+            e.Property(x => x.Body).HasMaxLength(500);
+            e.HasIndex(x => x.CompletedAt);
         });
 
         b.Entity<PushDevice>(e =>

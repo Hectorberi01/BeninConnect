@@ -23,6 +23,9 @@ public sealed class NotificationsModule : IModule
         services.AddModuleHandlers("BeninConnect.Modules.Notifications");
         services.AddSingleton(builder.Configuration.GetSection(NotificationRetention.Section).Get<NotificationRetention>() ?? new NotificationRetention());
         services.AddKeyedScoped<IScheduledTask, NotificationsPurgeTask>(NotificationsTasks.Purge);
+        services.AddSingleton(builder.Configuration.GetSection(BroadcastSettings.Section).Get<BroadcastSettings>() ?? new BroadcastSettings());
+        services.AddScoped<Broadcasts>();
+        services.AddKeyedScoped<IScheduledTask, BroadcastsTask>(NotificationsTasks.Broadcasts);
 
         // Notifications push : file en mémoire + envoi en arrière-plan via Expo (APNs / FCM)
         var push = builder.Configuration.GetSection(PushSettings.Section).Get<PushSettings>() ?? new PushSettings();

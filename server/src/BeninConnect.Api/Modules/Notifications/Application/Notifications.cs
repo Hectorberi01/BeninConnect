@@ -9,6 +9,7 @@ public interface INotificationsDb
 {
     DbSet<Notification> Notifications { get; }
     DbSet<PushDevice> PushDevices { get; }
+    DbSet<Broadcast> Broadcasts { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -41,6 +41,9 @@ public interface IIdentityModule
     /// <summary>Compte officiel existant (le plus ancien), sinon créé avec les valeurs par défaut. Sert aussi au support.</summary>
     Task<Guid> GetOfficialAccountAsync(CancellationToken ct);
 
+    /// <summary>Membres actifs (email vérifié, non suspendus, hors compte officiel), par identifiant croissant après « after ».</summary>
+    Task<IReadOnlyList<Guid>> GetActiveMemberIdsAsync(Guid? after, int take, CancellationToken ct);
+
     /// <summary>Email en texte brut à un membre vérifié et non suspendu ; false sinon (aucun envoi).</summary>
     Task<bool> SendEmailAsync(Guid userId, string subject, string textBody, CancellationToken ct);
 }

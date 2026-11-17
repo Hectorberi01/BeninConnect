@@ -53,6 +53,9 @@ public static class FeedLimits
     public const int PostMaxLength = 2000;
 }
 
+/// <summary>Publication du compte officiel : tous les membres sont prévenus.</summary>
+public sealed record OfficialPostPublished(Guid PostId, Guid AuthorId, string Excerpt) : IIntegrationEvent;
+
 public sealed record PostLiked(Guid PostId, Guid PostAuthorId, Guid ActorId, string Excerpt) : IIntegrationEvent;
 
 public sealed record PostCommented(Guid PostId, Guid PostAuthorId, Guid ActorId, string CommentExcerpt) : IIntegrationEvent;

@@ -24,6 +24,56 @@ namespace BeninConnect.Api.Modules.Notifications.Infrastructure.Persistence.Migr
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("BeninConnect.Modules.Notifications.Domain.Broadcast", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Delivered")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("LastUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("SendPush")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Target")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid?>("TargetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompletedAt");
+
+                    b.ToTable("broadcasts", "notifications");
+                });
+
             modelBuilder.Entity("BeninConnect.Modules.Notifications.Domain.Notification", b =>
                 {
                     b.Property<Guid>("Id")

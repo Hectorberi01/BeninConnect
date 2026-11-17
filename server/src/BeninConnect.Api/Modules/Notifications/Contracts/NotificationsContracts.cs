@@ -20,4 +20,5 @@ public interface INotificationsModule
 public static class NotificationsTasks
 {
     public const string Purge = "notifications.purge";
+    public const string Broadcasts = "notifications.broadcasts";
 }

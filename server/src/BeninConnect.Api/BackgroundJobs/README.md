@@ -26,6 +26,7 @@ Règle vérifiée par `ArchitectureTests` : ce dossier ne voit que les Contracts
 | `editorial.publish` / `collect` / `draft` | Éditorial | `Editorial:*EveryMinutes` | publication, collecte, rédaction (`Editorial:Enabled`) |
 | `services.review-reminders` | Services | toutes les heures | rappels d'avis |
 | `voyages.trip-lifecycle` | Voyages | toutes les heures | rappels de la veille, départs, voyageurs suspendus |
+| `notifications.broadcasts` | Notifications | chaque minute | publications du compte officiel : tous les membres notifiés par vagues (`Notifications:Broadcast:WaveSize`), un push par jour au plus |
 | `notifications.purge` | Notifications | chaque jour 03:20 | lues > 90 j, toutes > 180 j, appareils push inactifs > 180 j |
 | `identity.accounts-cleanup` | Identité | chaque jour 03:30 | codes de réinitialisation expirés, comptes non vérifiés > 30 j supprimés |
 | `media.orphans` | Médias | dimanche 04:30 | fichiers publics non référencés (> 7 j) : rapport, suppression si `Media:OrphanCleanup:Delete=true` |

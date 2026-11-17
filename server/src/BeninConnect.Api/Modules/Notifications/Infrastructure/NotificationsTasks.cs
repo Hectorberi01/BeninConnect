@@ -5,6 +5,24 @@ using Microsoft.EntityFrameworkCore;
 namespace BeninConnect.Modules.Notifications.Infrastructure;
 
 /// <summary>Section « Notifications:Retention » (en jours).</summary>
+/// <summary>Section « Notifications:Broadcast ».</summary>
+public sealed class BroadcastSettings
+{
+    public const string Section = "Notifications:Broadcast";
+
+    /// <summary>Membres notifiés par passage (toutes les minutes).</summary>
+    public int WaveSize { get; set; } = 1000;
+}
+
+/// <summary>Notifications à tous les membres (publications du compte officiel), par vagues.</summary>
+public sealed class BroadcastsTask(Broadcasts broadcasts, BroadcastSettings settings) : IScheduledTask
+{
+    public bool Enabled => true;
+
+    public async Task<string> RunAsync(ScheduledTaskRun run, CancellationToken ct) =>
+        $"{await broadcasts.SendWaveAsync(Math.Max(1, settings.WaveSize), ct)} membre(s) notifié(s).";
+}
+
 public sealed class NotificationRetention
 {
     public const string Section = "Notifications:Retention";
