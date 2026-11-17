@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeft, Ban, CalendarDays, Check, Copy, FileText, Flag, Heart, History, Lock, Mail, MapPin, MessageCircle, MessagesSquare,
+  ArrowLeft, Ban, CalendarDays, Check, Copy, FileText, Flag, Heart, History, Lock, Mail, MapPin, MessageCircle, MessageSquare, MessagesSquare,
   ShieldAlert, Smartphone, UserX, UsersRound,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ReactNode, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@/auth'
 import { revealItem, Stagger } from '@/components/motion'
 import { useToast } from '@/components/toast'
@@ -23,6 +23,7 @@ type Tab = 'posts' | 'communities' | 'events' | 'reports' | 'history'
 export function MemberDetailPage() {
   const { id = '' } = useParams()
   const { can } = useAuth()
+  const navigate = useNavigate()
   const toast = useToast()
   const qc = useQueryClient()
   const [confirm, setConfirm] = useState<'suspend' | 'reactivate' | null>(null)
@@ -69,9 +70,14 @@ export function MemberDetailPage() {
         <Link to="/members" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-fg"><ArrowLeft className="size-4" />Membres</Link>
       </motion.div>
 
-      <Profile d={d} actions={can('MembersSuspend') && (m.isSuspended
-        ? <Button variant="primary" icon={<Check className="size-4" />} onClick={() => setConfirm('reactivate')}>Réactiver</Button>
-        : <Button variant="danger" icon={<Ban className="size-4" />} onClick={() => setConfirm('suspend')}>Suspendre</Button>)} />
+      <Profile d={d} actions={<>
+        {can('SupportManage') && (
+          <Button icon={<MessageSquare className="size-4" />} onClick={() => navigate(`/support?to=${m.id}`)}>Envoyer un message</Button>
+        )}
+        {can('MembersSuspend') && (m.isSuspended
+          ? <Button variant="primary" icon={<Check className="size-4" />} onClick={() => setConfirm('reactivate')}>Réactiver</Button>
+          : <Button variant="danger" icon={<Ban className="size-4" />} onClick={() => setConfirm('suspend')}>Suspendre</Button>)}
+      </>} />
 
       {m.isSuspended && (
         <motion.div variants={revealItem} className="mb-6 flex items-start gap-3 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">

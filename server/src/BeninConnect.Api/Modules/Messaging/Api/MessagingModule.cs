@@ -108,6 +108,7 @@ public sealed class MessagingModule : IModule
         support.MapGet("/unread-count", (ISender s, CancellationToken ct) => s.Send(new GetSupportUnreadCountQuery(), ct));
         support.MapGet("/{id:guid}", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetSupportThreadQuery(id), ct));
         support.MapPost("/{id:guid}/messages", (Guid id, ContentRequest r, ISender s, CancellationToken ct) => s.Send(new ReplySupportCommand(id, r.Content), ct));
+        support.MapPost("/start", (StartSupportRequest r, ISender s, CancellationToken ct) => s.Send(new StartSupportCommand(r.UserId, r.Content), ct));
         support.MapPost("/{id:guid}/read", (Guid id, ISender s, CancellationToken ct) => s.Send(new MarkSupportReadCommand(id), ct));
 
         if (app.ServiceProvider.GetRequiredService<IHostEnvironment>().IsDevelopment())
@@ -118,3 +119,5 @@ public sealed class MessagingModule : IModule
         }
     }
 }
+
+public sealed record StartSupportRequest(Guid UserId, string Content);

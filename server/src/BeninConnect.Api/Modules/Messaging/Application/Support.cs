@@ -31,6 +31,12 @@ public sealed record ReplySupportCommand(Guid ConversationId, string Content) : 
 
 public sealed record MarkSupportReadCommand(Guid ConversationId) : ICommand<CountDto>;
 
+/// <summary>Console : le compte officiel écrit le premier à un membre (discussion créée au besoin).</summary>
+public sealed record StartSupportCommand(Guid UserId, string Content) : ICommand<SupportThreadDto>, IValidatable
+{
+    public IEnumerable<(string, string)> Validate() => Rules.Length(nameof(Content), Content, "Le message", 1, Message.MaxLength);
+}
+
 public sealed class SupportHandlers(
     IMessagingDb db, IIdentityModule identity, IEventBus bus, IChatNotifier live, IAdminSession admin, ICurrentUser me, TimeProvider clock) :
     IRequestHandler<OpenSupportConversationCommand, ConversationDto>,
@@ -38,7 +44,8 @@ public sealed class SupportHandlers(
     IRequestHandler<GetSupportThreadQuery, SupportThreadDto>,
     IRequestHandler<GetSupportUnreadCountQuery, CountDto>,
     IRequestHandler<ReplySupportCommand, MessageDto>,
-    IRequestHandler<MarkSupportReadCommand, CountDto>
+    IRequestHandler<MarkSupportReadCommand, CountDto>,
+    IRequestHandler<StartSupportCommand, SupportThreadDto>
 {
     public async Task<ConversationDto> Handle(OpenSupportConversationCommand request, CancellationToken ct)
     {
@@ -112,17 +119,43 @@ public sealed class SupportHandlers(
     public async Task<MessageDto> Handle(ReplySupportCommand request, CancellationToken ct)
     {
         var (conversation, official) = await LoadAsync(request.ConversationId, ct);
+        return await PostAsOfficialAsync(conversation, official, request.Content, "Réponse au support", ct);
+    }
+
+    public async Task<SupportThreadDto> Handle(StartSupportCommand request, CancellationToken ct)
+    {
+        var official = await identity.GetOfficialAccountAsync(ct);
+        var member = (await identity.GetUsersAsync([request.UserId], ct)).GetValueOrDefault(request.UserId);
+        if (member is null || member.IsOfficial)
+        {
+            throw new NotFoundException("Membre");
+        }
+
+        var conversation = await db.Conversations.Include(c => c.Participants)
+            .FirstOrDefaultAsync(c => c.Participants.Count == 2 && c.Participants.Any(p => p.UserId == member.Id) && c.Participants.Any(p => p.UserId == official), ct);
+        if (conversation is null)
+        {
+            conversation = Conversation.CreateDirect(Guid.NewGuid(), official, member.Id, clock.GetUtcNow());
+            db.Conversations.Add(conversation);
+        }
+
+        await PostAsOfficialAsync(conversation, official, request.Content, "Message du compte officiel", ct);
+        return await Handle(new GetSupportThreadQuery(conversation.Id), ct);
+    }
+
+    /// <summary>Message du compte officiel : temps réel, notification et push pour le membre, journal d'audit.</summary>
+    private async Task<MessageDto> PostAsOfficialAsync(Conversation conversation, Guid official, string content, string auditAction, CancellationToken ct)
+    {
         var memberId = Member(conversation, official);
-        var message = conversation.Post(Guid.NewGuid(), official, request.Content, clock.GetUtcNow());
+        var message = conversation.Post(Guid.NewGuid(), official, content, clock.GetUtcNow());
         db.Messages.Add(message);
         await MarkReadAsync(conversation.Id, official, ct);
         await db.SaveChangesAsync(ct);
 
-        // Temps réel, notification et push pour le membre
         var dto = (await db.ToDtosAsync([message], ct))[0];
         await live.MessageCreatedAsync([memberId, official], dto, ct);
         await bus.PublishAsync(new MessageSent(conversation.Id, official, [memberId], Text.Excerpt(message.Preview())), ct);
-        await admin.LogAsync("Réponse au support", "Member", memberId, Text.Excerpt(request.Content), ct);
+        await admin.LogAsync(auditAction, "Member", memberId, Text.Excerpt(content), ct);
         return dto;
     }
 

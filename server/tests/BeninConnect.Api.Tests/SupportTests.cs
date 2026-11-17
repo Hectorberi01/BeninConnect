@@ -92,4 +92,30 @@ public sealed class SupportTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Forbidden, (await accountant.GetAsync("api/admin/support")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await other.GetAsync("api/admin/support")).StatusCode);
     }
+
+    [Fact]
+    public async Task The_team_writes_first_to_a_member_from_the_console()
+    {
+        var (member, memberId) = await NewMemberAsync();
+        var moderator = await AdminAsync("moderation@beninconnect.test");
+
+        var started = await moderator.PostAsJsonAsync("api/admin/support/start", new { userId = memberId, content = "Bienvenue sur BéninConnect !" });
+        var thread = (await started.EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Thread>())!;
+        Assert.Equal(memberId, thread.Member.Id);
+        Assert.Equal(thread.OfficialId, Assert.Single(thread.Messages).SenderId);
+
+        // Même discussion au deuxième message ; le membre la voit avec ses messages non lus
+        var again = (await (await moderator.PostAsJsonAsync("api/admin/support/start", new { userId = memberId, content = "Pensez à compléter votre profil." }))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Thread>())!;
+        Assert.Equal((thread.Id, 2), (again.Id, again.Messages.Count));
+        var conversations = await member.GetFromJsonAsync<JsonElement>("api/conversations");
+        var summary = conversations.EnumerateArray().Single(c => c.GetProperty("conversation").GetProperty("id").GetGuid() == thread.Id);
+        Assert.Equal(2, summary.GetProperty("unreadCount").GetInt32());
+
+        Assert.Equal(HttpStatusCode.NotFound, (await moderator.PostAsJsonAsync("api/admin/support/start", new { userId = Guid.NewGuid(), content = "Bonjour" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await moderator.PostAsJsonAsync("api/admin/support/start", new { userId = thread.OfficialId, content = "Bonjour" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await moderator.PostAsJsonAsync("api/admin/support/start", new { userId = memberId, content = "" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await (await AdminAsync("compta@beninconnect.test")).PostAsJsonAsync("api/admin/support/start", new { userId = memberId, content = "Bonjour" })).StatusCode);
+    }
 }
