@@ -2,6 +2,7 @@ using BeninConnect.Modules.Administration.Contracts;
 using BeninConnect.Modules.Communities.Application;
 using BeninConnect.Modules.Communities.Contracts;
 using BeninConnect.Modules.Communities.Infrastructure;
+using BeninConnect.Modules.Identity.Contracts;
 using BeninConnect.Modules.Communities.Infrastructure.Persistence;
 using BeninConnect.Shared.Api;
 using BeninConnect.Shared.Application;
@@ -23,10 +24,12 @@ public sealed class CommunitiesModule : IModule
         services.AddScoped<ICommunitiesModule>(sp => sp.GetRequiredService<CommunitiesModuleService>());
         services.AddScoped<IModuleStatistics>(sp => sp.GetRequiredService<CommunitiesModuleService>());
         services.AddScoped<IMediaReferences, CommunitiesMediaReferences>();
+        services.AddScoped<IContactDirectory, CommunitiesContacts>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder app)
     {
+        CommunitySharePage.Map(app); // page publique d'une communauté partagée
         var communities = app.MapGroup("/api/communities").WithTags("Communautés").RequireAuthorization();
         communities.MapGet("", (string? search, ISender s, CancellationToken ct) => s.Send(new GetCommunitiesQuery(search), ct));
         communities.MapGet("/categories", (ISender s, CancellationToken ct) => s.Send(new GetCommunityCategoriesQuery(), ct));

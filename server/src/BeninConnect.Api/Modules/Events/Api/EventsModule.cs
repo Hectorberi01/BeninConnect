@@ -28,6 +28,7 @@ public sealed class EventsModule : IModule
 
     public void MapEndpoints(IEndpointRouteBuilder app)
     {
+        EventSharePage.Map(app); // page publique d'un événement partagé
         var events = app.MapGroup("/api/events").WithTags("Événements").RequireAuthorization();
         events.MapGet("", (string? search, string? category, string? city, EventPeriod? period, ISender s, CancellationToken ct) =>
             s.Send(new GetEventsQuery(search, category, city, period ?? EventPeriod.All), ct));

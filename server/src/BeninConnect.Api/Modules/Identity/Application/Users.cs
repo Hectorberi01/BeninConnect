@@ -41,7 +41,7 @@ public sealed record UpdateProfileCommand(
     }
 }
 
-public sealed class UserHandlers(IIdentityDb db, ICurrentUser me) :
+public sealed class UserHandlers(IIdentityDb db, ICurrentUser me, UserViews views) :
     IRequestHandler<GetUserQuery, UserDto>,
     IRequestHandler<GetUsersByIdsQuery, IReadOnlyList<UserDto>>,
     IRequestHandler<SearchUsersQuery, IReadOnlyList<UserDto>>,
@@ -49,12 +49,12 @@ public sealed class UserHandlers(IIdentityDb db, ICurrentUser me) :
     IRequestHandler<UpdateProfileCommand, UserDto>
 {
     public async Task<UserDto> Handle(GetUserQuery request, CancellationToken ct) =>
-        (await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.Id, ct) ?? throw new NotFoundException("Membre")).ToDto();
+        await views.ForAsync(me.Id, await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == request.Id, ct) ?? throw new NotFoundException("Membre"), ct);
 
     public async Task<IReadOnlyList<UserDto>> Handle(GetUsersByIdsQuery request, CancellationToken ct)
     {
         var ids = request.Ids.Distinct().Take(500).ToList();
-        return (await db.Users.AsNoTracking().Where(u => ids.Contains(u.Id)).ToListAsync(ct)).Select(u => u.ToDto()).ToList();
+        return await views.ForAsync(me.Id, await db.Users.AsNoTracking().Where(u => ids.Contains(u.Id)).ToListAsync(ct), ct);
     }
 
     public async Task<IReadOnlyList<UserDto>> Handle(SearchUsersQuery request, CancellationToken ct)
@@ -63,14 +63,15 @@ public sealed class UserHandlers(IIdentityDb db, ICurrentUser me) :
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var q = request.Search.Trim().ToLower();
+            // Ville et profession masquées : pas de recherche dessus
             query = query.Where(u =>
                 (u.FirstName + " " + u.LastName).ToLower().Contains(q)
-                || u.City.ToLower().Contains(q)
+                || (u.ShowCity && !u.PrivateProfile && u.City.ToLower().Contains(q))
                 || u.Country.ToLower().Contains(q)
-                || u.Profession.ToLower().Contains(q));
+                || (!u.PrivateProfile && u.Profession.ToLower().Contains(q)));
         }
 
-        return (await query.OrderBy(u => u.FirstName).Take(100).ToListAsync(ct)).Select(u => u.ToDto()).ToList();
+        return await views.ForAsync(me.Id, await query.OrderBy(u => u.FirstName).Take(100).ToListAsync(ct), ct);
     }
 
     public Task<IReadOnlyList<string>> Handle(GetInterestsQuery request, CancellationToken ct) =>

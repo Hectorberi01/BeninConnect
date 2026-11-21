@@ -2,6 +2,7 @@ import * as v from '@/core/validation';
 import type { DataSource } from '../repositories';
 import { INTERESTS, REACTIONS } from '../repositories';
 import type {
+  PrivacySettings,
   AppInstallationInfo, AppVersionStatus, HomeBanner,
   AppNotification, Comment, Community, CommunityEvent, CommunityMember, Conversation, CreateEventRequest, EventFilter, JobFilter, JobFilters, JobOffer, JobPage,
   DocumentKind, OfferingInput, ProviderInput, ServiceReportTarget, ServiceSearch, BookingInput, RouteAlertInput, TripInput, TripSearch, VoyageReportTarget,
@@ -172,6 +173,15 @@ export class MockDataSource implements DataSource {
   async forgotPassword(email: string) {
     await this.net();
     this.validate({ email: v.email(email) });
+  }
+
+  async resetPassword(email: string, code: string, newPassword: string) {
+    await this.net();
+    this.validate({ password: v.password(newPassword) });
+    const key = email.trim().toLowerCase();
+    if (code.trim() !== this.demoVerificationCode || !this.store.credentials.has(key)) throw new AppError('Code incorrect.', 400);
+    this.store.credentials.set(key, newPassword);
+    this.store.pendingVerifications.delete(key);
   }
 
   async restore(token: string) {
@@ -683,8 +693,19 @@ export class MockDataSource implements DataSource {
     return m;
   }
 
-  attachmentUrl(message: Message) {
+  async attachmentLink(message: Message) {
     return this.attachmentUris.get(message.id) ?? null;
+  }
+
+  /** Démo : réglages gardés en mémoire. */
+  private privacy: PrivacySettings = { privateProfile: false, showCity: true, allowMessages: true };
+
+  async getPrivacy() { await this.net(); return { ...this.privacy }; }
+
+  async updatePrivacy(p: PrivacySettings) {
+    await this.net();
+    this.privacy = { ...p };
+    return { ...this.privacy };
   }
 
   async markConversationRead(conversationId: string) {

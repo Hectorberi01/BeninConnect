@@ -29,6 +29,7 @@ public sealed class IdentityModule : IModule
         services.AddModuleHandlers("BeninConnect.Modules.Identity");
         services.AddScoped<IdentityModuleService>();
         services.AddScoped<IIdentityModule>(sp => sp.GetRequiredService<IdentityModuleService>());
+        services.AddScoped<UserViews>();
         services.AddScoped<IModuleStatistics>(sp => sp.GetRequiredService<IdentityModuleService>());
         services.AddSingleton(config.GetSection(AccountCleanupSettings.Section).Get<AccountCleanupSettings>() ?? new AccountCleanupSettings());
         services.AddKeyedScoped<IScheduledTask, AccountsCleanupTask>(IdentityTasks.AccountsCleanup);
@@ -69,13 +70,10 @@ public sealed class IdentityModule : IModule
             // Membre suspendu par la modération : ses jetons en cours sont refusés immédiatement.
             o.Events = new JwtBearerEvents
             {
-                // WebSocket (SignalR) et pièces jointes ouvertes par le téléphone (image, audio, PDF) : jeton dans l'URL.
+                // WebSocket (SignalR) seulement : jeton dans l'URL (les pièces jointes passent par un lien signé)
                 OnMessageReceived = ctx =>
                 {
-                    var path = ctx.HttpContext.Request.Path;
-                    var allowed = path.StartsWithSegments("/hubs")
-                                  || (path.StartsWithSegments("/api/messages") && path.Value!.EndsWith("/attachment", StringComparison.Ordinal));
-                    if (allowed && ctx.Request.Query["access_token"] is { Count: > 0 } token)
+                    if (ctx.HttpContext.Request.Path.StartsWithSegments("/hubs") && ctx.Request.Query["access_token"] is { Count: > 0 } token)
                     {
                         ctx.Token = token.ToString();
                     }
@@ -125,6 +123,8 @@ public sealed class IdentityModule : IModule
         users.MapPost("/batch", (IdsRequest r, ISender s, CancellationToken ct) => s.Send(new GetUsersByIdsQuery(r.Ids), ct));
         users.MapGet("/{id:guid}", (Guid id, ISender s, CancellationToken ct) => s.Send(new GetUserQuery(id), ct));
         users.MapPut("/me", (UpdateProfileCommand c, ISender s, CancellationToken ct) => s.Send(c, ct));
+        users.MapGet("/me/privacy", (ISender s, CancellationToken ct) => s.Send(new GetPrivacyQuery(), ct));
+        users.MapPut("/me/privacy", (UpdatePrivacyCommand c, ISender s, CancellationToken ct) => s.Send(c, ct));
         users.MapGet("/me/blocked", (ISender s, CancellationToken ct) => s.Send(new GetBlockedUsersQuery(), ct));
         users.MapPost("/{id:guid}/block", async (Guid id, ISender s, CancellationToken ct) =>
         {

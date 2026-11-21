@@ -2,7 +2,7 @@ using BeninConnect.Shared.Application;
 
 namespace BeninConnect.Modules.Communities.Contracts;
 
-public sealed record CommunityInfo(Guid Id, string Name, Guid OwnerId);
+public sealed record CommunityInfo(Guid Id, string Name, Guid OwnerId, bool IsPrivate = false);
 
 /// <summary>Adhésion d'un membre (console). Role : Member, Moderator, Owner.</summary>
 public sealed record MemberCommunity(Guid Id, string Name, string Role, bool IsPrivate, DateTimeOffset JoinedAt);

@@ -20,7 +20,7 @@ public sealed class AppLinkSettings
 public static class AppLinks
 {
     /// <summary>Chemins ouverts dans l'application (le reste du site reste dans le navigateur).</summary>
-    private static readonly string[] Paths = ["/post/*", "/user/*"];
+    private static readonly string[] Paths = ["/post/*", "/user/*", "/events/*", "/community/*"];
 
     public static void MapAppLinks(this WebApplication app)
     {

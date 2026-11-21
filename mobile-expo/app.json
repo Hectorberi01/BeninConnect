@@ -51,6 +51,16 @@
               "scheme": "https",
               "host": "monbenin.com",
               "pathPrefix": "/user/"
+            },
+            {
+              "scheme": "https",
+              "host": "monbenin.com",
+              "pathPrefix": "/events/"
+            },
+            {
+              "scheme": "https",
+              "host": "monbenin.com",
+              "pathPrefix": "/community/"
             }
           ],
           "category": [

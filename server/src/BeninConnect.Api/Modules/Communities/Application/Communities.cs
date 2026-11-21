@@ -130,7 +130,7 @@ public sealed class CommunityHandlers(ICommunitiesDb db, IIdentityModule identit
         }
 
         var roles = community.Members.ToDictionary(m => m.UserId, m => m.UserId == community.OwnerId ? CommunityRole.Owner : m.Role);
-        var users = await identity.GetUsersAsync(roles.Keys, ct);
+        var users = await identity.GetUsersForViewerAsync(me.Id, roles.Keys, ct);
         return users.Values
             .Select(u => new CommunityMemberDto(u, roles[u.Id]))
             .OrderByDescending(m => m.Role).ThenBy(m => m.User.FirstName)

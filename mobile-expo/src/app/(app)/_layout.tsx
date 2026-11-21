@@ -6,6 +6,7 @@ import { CommentsSheetHost } from '@/features/comments/CommentsSheet';
 import { ImageViewerHost } from '@/components/ImageViewer';
 import { useUnreadNotifications } from '@/features/queries';
 import { useRealtime } from '@/features/realtime';
+import { useSessionExpiry } from '@/features/sessionExpiry';
 
 /** Zone connectée : sans session, retour à la connexion. */
 export default function AppLayout() {
@@ -20,6 +21,7 @@ function SignedIn({ background }: { background: string }) {
   usePushNotifications();
   useAppBadge(useUnreadNotifications().data);
   useRealtime();
+  useSessionExpiry();
   return (
     <>
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: background } }}>

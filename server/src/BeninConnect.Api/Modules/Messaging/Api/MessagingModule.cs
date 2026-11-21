@@ -1,6 +1,7 @@
 using BeninConnect.Modules.Administration.Contracts;
 using BeninConnect.Modules.Messaging.Application;
 using BeninConnect.Modules.Messaging.Contracts;
+using BeninConnect.Modules.Identity.Contracts;
 using BeninConnect.Modules.Messaging.Infrastructure;
 using System.Text.Json.Serialization;
 using BeninConnect.Modules.Messaging.Infrastructure.Persistence;
@@ -34,6 +35,8 @@ public sealed class MessagingModule : IModule
         services.AddScoped<IMessagingDb>(sp => sp.GetRequiredService<MessagingDbContext>());
         services.AddModuleHandlers("BeninConnect.Modules.Messaging");
         services.AddScoped<DirectMessages>();
+        services.AddScoped<IContactDirectory, MessagingContacts>();
+        services.AddSingleton<IAttachmentLinks, AttachmentLinks>();
         services.AddScoped<MessagingModuleService>();
         services.AddScoped<IMessagingModule>(sp => sp.GetRequiredService<MessagingModuleService>());
         services.AddScoped<IModuleStatistics>(sp => sp.GetRequiredService<MessagingModuleService>());
@@ -82,16 +85,27 @@ public sealed class MessagingModule : IModule
         conversations.MapPost("/{id:guid}/read", async (Guid id, ISender s, CancellationToken ct) =>
             Results.Ok(new CountDto(await s.Send(new MarkConversationReadCommand(id), ct))));
 
-        // Pièce jointe : participants uniquement. Jeton accepté dans l'URL (images, lecteur audio, PDF ouverts par le téléphone).
-        app.MapGet("/api/messages/{messageId:guid}/attachment", async (Guid messageId, ISender s, HttpContext http, CancellationToken ct) =>
+        // Pièce jointe : participants uniquement, avec le jeton en en-tête ou un lien signé de 10 min (jamais le jeton dans l'URL)
+        app.MapGet("/api/messages/{messageId:guid}/attachment-link", (Guid messageId, ISender s, CancellationToken ct) =>
+                s.Send(new GetAttachmentLinkQuery(messageId), ct))
+            .WithTags("Messagerie")
+            .RequireAuthorization();
+        app.MapGet("/api/messages/{messageId:guid}/attachment", async (Guid messageId, Guid? u, long? exp, string? sig, IAttachmentLinks links,
+                ICurrentUser me, ISender s, HttpContext http, CancellationToken ct) =>
             {
-                var file = await s.Send(new GetAttachmentQuery(messageId), ct);
-                http.Response.Headers.CacheControl = "private, max-age=86400";
+                Guid? user = sig is null ? (me.IsAuthenticated ? me.Id : null) : links.Verify(messageId, u, exp, sig);
+                if (user is null)
+                {
+                    return Results.Unauthorized();
+                }
+
+                var file = await s.Send(new GetAttachmentQuery(messageId, user.Value), ct);
+                http.Response.Headers.CacheControl = "private, max-age=600";
                 http.Response.Headers.ContentDisposition = new System.Net.Mime.ContentDisposition { Inline = true, FileName = file.FileName }.ToString();
                 return Results.Stream(file.Content, file.ContentType, enableRangeProcessing: file.Content.CanSeek);
             })
             .WithTags("Messagerie")
-            .RequireAuthorization();
+            .AllowAnonymous();
 
         app.MapHub<ChatHub>("/hubs/chat");
 

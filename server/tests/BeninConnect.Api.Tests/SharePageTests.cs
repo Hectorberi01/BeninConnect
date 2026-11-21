@@ -50,6 +50,47 @@ public sealed class SharePageTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Events_and_communities_have_shareable_pages_except_private_ones()
+    {
+        var member = await MemberAsync();
+        var tag = Guid.NewGuid().ToString("N")[..6];
+        async Task<Guid> CreateCommunityAsync(string visibility) =>
+            (await (await member.PostAsJsonAsync("api/communities", new
+            {
+                name = $"Béninois {visibility} {tag}", description = "Entraide <et> rencontres entre Béninois de Lyon.", category = "Entraide",
+                country = "France", city = "Lyon", visibility,
+            })).EnsureSuccessStatusCode().Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var open = await CreateCommunityAsync("Public");
+        var closed = await CreateCommunityAsync("Private");
+
+        async Task<Guid> CreateEventAsync(Guid? communityId) =>
+            (await (await member.PostAsJsonAsync("api/events", new
+            {
+                title = $"Soirée béninoise {tag}", description = "Musique et cuisine du pays.", category = "Culture", city = "Lyon", country = "France",
+                address = "12 rue de la Paix", startsAt = DateTimeOffset.UtcNow.AddDays(10), endsAt = DateTimeOffset.UtcNow.AddDays(10).AddHours(3),
+                capacity = (int?)null, communityId, imagePath = (string?)null,
+            })).EnsureSuccessStatusCode().Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var publicEvent = await CreateEventAsync(open);
+        var privateEvent = await CreateEventAsync(closed);
+
+        var anonymous = factory.CreateClient();
+        var eventPage = await anonymous.GetAsync($"events/{publicEvent}");
+        Assert.Equal(HttpStatusCode.OK, eventPage.StatusCode);
+        var html = await eventPage.Content.ReadAsStringAsync();
+        Assert.Contains($"<meta property=\"og:title\" content=\"Soir&#xE9;e b&#xE9;ninoise {tag}", html);
+        Assert.Contains($"beninconnect://events/{publicEvent}", html);
+        Assert.DoesNotContain("12 rue de la Paix", html); // adresse réservée aux membres
+        Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync($"events/{privateEvent}")).StatusCode);
+
+        var communityPage = await (await anonymous.GetAsync($"community/{closed}")).EnsureSuccessStatusCode().Content.ReadAsStringAsync();
+        Assert.Contains($"beninconnect://community/{closed}", communityPage);
+        Assert.Contains("Communauté privée", communityPage);
+        Assert.Contains("1 membre", communityPage);
+        Assert.DoesNotContain("<et>", communityPage);
+        Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync($"community/{Guid.NewGuid()}")).StatusCode);
+    }
+
+    [Fact]
     public async Task App_link_files_are_served_only_when_configured()
     {
         var off = factory.CreateClient();

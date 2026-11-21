@@ -138,7 +138,22 @@ public sealed record SendAttachmentCommand(Guid ConversationId, Stream Content, 
 }
 
 /// <summary>Téléchargement réservé aux participants de la conversation.</summary>
-public sealed record GetAttachmentQuery(Guid MessageId) : IQuery<AttachmentDownload>;
+/// <summary>UserId : membre authentifié par son jeton ou par le lien signé.</summary>
+public sealed record GetAttachmentQuery(Guid MessageId, Guid UserId) : IQuery<AttachmentDownload>;
+
+/// <summary>Lien signé de courte durée vers une pièce jointe (image, audio, PDF ouverts sans en-tête).</summary>
+public sealed record GetAttachmentLinkQuery(Guid MessageId) : IQuery<AttachmentLinkDto>;
+
+public sealed record AttachmentLinkDto(string Url, DateTimeOffset ExpiresAt);
+
+/// <summary>Signature des liens de pièces jointes (le jeton de session n'est jamais mis dans une URL).</summary>
+public interface IAttachmentLinks
+{
+    AttachmentLinkDto Create(Guid messageId, Guid userId);
+
+    /// <summary>Membre du lien, ou null si la signature est fausse ou expirée.</summary>
+    Guid? Verify(Guid messageId, Guid? userId, long? expires, string? signature);
+}
 
 public sealed record StartDirectConversationCommand(Guid OtherUserId) : ICommand<ConversationDto>;
 
@@ -149,7 +164,7 @@ public sealed record DeleteConversationCommand(Guid ConversationId) : ICommand<C
 
 public sealed class ConversationHandlers(
     IMessagingDb db, IIdentityModule identity, IMediaModule media, IFeedModule feed, IPresence presence, IEventBus bus, IChatNotifier live,
-    ICurrentUser me, TimeProvider clock, ISender sender) :
+    ICurrentUser me, TimeProvider clock, ISender sender, IAttachmentLinks links) :
     IRequestHandler<GetConversationsQuery, IReadOnlyList<ConversationSummaryDto>>,
     IRequestHandler<GetConversationQuery, ConversationSummaryDto>,
     IRequestHandler<GetMessagesQuery, IReadOnlyList<MessageDto>>,
@@ -163,6 +178,7 @@ public sealed class ConversationHandlers(
     IRequestHandler<DeleteMessageCommand, MessageDto>,
     IRequestHandler<SendAttachmentCommand, MessageDto>,
     IRequestHandler<GetAttachmentQuery, AttachmentDownload>,
+    IRequestHandler<GetAttachmentLinkQuery, AttachmentLinkDto>,
     IRequestHandler<DeleteConversationCommand, CountDto>
 {
     public async Task<IReadOnlyList<ConversationSummaryDto>> Handle(GetConversationsQuery request, CancellationToken ct)
@@ -244,9 +260,21 @@ public sealed class ConversationHandlers(
             throw new NotFoundException("Pièce jointe");
         }
 
-        await LoadMineAsync(message.ConversationId, ct); // participants uniquement (404 sinon)
+        await LoadForAsync(message.ConversationId, request.UserId, ct); // participants uniquement (404 sinon)
         var file = await media.OpenAttachmentAsync(attachment.Name, ct) ?? throw new NotFoundException("Pièce jointe");
         return new AttachmentDownload(file.Content, file.Length, file.ContentType, attachment.FileName);
+    }
+
+    public async Task<AttachmentLinkDto> Handle(GetAttachmentLinkQuery request, CancellationToken ct)
+    {
+        var message = await db.Messages.AsNoTracking().FirstOrDefaultAsync(m => m.Id == request.MessageId, ct);
+        if (message?.Attachment is null)
+        {
+            throw new NotFoundException("Pièce jointe");
+        }
+
+        await LoadMineAsync(message.ConversationId, ct);
+        return links.Create(message.Id, me.Id);
     }
 
     /// <summary>Temps réel pour les participants connectés, notification (et push) pour les destinataires.</summary>
@@ -349,6 +377,11 @@ public sealed class ConversationHandlers(
             return existing.ToDto();
         }
 
+        if (!await identity.AcceptsNewMessagesAsync(request.OtherUserId, ct))
+        {
+            throw new DomainException($"{other.FirstName} n'accepte pas de nouveaux messages.");
+        }
+
         var conversation = Conversation.CreateDirect(Guid.NewGuid(), me.Id, request.OtherUserId, clock.GetUtcNow());
         db.Conversations.Add(conversation);
         await db.SaveChangesAsync(ct);
@@ -386,18 +419,20 @@ public sealed class ConversationHandlers(
         }
     }
 
-    private async Task<Conversation> LoadMineAsync(Guid id, CancellationToken ct)
+    private Task<Conversation> LoadMineAsync(Guid id, CancellationToken ct) => LoadForAsync(id, me.Id, ct);
+
+    private async Task<Conversation> LoadForAsync(Guid id, Guid userId, CancellationToken ct)
     {
         var conversation = await db.Conversations.Include(c => c.Participants).FirstOrDefaultAsync(c => c.Id == id, ct)
                            ?? throw new NotFoundException("Conversation");
-        return conversation.Includes(me.Id) ? conversation : throw new NotFoundException("Conversation");
+        return conversation.Includes(userId) ? conversation : throw new NotFoundException("Conversation");
     }
 
     private async Task<List<ConversationSummaryDto>> BuildSummariesAsync(IReadOnlyList<Conversation> conversations, CancellationToken ct)
     {
         var ids = conversations.Select(c => c.Id).ToList();
         var otherIds = conversations.SelectMany(c => c.Participants).Select(p => p.UserId).Where(id => id != me.Id).Distinct().ToList();
-        var users = await identity.GetUsersAsync(otherIds, ct);
+        var users = await identity.GetUsersForViewerAsync(me.Id, otherIds, ct);
         var blocked = await identity.GetBlockedRelationsAsync(me.Id, ct);
 
         // Métadonnées seulement (sans le texte chiffré) ; le dernier message visible est chargé ensuite

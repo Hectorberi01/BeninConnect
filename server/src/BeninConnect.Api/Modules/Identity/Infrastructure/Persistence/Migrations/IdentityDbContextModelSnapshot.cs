@@ -30,6 +30,9 @@ namespace BeninConnect.Api.Modules.Identity.Infrastructure.Persistence.Migration
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AllowMessages")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("AvatarColor")
                         .IsRequired()
                         .HasMaxLength(9)
@@ -105,9 +108,15 @@ namespace BeninConnect.Api.Modules.Identity.Infrastructure.Persistence.Migration
                     b.Property<DateTimeOffset?>("PasswordResetExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("PrivateProfile")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Profession")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("ShowCity")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset?>("SuspendedAt")
                         .HasColumnType("timestamp with time zone");

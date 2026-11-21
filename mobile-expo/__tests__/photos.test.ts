@@ -146,27 +146,32 @@ describe('pièces jointes', () => {
     const conversation = (await source.getConversations())[0].conversation;
     const sent = await source.sendAttachment(conversation.id, { uri: 'file:///devis.pdf', name: 'devis.pdf', mimeType: 'application/pdf' });
     expect(sent.attachment).toMatchObject({ kind: 'File', fileName: 'devis.pdf' });
-    expect(source.attachmentUrl(sent)).toBe('file:///devis.pdf');
+    expect(await source.attachmentLink(sent)).toBe('file:///devis.pdf');
     expect(messagePreview(sent)).toBe('📄 devis.pdf');
     await expect(source.sendAttachment(conversation.id, { uri: 'file:///a.exe', name: 'a.exe', mimeType: 'application/x-msdownload' }))
       .rejects.toMatchObject({ status: 400 });
     const removed = await source.deleteMessage(conversation.id, sent.id);
-    expect([removed.attachment, source.attachmentUrl(removed), messagePreview(removed)]).toEqual([null, null, 'Message supprimé']);
+    expect([removed.attachment, await source.attachmentLink(removed), messagePreview(removed)]).toEqual([null, null, 'Message supprimé']);
   });
 
-  it('API : envoi multipart et URL de téléchargement avec jeton', async () => {
+  it('API : envoi multipart et lien signé sans jeton dans l\'URL', async () => {
     const calls: { url: string; init: RequestInit }[] = [];
     const upload = (async (url: string, init: RequestInit) => {
       calls.push({ url, init });
-      return { ok: true, status: 201, json: async () => ({ id: 'm1', attachment: { kind: 'Audio' } }) } as Response;
+      return url.endsWith('/attachment-link')
+        ? { ok: true, status: 200, json: async () => ({ url: 'api/messages/m1/attachment?u=1&exp=2&sig=abc' }) } as Response
+        : { ok: true, status: 201, json: async () => ({ id: 'm1', attachment: { kind: 'Audio' } }) } as Response;
     }) as unknown as typeof fetch;
     const api = new ApiDataSource('http://x', upload, 15_000, upload);
     api.setToken('jeton+/=');
     await api.sendAttachment('c1', { uri: 'file:///v.m4a', name: 'v.m4a', mimeType: 'audio/mp4', durationMs: 4200.6 });
     expect(calls[0].url).toBe('http://x/api/conversations/c1/attachments');
     expect(calls[0].init.body).toBeInstanceOf(FormData);
-    expect(api.attachmentUrl({ id: 'm1', attachment: { kind: 'Audio' } } as never)).toBe('http://x/api/messages/m1/attachment?access_token=jeton%2B%2F%3D');
-    expect(api.attachmentUrl({ id: 'm2' } as never)).toBeNull();
+    const link = await api.attachmentLink({ id: 'm1', attachment: { kind: 'Audio' } } as never);
+    expect(link).toBe('http://x/api/messages/m1/attachment?u=1&exp=2&sig=abc');
+    expect(link).not.toContain('jeton');
+    expect((calls[1].init.headers as Record<string, string>).Authorization).toBe('Bearer jeton+/=');
+    expect(await api.attachmentLink({ id: 'm2' } as never)).toBeNull();
   });
 });
 

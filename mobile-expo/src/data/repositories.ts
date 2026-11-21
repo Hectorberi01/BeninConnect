@@ -1,4 +1,4 @@
-import type { AppInstallationInfo, AppVersionStatus, HomeBanner,
+import type { PrivacySettings, AppInstallationInfo, AppVersionStatus, HomeBanner,
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, DocumentKind, EventFilter, JobFilter, JobFilters, JobOffer, JobOfferSummary, JobPage,
   MembershipStatus, Message, MyProvider, OfferingInput, ProviderCard, ProviderDetail, ProviderDocument, ProviderInput, ProviderPage, ReviewPage,
@@ -26,7 +26,10 @@ export interface DataSource {
   verifyEmail(email: string, code: string): Promise<AuthResult>;
   resendCode(email: string): Promise<void>;
   forgotPassword(email: string): Promise<void>;
+  /** Code reçu par email (6 chiffres) et nouveau mot de passe. */
+  resetPassword(email: string, code: string, newPassword: string): Promise<void>;
   /** Restaure la session à partir du jeton mémorisé (null si invalide). */
+  /** null : jeton refusé (expiré, compte supprimé) ; exception si le serveur est injoignable. */
   restore(token: string): Promise<User | null>;
   setToken(token: string | null): void;
 
@@ -41,6 +44,8 @@ export interface DataSource {
   blockUser(userId: string): Promise<void>;
   unblockUser(userId: string): Promise<void>;
   getBlockedUsers(): Promise<User[]>;
+  getPrivacy(): Promise<PrivacySettings>;
+  updatePrivacy(settings: PrivacySettings): Promise<PrivacySettings>;
 
   // Publications
   getFeed(skip: number, take: number): Promise<Paged<Post>>;
@@ -106,8 +111,8 @@ export interface DataSource {
   deleteConversation(conversationId: string): Promise<void>;
   /** Photo, PDF ou message vocal (20 Mo), avec une légende facultative. */
   sendAttachment(conversationId: string, file: OutgoingFile, caption?: string, replyToId?: string | null): Promise<Message>;
-  /** Adresse de la pièce jointe, utilisable par l'image, le lecteur audio ou le navigateur (accès vérifié par le serveur). */
-  attachmentUrl(message: Message): string | null;
+  /** Lien signé de la pièce jointe (10 min), pour l'image, le lecteur audio ou le navigateur ; le jeton n'est jamais dans l'URL. */
+  attachmentLink(message: Message): Promise<string | null>;
   markConversationRead(conversationId: string): Promise<number>;
   startConversation(otherUserId: string): Promise<Conversation>;
   /** Discussion avec le compte officiel (support), créée au besoin. */

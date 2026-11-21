@@ -14,13 +14,17 @@ import { toast } from '@/core/toast';
 import { data, setDataSource } from '@/data';
 import { displayName, initials } from '@/data/types';
 import { signOut } from '@/features/ProfileView';
-import { useOpenSupport } from '@/features/queries';
+import { useOpenSupport, usePrivacy, useUpdatePrivacy } from '@/features/queries';
+import type { PrivacySettings } from '@/data/types';
 
 export default function Settings() {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const me = useMe();
   const openSupport = useOpenSupport();
+  const privacy = usePrivacy();
+  const updatePrivacy = useUpdatePrivacy();
+  const setPrivacy = (change: Partial<PrivacySettings>) => privacy.data && updatePrivacy.mutate({ ...privacy.data, ...change });
   const prefs = usePreferences();
   const [source, setSource] = useState<DataSourceKind>(prefs.dataSource);
   const [apiUrl, setApiUrl] = useState(prefs.apiUrl);
@@ -72,11 +76,22 @@ export default function Settings() {
         </Group>
 
         <Group title="Confidentialité">
-          <SwitchRow icon="eye-off-outline" label="Profil privé" description="Seuls vos contacts voient votre profil complet"
-            value={prefs.privateProfile} onChange={(privateProfile) => prefs.set({ privateProfile })} />
-          <SwitchRow icon="map-marker-outline" label="Afficher ma ville" value={prefs.showCity} onChange={(showCity) => prefs.set({ showCity })} />
-          <SwitchRow icon="message-outline" label="Autoriser les messages" description="Les membres peuvent vous écrire"
-            value={prefs.allowMessages} onChange={(allowMessages) => prefs.set({ allowMessages })} />
+          {privacy.data ? (
+            <>
+              <SwitchRow icon="eye-off-outline" label="Profil privé"
+                description="Bio, profession, villes et centres d'intérêt visibles seulement par les membres de vos communautés et vos contacts de discussion"
+                value={privacy.data.privateProfile} onChange={(privateProfile) => setPrivacy({ privateProfile })} />
+              <SwitchRow icon="map-marker-outline" label="Afficher ma ville" description="Sinon, votre ville n'apparaît pas aux autres membres"
+                value={privacy.data.showCity} onChange={(showCity) => setPrivacy({ showCity })} />
+              <SwitchRow icon="message-outline" label="Autoriser les messages"
+                description="Désactivé : personne ne peut ouvrir de nouvelle discussion avec vous (les discussions en cours continuent)"
+                value={privacy.data.allowMessages} onChange={(allowMessages) => setPrivacy({ allowMessages })} />
+            </>
+          ) : (
+            <Muted style={{ paddingVertical: 12 }}>
+              {privacy.isError ? 'Réglages de confidentialité indisponibles hors connexion.' : 'Chargement des réglages…'}
+            </Muted>
+          )}
           <ListRow icon="account-cancel-outline" label="Utilisateurs bloqués" onPress={() => router.push('/account/blocked')} />
           <ListRow icon="shield-account-outline" label="Vos données" onPress={() => info('Vos données',
             data().kind === 'api'

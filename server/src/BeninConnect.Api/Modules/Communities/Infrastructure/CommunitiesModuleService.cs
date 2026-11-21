@@ -19,7 +19,7 @@ public sealed class CommunitiesModuleService(CommunitiesDbContext db, IEventBus 
     {
         var list = ids.Distinct().ToList();
         return await db.Communities.AsNoTracking().Where(c => list.Contains(c.Id))
-            .Select(c => new CommunityInfo(c.Id, c.Name, c.OwnerId)).ToDictionaryAsync(c => c.Id, ct);
+            .Select(c => new CommunityInfo(c.Id, c.Name, c.OwnerId, c.Visibility == CommunityVisibility.Private)).ToDictionaryAsync(c => c.Id, ct);
     }
 
     public async Task<IReadOnlyList<string>> GetCommunityNamesOfMemberAsync(Guid userId, CancellationToken ct) =>

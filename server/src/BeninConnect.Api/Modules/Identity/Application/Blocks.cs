@@ -13,7 +13,7 @@ public sealed record UnblockUserCommand(Guid UserId) : ICommand<bool>;
 /// <summary>Membres bloqués par le membre connecté, du plus récent au plus ancien.</summary>
 public sealed record GetBlockedUsersQuery : IQuery<IReadOnlyList<UserDto>>;
 
-public sealed class BlockHandlers(IIdentityDb db, ICurrentUser me, TimeProvider clock) :
+public sealed class BlockHandlers(IIdentityDb db, ICurrentUser me, TimeProvider clock, UserViews userViews) :
     IRequestHandler<BlockUserCommand, bool>,
     IRequestHandler<UnblockUserCommand, bool>,
     IRequestHandler<GetBlockedUsersQuery, IReadOnlyList<UserDto>>
@@ -50,6 +50,7 @@ public sealed class BlockHandlers(IIdentityDb db, ICurrentUser me, TimeProvider 
         var blocked = await db.Blocks.AsNoTracking().Where(b => b.BlockerId == me.Id)
             .OrderByDescending(b => b.CreatedAt).Select(b => b.BlockedId).ToListAsync(ct);
         var users = await db.Users.AsNoTracking().Where(u => blocked.Contains(u.Id)).ToDictionaryAsync(u => u.Id, ct);
-        return blocked.Where(users.ContainsKey).Select(id => users[id].ToDto()).ToList();
+        var views = (await userViews.ForAsync(me.Id, users.Values.ToList(), ct)).ToDictionary(u => u.Id);
+        return blocked.Where(views.ContainsKey).Select(id => views[id]).ToList();
     }
 }

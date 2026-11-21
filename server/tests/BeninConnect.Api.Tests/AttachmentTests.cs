@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -72,10 +73,19 @@ public sealed class AttachmentTests(ApiFactory factory)
         Assert.Equal("application/pdf", download.Content.Headers.ContentType?.MediaType);
         Assert.Equal(Pdf, await download.Content.ReadAsByteArrayAsync());
 
-        // Jeton dans l'URL (image, lecteur audio, PDF ouverts par le téléphone)
-        Assert.Equal(HttpStatusCode.OK, (await factory.CreateClient().GetAsync($"{url}?access_token={bobToken}")).StatusCode);
+        // Le jeton de session n'est plus accepté dans l'URL : lien signé de 10 min, pour ce message et ce membre
+        Assert.Equal(HttpStatusCode.Unauthorized, (await factory.CreateClient().GetAsync($"{url}?access_token={bobToken}")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await factory.CreateClient().GetAsync(url)).StatusCode);
+        var link = await (await bob.GetAsync($"{url}-link")).EnsureSuccessStatusCode().Content.ReadFromJsonAsync<JsonElement>();
+        var signed = link.GetProperty("url").GetString()!;
+        Assert.DoesNotContain(bobToken, signed);
+        Assert.InRange(link.GetProperty("expiresAt").GetDateTimeOffset(), DateTimeOffset.UtcNow.AddMinutes(9), DateTimeOffset.UtcNow.AddMinutes(11));
+        Assert.Equal(Pdf, await (await factory.CreateClient().GetAsync(signed)).EnsureSuccessStatusCode().Content.ReadAsByteArrayAsync());
+        Assert.Equal(HttpStatusCode.Unauthorized, (await factory.CreateClient().GetAsync(signed[..^2] + "xx")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await factory.CreateClient().GetAsync(signed.Replace($"/{message.Id}/", $"/{Guid.NewGuid()}/"))).StatusCode); // autre message
         Assert.Equal(HttpStatusCode.NotFound, (await carol.GetAsync(url)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await carol.GetAsync($"{url}-link")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await carol.PostAsync($"api/conversations/{conversation}/attachments",
             new MultipartFormDataContent { { new ByteArrayContent(Pdf), "file", "x.pdf" } })).StatusCode);
 

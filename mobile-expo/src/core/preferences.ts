@@ -12,9 +12,6 @@ export interface Preferences {
   rememberMe: boolean;
   dataSource: DataSourceKind;
   apiUrl: string;
-  privateProfile: boolean;
-  showCity: boolean;
-  allowMessages: boolean;
   notifySocial: boolean;
   notifyCommunities: boolean;
   notifyMessages: boolean;
@@ -33,9 +30,6 @@ const defaults: Omit<Preferences, 'loaded'> = {
   rememberMe: true,
   dataSource: 'api',
   apiUrl: DEFAULT_API_URL,
-  privateProfile: false,
-  showCity: true,
-  allowMessages: true,
   notifySocial: true,
   notifyCommunities: true,
   notifyMessages: true,

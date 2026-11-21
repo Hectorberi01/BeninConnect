@@ -120,3 +120,14 @@ describe('MockDataSource', () => {
     random.mockRestore();
   });
 });
+
+describe('mot de passe oublié', () => {
+  it('démo : le code reçu permet de choisir un nouveau mot de passe puis de se connecter', async () => {
+    const source = new MockDataSource({ latencyMs: 0, simulateErrors: () => false });
+    await source.forgotPassword(DEMO_EMAIL);
+    await expect(source.resetPassword(DEMO_EMAIL, '000000', 'Nouveau123')).rejects.toMatchObject({ status: 400 });
+    await expect(source.resetPassword(DEMO_EMAIL, source.demoVerificationCode, 'court')).rejects.toBeTruthy();
+    await source.resetPassword(DEMO_EMAIL, source.demoVerificationCode, 'Nouveau123');
+    expect((await source.login(DEMO_EMAIL, 'Nouveau123')).user.email).toBe(DEMO_EMAIL);
+  });
+});

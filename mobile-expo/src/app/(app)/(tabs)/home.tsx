@@ -4,7 +4,7 @@ import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, Vi
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EventTile, PostCard, usePostContext } from '@/components/cards';
 import {
-  HomeCommunityCard, HomeHeader, HomeHero, MyCommunities, PostSkeleton, QuickActions, SkeletonRow, VoyagesPromo,
+  HomeCommunityCard, HomeHeader, HomeHero, MyCommunities, PostSkeleton, ExploreChips, SkeletonRow, VoyagesPromo,
 } from '@/components/home';
 import { EmptyState, ErrorState, Icon, Muted, Screen, SectionTitle } from '@/components/ui';
 import { useTabBarSpace } from '@/components/glass';
@@ -56,7 +56,7 @@ export default function Home() {
     <View>
       <HomeHeader unread={unread} top={insets.top} />
       <HomeHero compact={compactHero} voyages={voyages} banners={banners.data} />
-      <QuickActions />
+      <ExploreChips voyages={voyages} />
       {voyages && <VoyagesPromo />}
 
       {/*mine.length > 0 && (

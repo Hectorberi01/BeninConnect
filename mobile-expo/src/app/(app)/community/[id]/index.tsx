@@ -18,6 +18,7 @@ import { errorMessage } from '@/data/types';
 import { reportContent } from '@/features/report';
 import { roleLabel } from '@/features/rules';
 import { usePullRefresh } from '@/core/refresh';
+import { shareCommunity } from '@/features/share';
 
 type Section = 'posts' | 'members' | 'events';
 
@@ -70,11 +71,16 @@ function Details({ community }: { community: Community }) {
         <View style={[styles.back, { top: insets.top + 4 }]}>
           <IconButton name="arrow-left" label="Retour" color="#FFFFFF" onPress={() => router.back()} />
         </View>
-        {status !== 'Owner' && (
-          <View style={[styles.back, { top: insets.top + 4, left: undefined, right: 8 }]}>
-            <IconButton name="flag-outline" label="Signaler la communauté" color="#FFFFFF" onPress={() => reportContent('Community', community.id)} />
+        <View style={[styles.actions, { top: insets.top + 4 }]}>
+          <View style={styles.round}>
+            <IconButton name="share-variant-outline" label="Partager la communauté" color="#FFFFFF" onPress={() => shareCommunity(community)} />
           </View>
-        )}
+          {status !== 'Owner' && (
+            <View style={styles.round}>
+              <IconButton name="flag-outline" label="Signaler la communauté" color="#FFFFFF" onPress={() => reportContent('Community', community.id)} />
+            </View>
+          )}
+        </View>
         {canManage && (
           <Pressable accessibilityRole="button" accessibilityLabel="Changer la photo de couverture" onPress={editCover} disabled={uploading}
             style={({ pressed }) => [styles.coverButton, pressed && { opacity: 0.7 }]}>
@@ -157,6 +163,8 @@ function Details({ community }: { community: Community }) {
 const styles = StyleSheet.create({
   coverButton: { position: 'absolute', right: 12, bottom: 12, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.5)' },
   back: { position: 'absolute', left: 8, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)' },
+  actions: { position: 'absolute', right: 8, flexDirection: 'row', gap: 8 },
+  round: { borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)' },
   body: { padding: 16, paddingBottom: 20 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, flexWrap: 'wrap' },
   action: { marginHorizontal: 16, marginBottom: 12 },

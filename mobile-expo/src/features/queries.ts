@@ -6,7 +6,7 @@ import * as fmt from '@/core/format';
 import { toast } from '@/core/toast';
 import { data } from '@/data';
 import type {
-  AppNotification, Comment, ConversationSummary, Message,
+  AppNotification, Comment, PrivacySettings, ConversationSummary, Message,
   Community, CommunityEvent, CreateCommunityRequest, CreateEventRequest, CreatePostRequest, EventFilter, NotificationCategory,
   OutgoingFile, Paged, Post, PostFilter, UpdatePostRequest, UpdateProfileRequest, JobFilter, JobOffer, JobPage,
   DocumentKind, OfferingInput, ProviderDetail, ProviderInput, ProviderPage, ServiceReportTarget, ServiceRequestItem, ServiceSearch,
@@ -271,6 +271,29 @@ export function useMembership() {
     leave: (c: Community) => run(() => data().leaveCommunity(c.id), () => `Vous avez quitté « ${c.name} ».`),
     cancel: (c: Community) => run(() => data().cancelJoinRequest(c.id), () => "Demande d'adhésion annulée."),
   };
+}
+
+// --- Confidentialité (enregistrée et appliquée par le serveur) ------------------------------
+
+export const usePrivacy = () => useQuery({ queryKey: ['privacy'], queryFn: () => data().getPrivacy() });
+
+export function useUpdatePrivacy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (p: PrivacySettings) => data().updatePrivacy(p),
+    // Affichage immédiat, annulé si le serveur refuse
+    onMutate: async (p) => {
+      await qc.cancelQueries({ queryKey: ['privacy'] });
+      const previous = qc.getQueryData<PrivacySettings>(['privacy']);
+      qc.setQueryData(['privacy'], p);
+      return { previous };
+    },
+    onError: (e, _, context) => {
+      if (context?.previous) qc.setQueryData(['privacy'], context.previous);
+      onError(e);
+    },
+    onSuccess: (p) => qc.setQueryData(['privacy'], p),
+  });
 }
 
 export function useChangeCommunityCover() {

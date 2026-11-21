@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 import { activeReviewApi, data, type ReviewApi, setReviewApi } from '@/data';
@@ -5,6 +6,24 @@ import type { AuthResult, User } from '@/data/types';
 
 const TOKEN_KEY = 'beninconnect.token';
 const REVIEW_KEY = 'beninconnect.reviewApi';
+// Dernier profil connu : ouverture de l'app hors ligne
+const USER_KEY = 'beninconnect.lastUser';
+
+async function readCachedUser(): Promise<User | null> {
+  try {
+    const raw = await AsyncStorage.getItem(USER_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+let remembered = false;
+
+function cacheUser(user: User | null) {
+  if (user && !remembered) return;
+  (user ? AsyncStorage.setItem(USER_KEY, JSON.stringify(user)) : AsyncStorage.removeItem(USER_KEY)).catch(() => undefined);
+}
 
 // Actions à faire tant que le jeton est encore valide (ex. désinscription du téléphone aux notifications push).
 const signOutHooks: (() => Promise<void>)[] = [];
@@ -64,29 +83,52 @@ export const useSession = create<SessionStore>((set) => ({
     data().setToken(result.token);
     await writeToken(remember ? result.token : null);
     await writeReview(remember ? activeReviewApi() : null);
+    remembered = remember;
+    cacheUser(remember ? result.user : null);
     set({ user: result.user });
   },
-  update: (user) => set((s) => (s.user?.id === user.id ? { user } : s)),
+  update: (user) => set((s) => {
+    if (s.user?.id !== user.id) return s;
+    cacheUser(user);
+    return { user };
+  }),
   signOut: async () => {
     await Promise.all(signOutHooks.map((h) => h().catch(() => undefined)));
     data().setToken(null);
     setReviewApi(null);
     await writeToken(null);
     await writeReview(null);
+    cacheUser(null);
+    remembered = false;
     set({ user: null });
   },
   restore: async () => {
     const token = await readToken();
     if (!token) return null;
     setReviewApi(await readReview());
-    const user = await data().restore(token).catch(() => null);
+    remembered = true;
+    let user: User | null;
+    try {
+      user = await data().restore(token);
+    } catch {
+      // Hors ligne ou serveur indisponible : session gardée avec le dernier profil connu
+      user = await readCachedUser();
+      if (user) {
+        data().setToken(token);
+        set({ user });
+      }
+      return user;
+    }
     if (!user) {
+      // Jeton refusé (expiré, compte supprimé) : seule raison d'effacer la session
       setReviewApi(null);
       await writeToken(null);
       await writeReview(null);
+      cacheUser(null);
       return null;
     }
     data().setToken(token);
+    cacheUser(user);
     set({ user });
     return user;
   },

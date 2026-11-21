@@ -1,8 +1,9 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as fmt from '@/core/format';
 import { toast } from '@/core/toast';
@@ -14,26 +15,35 @@ import { Icon, IconButton } from './ui';
 /** Pièce jointe d'un message : photo, message vocal ou document. */
 export function AttachmentView({ message, mine }: { message: Message; mine: boolean }) {
   const attachment = message.attachment;
-  const url = data().attachmentUrl(message);
-  if (!attachment || !url) return null;
-  switch (attachment.kind) {
-    case 'Image': return <PhotoAttachment url={url} />;
-    case 'Audio': return <VoiceAttachment url={url} durationMs={attachment.durationMs ?? 0} mine={mine} />;
-    default: return <FileAttachment url={url} name={attachment.fileName} size={attachment.size} mine={mine} />;
+  // Lien signé valable 10 min : renouvelé avant expiration
+  const link = useQuery({
+    queryKey: ['attachment-link', message.id],
+    queryFn: () => data().attachmentLink(message),
+    enabled: !!attachment && attachment.kind !== 'File',
+    staleTime: 8 * 60_000,
+    gcTime: 9 * 60_000,
+  });
+  if (!attachment) return null;
+  if (attachment.kind === 'File') return <FileAttachment message={message} name={attachment.fileName} size={attachment.size} mine={mine} />;
+  if (!link.data) {
+    return <View style={[styles.pending, attachment.kind === 'Image' && styles.photo]}><ActivityIndicator color={mine ? '#FFFFFF' : undefined} /></View>;
   }
+  return attachment.kind === 'Image'
+    ? <PhotoAttachment url={link.data} cacheKey={message.id} />
+    : <VoiceAttachment url={link.data} durationMs={attachment.durationMs ?? 0} mine={mine} />;
 }
 
-function PhotoAttachment({ url }: { url: string }) {
+function PhotoAttachment({ url, cacheKey }: { url: string; cacheKey: string }) {
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   return (
     <>
       <Pressable accessibilityRole="imagebutton" accessibilityLabel="Photo, toucher pour agrandir" onPress={() => setOpen(true)}>
-        <Image source={{ uri: url }} style={styles.photo} contentFit="cover" transition={150} />
+        <Image source={{ uri: url, cacheKey }} style={styles.photo} contentFit="cover" transition={150} />
       </Pressable>
       <Modal visible={open} animationType="fade" onRequestClose={() => setOpen(false)} statusBarTranslucent>
         <View style={styles.viewer}>
-          <Image source={{ uri: url }} style={StyleSheet.absoluteFill} contentFit="contain" />
+          <Image source={{ uri: url, cacheKey }} style={StyleSheet.absoluteFill} contentFit="contain" />
           <View style={[styles.viewerClose, { top: insets.top + 8 }]}>
             <IconButton name="close" label="Fermer" color="#FFFFFF" onPress={() => setOpen(false)} />
           </View>
@@ -77,9 +87,17 @@ function VoiceAttachment({ url, durationMs, mine }: { url: string; durationMs: n
   );
 }
 
-function FileAttachment({ url, name, size, mine }: { url: string; name: string; size: number; mine: boolean }) {
+function FileAttachment({ message, name, size, mine }: { message: Message; name: string; size: number; mine: boolean }) {
   const c = useColors();
-  const open = () => WebBrowser.openBrowserAsync(url).catch(() => toast("Impossible d'ouvrir le document.", 'error'));
+  // Lien demandé au moment d'ouvrir : toujours valide
+  const open = async () => {
+    try {
+      const url = await data().attachmentLink(message);
+      if (url) await WebBrowser.openBrowserAsync(url);
+    } catch {
+      toast("Impossible d'ouvrir le document.", 'error');
+    }
+  };
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`Ouvrir ${name}`} onPress={open}
       style={({ pressed }) => [styles.file, { backgroundColor: mine ? 'rgba(255,255,255,0.16)' : c.surfaceVariant }, pressed && { opacity: 0.7 }]}>
@@ -96,6 +114,7 @@ const styles = StyleSheet.create({
   photo: { width: 230, height: 230, borderRadius: radius.control, marginBottom: 4 },
   viewer: { flex: 1, backgroundColor: '#000' },
   viewerClose: { position: 'absolute', right: 12, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)' },
+  pending: { width: 220, height: 44, alignItems: 'center', justifyContent: 'center' },
   voice: { flexDirection: 'row', alignItems: 'center', gap: 10, width: 220, paddingVertical: 2 },
   play: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   track: { height: 4, borderRadius: 2, overflow: 'hidden' },

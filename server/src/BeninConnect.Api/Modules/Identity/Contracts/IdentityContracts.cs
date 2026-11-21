@@ -38,6 +38,12 @@ public interface IIdentityModule
     /// <summary>Compte officiel (publications éditoriales) : créé s'il n'existe pas, renvoie son identifiant.</summary>
     Task<Guid> EnsureOfficialAccountAsync(string name, string email, string bio, CancellationToken ct);
 
+    /// <summary>Membres vus par « viewerId » (null : visiteur anonyme) : email masqué, confidentialité appliquée.</summary>
+    Task<IReadOnlyDictionary<Guid, UserDto>> GetUsersForViewerAsync(Guid? viewerId, IEnumerable<Guid> ids, CancellationToken ct);
+
+    /// <summary>Réglage « Autoriser les messages » : false, aucune nouvelle discussion.</summary>
+    Task<bool> AcceptsNewMessagesAsync(Guid userId, CancellationToken ct);
+
     /// <summary>Compte officiel existant (le plus ancien), sinon créé avec les valeurs par défaut. Sert aussi au support.</summary>
     Task<Guid> GetOfficialAccountAsync(CancellationToken ct);
 
@@ -58,4 +64,15 @@ public sealed record MemberDeleted(Guid UserId) : IIntegrationEvent;
 public static class IdentityTasks
 {
     public const string AccountsCleanup = "identity.accounts-cleanup";
+}
+
+public sealed record PrivacySettingsDto(bool PrivateProfile, bool ShowCity, bool AllowMessages);
+
+/// <summary>
+/// Contacts d'un membre pour le profil privé, fournis par les modules qui les connaissent
+/// (communautés en commun, discussions). Renvoie ceux de « userIds » qui sont des contacts de « viewerId ».
+/// </summary>
+public interface IContactDirectory
+{
+    Task<IReadOnlySet<Guid>> ContactsAmongAsync(Guid viewerId, IReadOnlyCollection<Guid> userIds, CancellationToken ct);
 }

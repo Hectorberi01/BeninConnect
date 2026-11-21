@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace BeninConnect.Modules.Identity.Infrastructure;
 
 /// <summary>Implémentation du contrat public (appel direct en monolithe, client HTTP/gRPC après découpage).</summary>
-public sealed class IdentityModuleService(IdentityDbContext db, TimeProvider clock, IPasswordHasher hasher, IEmailSender email)
+public sealed class IdentityModuleService(IdentityDbContext db, TimeProvider clock, IPasswordHasher hasher, IEmailSender email, UserViews views)
     : IIdentityModule, IModuleStatistics
 {
     public async Task<bool> SendEmailAsync(Guid userId, string subject, string textBody, CancellationToken ct)
@@ -98,6 +98,16 @@ public sealed class IdentityModuleService(IdentityDbContext db, TimeProvider clo
         await db.SaveChangesAsync(ct);
         return user.Id;
     }
+
+    public async Task<IReadOnlyDictionary<Guid, UserDto>> GetUsersForViewerAsync(Guid? viewerId, IEnumerable<Guid> ids, CancellationToken ct)
+    {
+        var list = ids.Distinct().ToList();
+        var users = await db.Users.AsNoTracking().Where(u => list.Contains(u.Id)).ToListAsync(ct);
+        return (await views.ForAsync(viewerId, users, ct)).ToDictionary(u => u.Id);
+    }
+
+    public Task<bool> AcceptsNewMessagesAsync(Guid userId, CancellationToken ct) =>
+        db.Users.AsNoTracking().Where(u => u.Id == userId).Select(u => u.AllowMessages).FirstOrDefaultAsync(ct);
 
     public async Task<IReadOnlyList<Guid>> GetActiveMemberIdsAsync(Guid? after, int take, CancellationToken ct) =>
         await db.Users.AsNoTracking().Where(u => u.IsEmailVerified && !u.IsSuspended && !u.IsOfficial && (after == null || u.Id.CompareTo(after.Value) > 0))

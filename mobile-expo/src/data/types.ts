@@ -310,6 +310,15 @@ export function membershipStatus(c: Community, userId: string, pending: string[]
 export const isEventFull = (e: CommunityEvent) => e.capacity != null && e.participantIds.length >= e.capacity;
 
 /** Erreur métier au message lisible (affiché tel quel à l'utilisateur). */
+/** Confidentialité, appliquée par le serveur. */
+export interface PrivacySettings {
+  /** Bio, profession, villes et centres d'intérêt visibles par les contacts seulement (communauté ou discussion en commun). */
+  privateProfile: boolean;
+  showCity: boolean;
+  /** false : personne ne peut ouvrir une nouvelle discussion. */
+  allowMessages: boolean;
+}
+
 export class AppError extends Error {
   constructor(message: string, readonly status?: number) {
     super(message);

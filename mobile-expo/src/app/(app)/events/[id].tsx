@@ -8,6 +8,7 @@ import { useColors } from '@/core/theme';
 import type { CommunityEvent } from '@/data/types';
 import { displayName, initials, location } from '@/data/types';
 import { useCommunity, useEvent, useUser } from '@/features/queries';
+import { shareEvent } from '@/features/share';
 
 export default function EventDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -38,6 +39,9 @@ function Details({ event }: { event: CommunityEvent }) {
         <Cover path={event.imagePath} height={220 + insets.top}>
           <View style={[styles.back, { top: insets.top + 4 }]}>
             <IconButton name="arrow-left" label="Retour" color="#FFFFFF" onPress={() => router.back()} />
+          </View>
+          <View style={[styles.back, { top: insets.top + 4, left: undefined, right: 8 }]}>
+            <IconButton name="share-variant-outline" label="Partager l'événement" color="#FFFFFF" onPress={() => shareEvent(event)} />
           </View>
         </Cover>
         <View style={{ padding: 16, gap: 4 }}>

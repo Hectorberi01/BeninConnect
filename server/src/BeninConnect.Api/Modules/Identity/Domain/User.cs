@@ -35,6 +35,15 @@ public sealed class User
     /// <summary>Compte officiel BéninConnect (publications éditoriales) : badge vérifié, aucune connexion possible.</summary>
     public bool IsOfficial { get; private set; }
     public string? SuspensionReason { get; private set; }
+
+    /// <summary>Profil privé : bio, profession, villes et centres d'intérêt visibles par les contacts seulement.</summary>
+    public bool PrivateProfile { get; private set; }
+
+    /// <summary>false : ville masquée aux autres membres.</summary>
+    public bool ShowCity { get; private set; } = true;
+
+    /// <summary>false : personne ne peut ouvrir de nouvelle discussion avec ce membre.</summary>
+    public bool AllowMessages { get; private set; } = true;
     public DateTimeOffset? SuspendedAt { get; private set; }
 
     public string DisplayName => $"{FirstName} {LastName}".Trim();
@@ -202,6 +211,13 @@ public sealed class User
         IsSuspended = false;
         SuspensionReason = null;
         SuspendedAt = null;
+    }
+
+    public void UpdatePrivacy(bool privateProfile, bool showCity, bool allowMessages)
+    {
+        PrivateProfile = privateProfile;
+        ShowCity = showCity;
+        AllowMessages = allowMessages;
     }
 
     /// <summary>null : inchangé ; chaîne vide : retirée.</summary>

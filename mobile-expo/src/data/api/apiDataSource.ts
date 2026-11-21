@@ -1,6 +1,7 @@
 import { DEV_TOOLS, PRODUCTION_API_URL } from '@/core/config';
 import type { DataSource } from '../repositories';
 import type {
+  PrivacySettings,
   AppInstallationInfo, AppVersionStatus, HomeBanner,
   AppNotification, AuthResult, Comment, Community, CommunityEvent, CommunityMember, Conversation, ConversationSummary,
   CreateCommunityRequest, CreateEventRequest, CreatePostRequest, DocumentKind, EventFilter, JobFilter, JobFilters, JobOffer, JobOfferSummary, JobPage,
@@ -13,6 +14,7 @@ import type {
 import { Platform } from 'react-native';
 import { AppError, ReviewRedirectError } from '../types';
 import { xhrFetch } from './xhrFetch';
+import { notifySessionExpired } from '../sessionEvents';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
@@ -102,7 +104,10 @@ export class ApiDataSource implements DataSource {
       throw new ReviewRedirectError(redirect.replace(/\/+$/, ''), detail ?? 'Compte de démonstration.');
     }
 
-    if (response.status === 401) throw new AppError('Votre session a expiré. Reconnectez-vous.', 401);
+    if (response.status === 401) {
+      if (this.token) notifySessionExpired();
+      throw new AppError('Votre session a expiré. Reconnectez-vous.', 401);
+    }
     if (response.status >= 500) throw new AppError('Le serveur a rencontré une erreur. Réessayez.', response.status);
     throw new AppError(detail ?? 'La requête a été refusée.', response.status);
   }
@@ -120,16 +125,23 @@ export class ApiDataSource implements DataSource {
   verifyEmail = (email: string, code: string) => this.post<AuthResult>('api/auth/verify-email', { email, code });
   resendCode = (email: string) => this.post<void>('api/auth/resend-code', { email });
   forgotPassword = (email: string) => this.post<void>('api/auth/forgot-password', { email });
+  resetPassword = (email: string, code: string, newPassword: string) =>
+    this.post<void>('api/auth/reset-password', { email, code, newPassword });
 
   async restore(token: string) {
     this.token = token;
     try {
       return await this.get<User>('api/auth/me');
-    } catch {
+    } catch (e) {
       this.token = null;
-      return null;
+      // Jeton refusé seulement sur 401 / 403 ; hors ligne ou serveur en panne : on garde la session
+      if (e instanceof AppError && (e.status === 401 || e.status === 403)) return null;
+      throw e;
     }
   }
+
+  getPrivacy = () => this.get<PrivacySettings>('api/users/me/privacy');
+  updatePrivacy = (p: PrivacySettings) => this.request<PrivacySettings>('PUT', 'api/users/me/privacy', p);
 
   // Membres
   getUser = (id: string) => this.get<User>(`api/users/${id}`);
@@ -242,10 +254,10 @@ export class ApiDataSource implements DataSource {
     return this.request<Message>('POST', `api/conversations/${id}/attachments`, form, 120_000);
   }
 
-  /** Le jeton est dans l'URL : l'image, le lecteur audio et le navigateur ne peuvent pas envoyer d'en-tête. */
-  attachmentUrl(message: Message) {
-    if (!message.attachment || !this.token) return null;
-    return `${this.apiUrl}/api/messages/${message.id}/attachment?access_token=${encodeURIComponent(this.token)}`;
+  async attachmentLink(message: Message) {
+    if (!message.attachment) return null;
+    const link = await this.get<{ url: string }>(`api/messages/${message.id}/attachment-link`);
+    return `${this.apiUrl}/${link.url}`;
   }
 
   simulateReply = (id: string, content: string) => this.post<Message>(`api/conversations/${id}/demo-reply`, { content });

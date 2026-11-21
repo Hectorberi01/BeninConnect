@@ -16,7 +16,6 @@ const HERO = require('../../assets/images/Home/hero.jpg');
 const VOYAGES = require('../../assets/images/Home/voyages.jpg');
 const BRAND = ['#12945F', '#087F5B', '#05553F'] as const;
 const YELLOW = '#FCD116';
-const alpha = (hex: string, a: number) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
 
 // --- Chargement ------------------------------------------------------------------------------
 
@@ -294,29 +293,26 @@ export function HomeHero({ compact, voyages, banners }: { compact: boolean; voya
 // --- Actions rapides -------------------------------------------------------------------------
 
 /** Deux raccourcis : offres d'emploi (mis en avant) et services entre membres. */
-export function QuickActions() {
+/** Raccourcis sous la bannière, dans cet ordre : Services, Voyages (si activés), Emplois, Événements. */
+export function ExploreChips({ voyages }: { voyages: boolean }) {
   const c = useColors();
   const items: { icon: IconName; label: string; href: Href }[] = [
-    { icon: 'briefcase-outline', label: "Voir les offres d'emploi", href: '/jobs' },
-    { icon: 'hand-heart-outline', label: 'Voir les services', href: '/services' },
+    { icon: 'hand-heart-outline', label: 'Services', href: '/services' },
+    ...(voyages ? [{ icon: 'airplane' as IconName, label: 'Voyages', href: '/voyages' as Href }] : []),
+    { icon: 'briefcase-outline', label: 'Emplois', href: '/jobs' },
+    { icon: 'calendar-star', label: 'Événements', href: '/events' },
   ];
   return (
-    <View style={styles.quick}>
-      {items.map((a, i) => {
-        const primary = i === 0;
-        const color = primary ? '#FFFFFF' : c.primary;
-        return (
-          <Pressable key={a.label} accessibilityRole="button" accessibilityLabel={a.label} onPress={() => router.push(a.href)}
-            style={({ pressed }) => [styles.quickItem, styles.flat,
-              { backgroundColor: primary ? c.primary : c.primaryLight, borderColor: primary ? c.primary : alpha(c.primary, 0.18) },
-              pressed && { opacity: 0.85 }]}>
-            <Icon name={a.icon} size={26} color={color} />
-            <Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.quickText, { color: primary ? '#FFFFFF' : c.text }]}>{a.label}</Text>
-            <Icon name="arrow-right" size={18} color={color} />
-          </Pressable>
-        );
-      })}
-    </View>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.explore}>
+      {items.map((a) => (
+        <Pressable key={a.label} accessibilityRole="button" accessibilityLabel={`Voir les ${a.label.toLowerCase()} disponibles`}
+          onPress={() => router.push(a.href)}
+          style={({ pressed }) => [styles.explorePill, { backgroundColor: c.surface, borderColor: c.border }, pressed && { backgroundColor: c.primaryLight }]}>
+          <Icon name={a.icon} size={17} color={c.primary} />
+          <Text style={[styles.exploreText, { color: c.text }]}>{a.label}</Text>
+        </Pressable>
+      ))}
+    </ScrollView>
   );
 }
 
@@ -383,6 +379,9 @@ export function VoyagesPromo() {
 }
 
 const styles = StyleSheet.create({
+  explore: { gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  explorePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, height: 40, borderRadius: 20, borderWidth: 1 },
+  exploreText: { fontFamily: font.semibold, fontSize: 15 },
   hList: { paddingHorizontal: 16, gap: 12 },
   flat: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -407,9 +406,6 @@ const styles = StyleSheet.create({
   clusterItem: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
   pageDot: { height: 7, borderRadius: 4 },
-  quick: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginTop: 14 },
-  quickItem: { flex: 1, height: 80, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 },
-  quickText: { flex: 1, fontFamily: font.semibold, fontSize: 14, lineHeight: 18 },
   community: { width: 250, overflow: 'hidden' },
   mine: { width: 190, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 },
   // Visuel 1500 × 470 : taille fixée dans VoyagesPromo, coins arrondis comme sur l'image
